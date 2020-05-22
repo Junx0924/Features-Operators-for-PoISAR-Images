@@ -1,0 +1,10 @@
+PROJECT(features)
+
+FIND_PACKAGE( OpenCV REQUIRED )
+
+add_library(ELBP
+elbp.cpp
+elbp.hpp
+)
+# libs to link with
+target_link_libraries(ELBP   ${OpenCV_LIBS} )

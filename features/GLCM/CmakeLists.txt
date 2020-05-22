@@ -1,0 +1,7 @@
+PROJECT(features)
+add_library(GLCM
+glcm.cpp
+glcm.hpp
+)
+# libs to link with
+target_link_libraries(GLCM   ${OpenCV_LIBS} )
