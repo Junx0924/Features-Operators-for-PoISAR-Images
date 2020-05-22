@@ -4,14 +4,15 @@
 #include "GLCM/glcm.hpp"
 #include "ELBP/elbp.cpp"
 
-
 using namespace std;
+
+
 
 int main() {
 
-    
-   Mat src = cv::imread("D\:\\4th semester\\HTCV\\project_code\\data\\PauliRGB.bmp", 1);
-   Mat labeled = cv::imread("D\:\\4th semester\\HTCV\\project_code\\data\\SF-GF3-label3d.png", 1); // ground truth
+   // cout << getexepath() << endl;
+   Mat src = cv::imread("D:\\4th semester\\HTCV\\project_code\\data\\PauliRGB.bmp", 1);
+   Mat labeled = cv::imread("D:\\4th semester\\HTCV\\project_code\\data\\SF-GF3-label3d.png", 1); // ground truth
   
    Mat mask = Mat(src.rows, src.cols, CV_8UC1, Scalar(0));
    // get the mountain area 
@@ -58,22 +59,20 @@ int main() {
     // to get spatial histogram vector of lbp
        int grid_x = 4;
        int grid_y = 4;
-       int numPatterns = 32; // // number of possible patterns,32 bins
+       int numPatterns = 32; // // number of possible patterns,16 bins
 
        //Mat tmp;
        //threshold(mask, tmp, 0, 255, THRESH_BINARY);
 
     // p is the elbp vector of channel 1, row 1, col grid_x*grid_y*numPatterns
-       Mat p = elbp::computLBPvector(
-        src, //image 
-        radius,
-        neighbors,
-        numPatterns,
-        grid_x, 
-        grid_y, 
-        true);
-   
-
+       Mat lbp = elbp::elbp(src, radius, neighbors, true);
+       Mat p = elbp::spatial_histogram(
+           lbp, //lbp_image 
+           numPatterns, // number of possible patterns 
+           grid_x, //grid size x 
+           grid_y, // grid size y 
+           false);
+       cout << p.size() << endl;
 
     //--------------------------GLCM---------------------------
  /*

@@ -15,9 +15,9 @@ add_executable(features
 add_subdirectory(MPEG-7)
 add_subdirectory(ELBP)
 add_subdirectory(GLCM)
-
+#add_subdirectory(PolSAR)
 
 
 
 # libs to link with
-target_link_libraries(features  ${OpenCV_LIBS} MPEG-7 ELBP GLCM)
+target_link_libraries(features  ${OpenCV_LIBS} MPEG-7 ELBP GLCM  )

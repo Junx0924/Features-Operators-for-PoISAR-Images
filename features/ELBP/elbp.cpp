@@ -60,14 +60,20 @@ Mat elbp::elbp(const Mat& src, int radius, int neighbors, bool normed) {
     Mat dst;
     if (src.channels() > 1)
     {
-        cv::cvtColor(src, dst, cv::COLOR_BGR2GRAY);
+        Mat tmp;
+        cv::cvtColor(src, tmp, cv::COLOR_BGR2GRAY);
+        elbp::elbp(tmp, dst, radius, neighbors);
     }
-    elbp::elbp(src, dst, radius, neighbors);
+    else {
+        elbp::elbp(src, dst, radius, neighbors);
+    }
+    
     if (normed) {
         cv::normalize(dst, dst, 0, 255, NORM_MINMAX, CV_8UC1);
     }
     return dst;
 }
+
 
 Mat elbp::histc(const Mat& src, int minVal, int maxVal , bool normed )
 {
@@ -76,7 +82,7 @@ Mat elbp::histc(const Mat& src, int minVal, int maxVal , bool normed )
     int histSize = maxVal - minVal + 1;
     // Set the ranges.
     float range[] = { static_cast<float>(minVal), static_cast<float>(maxVal + 1) };
-    const float* histRange = { range };
+    const float* histRange = {  range };
     // calc histogram
     calcHist(&src, 1, 0, Mat(), result, 1, &histSize, &histRange, true, false);
     // normalize
@@ -117,24 +123,6 @@ Mat elbp::spatial_histogram(const Mat &src, int numPatterns,
     return result.reshape(1, 1);
 }
 
-
-/*
-     use the extended lbp operator and get the spatial histogram of lbp image
-    input: src, radius = 1 and neighbors = 8 to generate LBP image
-    input: grid_x = 5, grid_y = 5, numPatterns = 32 to compute the spatial histogram of the LBP image
-    return: elbp vector of row 1, col grid_x*grid_y*numPatterns, channel 1
-    */
-Mat elbp::computLBPvector(const Mat& src, int radius, int neighbors, int numPatterns, int grid_x, int grid_y, bool normed)
-{
-    Mat lbp = elbp::elbp(src, radius, neighbors, normed);
-    Mat p = elbp::spatial_histogram(
-        lbp, //lbp_image 
-        numPatterns, // number of possible patterns 
-        grid_x, //grid size x 
-        grid_y, // grid size y 
-        normed);
-    return p;
-}
 
  
 std::string elbp::type2str(int type) {
