@@ -14,10 +14,10 @@ int main() {
    
     //-----------read SEN12MS dataset (tiff files)
     // 32 bits per channel, VV,VH
-    const char* s1 = "../data/ROIs1158_spring_s1_1_p30.tif";
+    const char* s1 = "../features/data/ROIs1158_spring_s1_1_p30.tif";
 
     //8 bits per channel, (IGBP, LCCS_LC, LCCS_LU, LCCS_SH) 
-    const char* lc = "../data/ROIs1158_spring_lc_1_p30.tif";
+    const char* lc = "../features/data/ROIs1158_spring_lc_1_p30.tif";
 
     // get PolSAR data for this patch
     GeoTiff *sar = new GeoTiff(s1);
