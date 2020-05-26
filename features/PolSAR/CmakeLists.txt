@@ -1,0 +1,20 @@
+PROJECT(features)
+cmake_minimum_required(VERSION 3.17)
+
+FIND_PACKAGE( OpenCV REQUIRED )
+include_directories(D:/Anaconda/Library/include)
+link_directories(D:/Anaconda/Library/lib)
+
+# add_executable(PolSAR
+# main.cpp
+# Geotiff.cpp
+# sen12ms.cpp
+# sen12ms.hpp
+# )
+add_library(PolSAR
+Geotiff.cpp
+sen12ms.cpp
+sen12ms.hpp
+)
+# libs to link with
+target_link_libraries(PolSAR   ${OpenCV_LIBS}  gdal_i)

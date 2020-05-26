@@ -96,12 +96,9 @@ namespace GLCM
     // Calculate Texture Eigenvalues of One Window Mat, which is including Energy, Contrast, Homogenity, Entropy.
     void CalcuOneTextureEValue(Mat src, TextureEValues& EValue, bool ToCheckMat = false);
 
-    
-    // Calculate Texture Eigenvalues of One Window Mat, which is including Energy, Contrast, Homogenity, Entropy.
-    void CalcuTextureEValue(Mat src, TextureEValues& EValue,
-                            int size = 5, GrayLevel level = GrayLevel::GRAY_8);
+                           
 
-    
+    //Caculate Texture Eigenvalues of the whole image
     void CalcuTextureImages(Mat src, Mat& imgEnergy, Mat& imgContrast, Mat& imgHomogenity, Mat& imgEntropy,
                             int size = 5, GrayLevel level = GrayLevel::GRAY_8, bool ToAdjustImg = false);
 };

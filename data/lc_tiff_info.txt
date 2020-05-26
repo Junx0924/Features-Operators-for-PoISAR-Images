@@ -1,0 +1,14 @@
+TIFF Directory at offset 0x8 (8)
+  Image Width: 256 Image Length: 256
+  Bits/Sample: 8 bit (Byte)
+  Sample Format: unsigned integer
+  Compression Scheme: None
+  Photometric Interpretation: RGB color (FIC_RGBALPHA)
+  Extra Samples: 1<unassoc-alpha>
+  Samples/Pixel: 4
+  Rows/Strip: 8
+  Planar Configuration: single image plane
+  Tag 33550: 10.000000,10.000000,0.000000
+  Tag 33922: 0.000000,0.000000,0.000000,375412.338993,8116742.836060,0.000000
+  Tag 34735: 1,1,0,7,1024,0,1,1,1025,0,1,1,1026,34737,22,0,2049,34737,7,22,2054,0,1,9102,3072,0,1,32737,3076,0,1,9001
+  Tag 34737: WGS 84 / UTM zone 37S|WGS 84|

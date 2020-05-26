@@ -10,17 +10,16 @@ using namespace cv;
 namespace elbp {
 
 	// templated functions
-	template <typename _Tp>  void elbp_(const Mat &src, Mat &dst, int radius, int neighbors);
+	template <typename _Tp>  void ElbpWrapper_(const Mat &src, Mat &dst, int radius, int neighbors);
 	
 
 	// wrapper functions
-	void elbp(const Mat& src, Mat & dst, int radius, int neighbors);
+	void ElbpWrapper(const Mat& src, Mat & dst, int radius, int neighbors);
 	
 
-	// Mat return type functions
-	Mat elbp(const Mat& src, int radius, int neighbors, bool normed );
-	Mat histc(const Mat& src, int minVal, int maxVal, bool normed );
-	Mat spatial_histogram(const Mat& src, int numPatterns, int grid_x, int grid_y, bool normed);
+	// compute the elbp of the whole image
+	Mat CaculateElbp(const Mat& src, int radius, int neighbors, bool normed );
+
 
 	//others
 	std::string type2str(int type);

@@ -3,91 +3,103 @@
 #include "MPEG-7/FexWrite.h"
 #include "GLCM/glcm.hpp"
 #include "ELBP/elbp.cpp"
+#include "PolSAR/Geotiff.cpp"
+#include "PolSAR/sen12ms.hpp"
 
 using namespace std;
-
+using namespace cv;
 
 
 int main() {
+   
+    //-----------read SEN12MS dataset (tiff files)
+    // 32 bits per channel, VV,VH
+    const char* s1 = "../data/ROIs1158_spring_s1_1_p30.tif";
 
-   // cout << getexepath() << endl;
-   Mat src = cv::imread("D:\\4th semester\\HTCV\\project_code\\data\\PauliRGB.bmp", 1);
-   Mat labeled = cv::imread("D:\\4th semester\\HTCV\\project_code\\data\\SF-GF3-label3d.png", 1); // ground truth
-  
-   Mat mask = Mat(src.rows, src.cols, CV_8UC1, Scalar(0));
-   // get the mountain area 
-   // readme.txt: 1.Mountain, label color(RGB): [132,112,255]
-    int cl[3] = { 132,112,255 };
-    int regVal = 255;
-    for (int i = 0; i < labeled.rows; i++) {
-        for (int j = 0; j < labeled.cols; j++) {
-            if (labeled.at<Vec3b>(i, j)[0] == cl[2] && labeled.at<Vec3b>(i, j)[1] == cl[1] && labeled.at<Vec3b>(i, j)[2] == cl[0]) {
-                mask.at<unsigned char>(i, j) = regVal;
-            }
-        }
-    }
+    //8 bits per channel, (IGBP, LCCS_LC, LCCS_LU, LCCS_SH) 
+    const char* lc = "../data/ROIs1158_spring_lc_1_p30.tif";
+
+    // get PolSAR data for this patch
+    GeoTiff *sar = new GeoTiff(s1);
+    //stores VH ,VV values in dB
+    Mat patch = sar->GetMat().clone();
+    delete sar;
+
+    // get ground truth for this patch
+    GeoTiff* ground = new GeoTiff(lc);
+    Mat lc_mat = ground->GetMat().clone();
+    delete ground;
+
+    // get flase colar image from PolSAR data
+    Mat colorImg = sen12ms::GetFalseColorImage(patch, true);
+    namedWindow("False color image", 1);
+    imshow("False color image", colorImg);
+    waitKey(0);
    
-   
-   //--------------------color features: MPEG7 ---------------------------
-   // create a Frame object (see include/Frame.h)
-    // allocate memory for 3 - channel color image and 1 - channel gray mask
-      Frame* frame = new Frame(src.cols, src.rows, true, true, true);
-      frame->setImage(src);
-      frame->setMaskAll(mask, regVal, 255, 0);
-    // compute and display the descriptors for the 'region'
-    // color: DCD
-    // DCD without normalization (to MPEG-7 ranges), without variance, without spatial coherency
-    // attention: should recompute the weight(sum to 100 percentage)
-       cout << "DCD with mask:" << endl;
-       FexWrite::computeWriteDCD(frame, false, false, false);
+   // get the Masks of current patch
+    vector<Mat> IGBP_mask, LCCS_mask;
+    vector<unsigned char> IGBP_list;
+    vector<unsigned char> LCCS_list;
+    sen12ms::GetMask(lc_mat, IGBP_mask, LCCS_mask, IGBP_list,LCCS_list);
+
+    Mat mask = LCCS_mask[1];
+    int class_type = LCCS_list[1];
+    Mat tmp;
+    normalize(mask, tmp, 0, 255, NORM_MINMAX, CV_8UC1);
+    imshow("mask: ", tmp);
+    waitKey(0);
+//----------------- local statistic-------------------------
+    Mat statPol = sen12ms::GetPolStatistic(patch, mask);
+    cout << "statistic: "<< statPol << endl;
+
+    Mat src = colorImg;
+    int histsize  = 32; // feature length
+
+//-------------------------lbp-------------------------------
+    // to get lbp of the whole img
+    int radius = 2;
+    int neighbors = 8;
+    Mat lbp = elbp::CaculateElbp(src, radius, neighbors, true);
+    imshow("lbp: ", lbp);
+    waitKey(0);
+    // Apply mask
+    Mat lbp_hist = sen12ms::hist_with_mask(lbp, mask, 0, 255, histsize, true);
+    cout << "lbp hist: " << lbp_hist << endl;
+    
+//--------------------color features: MPEG7 ---------------------------
+    // create a Frame object (see include/Frame.h)
+    Frame* frame = new Frame(src.cols, src.rows, true, true, true);
+    frame->setImage(src);
+    // Apply mask
+   frame->setMaskAll(mask, class_type, 255, 0);
+    // color: DCD, return the weights and color value of each dominant color
+    cout << "DCD with mask:" << endl;
+    FexWrite::computeWriteDCD(frame, false, false, false);
+
     // color: CSD
-       cout << "CSD with mask:" << endl;
-       FexWrite::computeWriteCSD(frame, 32);;
+    cout << "CSD with mask:" << endl;
+    FexWrite::computeWriteCSD(frame, histsize);;
 
-   //--------------------texture features: MPEG7 ---------------------------
-    // Textur: EHD
-       cout << "EHD with mask:" << endl;
-       FexWrite::computeWriteEHD(frame);
-
-    // release frame
-       delete frame;
-    //-------------------------lbp-------------------------------
-   
-    // to get lbp image
-       int radius = 1;
-       int neighbors = 8;
-    // to get spatial histogram vector of lbp
-       int grid_x = 4;
-       int grid_y = 4;
-       int numPatterns = 32; // // number of possible patterns,16 bins
-
-       //Mat tmp;
-       //threshold(mask, tmp, 0, 255, THRESH_BINARY);
-
-    // p is the elbp vector of channel 1, row 1, col grid_x*grid_y*numPatterns
-       Mat lbp = elbp::elbp(src, radius, neighbors, true);
-       Mat p = elbp::spatial_histogram(
-           lbp, //lbp_image 
-           numPatterns, // number of possible patterns 
-           grid_x, //grid size x 
-           grid_y, // grid size y 
-           false);
-       cout << p.size() << endl;
 
     //--------------------------GLCM---------------------------
- /*
+  
     int size = 7; // only support size 5,7
     GrayLevel level = GrayLevel::GRAY_8;
-    TextureEValues EValues;
+     
 
     Mat dstChannel;
-    GLCM::getOneChannel(src, dstChannel, RGBChannel::CHANNEL_B);
+    GLCM::getOneChannel(src, dstChannel, RGBChannel::CHANNEL_R);
     // Magnitude Gray Image
     GLCM::GrayMagnitude(dstChannel, dstChannel, level);
 
     // Calculate Energy, Contrast, Homogenity, Entropy of the whole Image
-    GLCM::CalcuTextureEValue(dstChannel, EValues, size, level);
-    cout << "EValues: " << EValues.contrast << " , " << EValues.energy  << endl;
-    */
+    Mat Energy ,Contrast,Homogenity,Entropy ;
+    GLCM::CalcuTextureImages(dstChannel, Energy, Contrast, Homogenity, Entropy, size, level, true);
+    // Apply the mask
+    Mat Energy_hist = sen12ms::hist_with_mask(Energy, mask, 0, 255, histsize, true);
+    cout << "GLCM Energy with mask:" << endl;
+    cout << Energy_hist << endl;
+     
+     
     return 0; // success
 }

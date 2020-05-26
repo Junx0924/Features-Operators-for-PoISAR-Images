@@ -364,99 +364,6 @@ void GLCM::CalcuOneTextureEValue(Mat src, TextureEValues& EValue, bool ToCheckMa
         }
 }
 
-/*===================================================================
- * Function: CalcuOneTextureEValue
- *
- * Summary:
- *   Calculate Texture Eigenvalues of One Window Mat, which is including
- * Energy, Contrast, Homogenity, Entropy.
- *
- * Arguments:
- *   Mat src - source Matrix (Window Mat)
- *   TextureEValues& EValue - Output Dst: Texture Eigenvalues of the Whole Image
- *   int size - size of Mat Window (only support 5*5, 7*7)
- *   GrayLevel level - Destination image's Gray Level (choose in 4/8/16)
- *
- * Returns:
- *   void
-=====================================================================
-*/
-void GLCM::CalcuTextureEValue(Mat src, TextureEValues& EValue, int size, GrayLevel level)
-{
-    
-    // Gray Image of the Source Image
-    Mat imgGray;
-
-    
-    // Window Matrix
-    Mat glcm_win;
-
-    
-    // Probability Matrix after Normalizing
-    Mat glcm_norm;
-
-    
-    // Texture Eigenvalues temp variable
-    TextureEValues EValue_temp;
-
-    
-    // Init Dst Texture Eigenvalues
-    EValue.contrast = 0; EValue.energy = 0; EValue.entropy = 0; EValue.homogenity = 0;
-
-    
-    // Check if Input Image is Single Channel Image or not, IF it's Single Channel Image, then Convert its Format to Gray Image.
-    if(src.channels() != 1)
-        cvtColor(src, imgGray, cv::COLOR_BGR2GRAY);
-    else
-        src.copyTo(imgGray);
-
-    for(int i = 0; i < imgGray.rows; i++)
-    {
-        for(int j = 0; j < imgGray.cols; j++)
-        {
-            
-            // Calculate All Statistical Direction's GLCM and Eigenvalues, then accumulate into temp variables
-            float energy, contrast, homogenity, entropy;
-            energy = contrast = homogenity = entropy = 0;
-
-            CalcuOneGLCM(imgGray, glcm_win, i, j, size, level, GrayDirection::DIR_0);
-            NormalizeMat(glcm_win, glcm_norm);
-            CalcuOneTextureEValue(glcm_norm, EValue_temp, false);
-            energy += EValue_temp.energy; contrast += EValue_temp.contrast;
-            homogenity += EValue_temp.homogenity; entropy += EValue_temp.entropy;
-
-            CalcuOneGLCM(imgGray, glcm_win, i, j, size, level, GrayDirection::DIR_45);
-            NormalizeMat(glcm_win, glcm_norm);
-            CalcuOneTextureEValue(glcm_norm, EValue_temp, false);
-            energy += EValue_temp.energy; contrast += EValue_temp.contrast;
-            homogenity += EValue_temp.homogenity; entropy += EValue_temp.entropy;
-
-            CalcuOneGLCM(imgGray, glcm_win, i, j, size, level, GrayDirection::DIR_90);
-            NormalizeMat(glcm_win, glcm_norm);
-            CalcuOneTextureEValue(glcm_norm, EValue_temp, false);
-            energy += EValue_temp.energy; contrast += EValue_temp.contrast;
-            homogenity += EValue_temp.homogenity; entropy += EValue_temp.entropy;
-
-            CalcuOneGLCM(imgGray, glcm_win, i, j, size, level, GrayDirection::DIR_135);
-            NormalizeMat(glcm_win, glcm_norm);
-            CalcuOneTextureEValue(glcm_norm, EValue_temp, false);
-            energy += EValue_temp.energy; contrast += EValue_temp.contrast;
-            homogenity += EValue_temp.homogenity; entropy += EValue_temp.entropy;
-
-            
-            // average Eigenvalues of all Statistical Directions, then the average value has eliminated the effect of Statistical Directions
-            energy /= 4; contrast /= 4;
-            homogenity /= 4; entropy /= 4;
-
-           
-            // Accumulate Texture Eigenvalues of Current Window, then make the Sum as Texture Eigenvalues of the Whole Image
-            EValue.contrast += contrast;
-            EValue.energy += energy;
-            EValue.entropy += entropy;
-            EValue.homogenity += homogenity;
-        }
-    }
-}
 
 /*===================================================================
  * Function: CalcuTextureImages
@@ -472,7 +379,7 @@ void GLCM::CalcuTextureEValue(Mat src, TextureEValues& EValue, int size, GrayLev
  *   Mat& imgHomogenity - Destination Mat, Homogenity Matrix
  *   Mat& imgEntropy - Destination Mat, Entropy Matrix
  *   int size - size of Mat Window (only support 5*5, 7*7)
- *   GrayLevel level - Destination image's Gray Level (choose in 4/8/16)
+ *   GrayLevel level - Destination image's Gray Level (choose in 4/8/16/32)
  *   bool ToAdjustImg:  to Adjust output Texture Feature Images or not
  *
  * Returns:
@@ -494,18 +401,13 @@ void GLCM::CalcuTextureImages(Mat src, Mat& imgEnergy, Mat& imgContrast, Mat& im
     // Texture Eigenvalues temp varialbe
     TextureEValues EValue;
 
-    imgEnergy.create(src.size(), CV_32FC1);
-    imgContrast.create(src.size(), CV_32FC1);
-    imgHomogenity.create(src.size(), CV_32FC1);
-    imgEntropy.create(src.size(), CV_32FC1);
+    imgEnergy= Mat::zeros(src.size(), CV_32FC1);
+    imgContrast = Mat::zeros(src.size(), CV_32FC1);
+    imgHomogenity = Mat::zeros(src.size(), CV_32FC1);
+    imgEntropy = Mat::zeros(src.size(), CV_32FC1);
 
     for(int i = 0; i < src.rows; i++)
     {
-        float* energyData = imgEnergy.ptr<float>(i);
-        float* contrastData = imgContrast.ptr<float>(i);
-        float* homogenityData = imgHomogenity.ptr<float>(i);
-        float* entropyData = imgEntropy.ptr<float>(i);
-
         for(int j = 0; j < src.cols; j++)
         {
             
@@ -542,10 +444,10 @@ void GLCM::CalcuTextureImages(Mat src, Mat& imgEnergy, Mat& imgContrast, Mat& im
             energy /= 4; contrast /= 4;
             homogenity /= 4; entropy /= 4;
 
-            energyData[j] = energy;
-            contrastData[j] = contrast;
-            homogenityData[j] = homogenity;
-            entropyData[j] = entropy;
+            imgEnergy.at<float>(i,j) = energy;
+            imgContrast.at<float>(i, j) = contrast;
+            imgHomogenity.at<float>(i, j) = homogenity;
+            imgEntropy.at<float>(i, j) = entropy;
         }
     }
 
