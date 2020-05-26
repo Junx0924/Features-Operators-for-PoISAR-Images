@@ -246,7 +246,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
 }
 
  /*===================================================================
- * Function: hist_with_mask
+ * Function: GetHistWithMask
  *
  * Summary:
  *   Caculate the historgram vector of a mat with mask
@@ -262,7 +262,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
  *  Mat of Size(1,histSize)
 =====================================================================
 */
- Mat sen12ms::hist_with_mask(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed)
+ Mat sen12ms::GetHistWithMask(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed)
  {
      Mat result;
      // Set the ranges.

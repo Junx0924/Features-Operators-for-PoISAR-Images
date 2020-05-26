@@ -23,7 +23,7 @@ namespace sen12ms {
 	Mat GetPolStatistic(const Mat& src, const Mat& mask);
 
 	// Caculate the historgram vector of a mat with mask
-	Mat hist_with_mask(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed);
+	Mat GetHistWithMask(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed);
 
 	//check if cetain class type existed in a class category
 	bool FindLandClass(const Mat& src, vector<std::pair<int, int> >& ind, const int& landclass);

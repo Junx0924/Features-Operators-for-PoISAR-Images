@@ -14,10 +14,10 @@ int main() {
    
     //-----------read SEN12MS dataset (tiff files)
     // 32 bits per channel, VV,VH
-    const char* s1 = "../features/data/ROIs1158_spring_s1_1_p30.tif";
+    const char* s1 = "../data/ROIs1158_spring_s1_1_p30.tif";
 
     //8 bits per channel, (IGBP, LCCS_LC, LCCS_LU, LCCS_SH) 
-    const char* lc = "../features/data/ROIs1158_spring_lc_1_p30.tif";
+    const char* lc = "../data/ROIs1158_spring_lc_1_p30.tif";
 
     // get PolSAR data for this patch
     GeoTiff *sar = new GeoTiff(s1);
@@ -63,7 +63,7 @@ int main() {
     imshow("lbp: ", lbp);
     waitKey(0);
     // Apply mask
-    Mat lbp_hist = sen12ms::hist_with_mask(lbp, mask, 0, 255, histsize, true);
+    Mat lbp_hist = sen12ms::GetHistWithMask(lbp, mask, 0, 255, histsize, true);
     cout << "lbp hist: " << lbp_hist << endl;
     
 //--------------------color features: MPEG7 ---------------------------
@@ -96,7 +96,7 @@ int main() {
     Mat Energy ,Contrast,Homogenity,Entropy ;
     GLCM::CalcuTextureImages(dstChannel, Energy, Contrast, Homogenity, Entropy, size, level, true);
     // Apply the mask
-    Mat Energy_hist = sen12ms::hist_with_mask(Energy, mask, 0, 255, histsize, true);
+    Mat Energy_hist = sen12ms::GetHistWithMask(Energy, mask, 0, 255, histsize, true);
     cout << "GLCM Energy with mask:" << endl;
     cout << Energy_hist << endl;
      
