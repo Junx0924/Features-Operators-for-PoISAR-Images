@@ -10,7 +10,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "Data.h"
-#include "Training.h"
+#include "KNN.h"
 
 using namespace std;
 using namespace cv;
@@ -18,19 +18,35 @@ using namespace cv;
 int main(int argc, char** argv)
 {
 	cout << "In main!!" << endl;
-	int numOfClasses;
-	numOfClasses = 10;
+	/*********Variables Area*************/
+	int k;
+	vector<Mat> labelImages;
+	vector<string> labelNames;
+	vector<vector<Point2i>> numOfPoints;
+
+	/*********Variable Initialization****************/
+	k = 20;
+	labelImages.reserve(NUMOFCLASSES);
+	labelNames.reserve(NUMOFCLASSES);
+	numOfPoints.reserve(NUMOFCLASSES);
+	
 	//Object of class
 	Data data;
+	KNN knn;
+
 	//load RAT
-	data.loadData(argv[1]);
+	//data.loadData(argv[1]);
 	cout << "Data loaded" << endl;
 	//load RGB image
-	data.loadImage(argv[2]);
+	Mat RGBImg = data.loadImage(argv[2]);
 	cout << "Image loaded" << endl;
 	//load labels
-	data.loadLabels(argv[3], numOfClasses);
+	data.loadLabels(argv[3], labelImages, labelNames, numOfPoints);
 	cout << "Labels loaded" << endl;
+
+	//KNN classifier
+	knn.KNNClassifier(labelImages, labelNames, k, RGBImg);
+	
 	waitKey(0);
 	return 0;	
 }

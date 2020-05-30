@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include <random>
 
 
 using namespace std;
@@ -759,8 +760,8 @@ Function to load Oberpfaffenhofen PolSAR image file
 Author: Anupama Rajkumar
 Date: 23.05.2020
 ***************************************************************/
-void Data::loadImage(string fname) {
-	Mat polSARData = imread(fname);
+Mat Data::loadImage(string fname) {
+	Mat polSARData = imread(fname, 0);
 
 	if (!polSARData.data) {
 		cout << "ERROR: Cannot find the original image" << endl;
@@ -768,6 +769,9 @@ void Data::loadImage(string fname) {
 		cin.get();
 		exit(0);
 	}
+
+	return polSARData.clone();
+	//cout << polSARData.channels();
 	//show the image
 	//imshow("Image", polSARData);
 }
@@ -807,17 +811,28 @@ Function to load labels
 Author: Anupama Rajkumar
 Date: 23.05.2020
 ***************************************************************/
-void Data::loadLabels(const string &folderPath, int numOfClasses) {
-	vector<Mat> labelImages;
-	vector<string> labelNames;
-	labelImages.reserve(numOfClasses);
-	labelNames.reserve(numOfClasses);
+void Data::loadLabels(const string &folderPath, vector<Mat>& labelImages, vector<string>& labelNames, vector<vector<Point2i>>& numOfPoints) {
+
 	ReadClassLabels(folderPath, labelNames, labelImages);
+	/*Loading label points*/
+	for (int cnt = 0; cnt < labelImages.size(); cnt++) {
+		vector<Point2i> classPoints;
+		classPoints.reserve(labelImages[cnt].rows*labelImages[cnt].cols);
+		for (int row = 0; row < labelImages[cnt].rows; row++) {
+			for (int col = 0; col < labelImages[cnt].cols; col++) {
+				if (labelImages[cnt].at<float>(row, col) > 0.0f) {
+					Point2i newPoint(row, col);
+					classPoints.push_back(newPoint);
+				}
+			}
+		}
+		numOfPoints.push_back(classPoints);
+	}
 	//print the names of label files
-	/*for (int cnt = 0; cnt < labelImages.size(); cnt++)
+	for (int cnt = 0; cnt < labelImages.size(); cnt++)
 	{
-		cout << labelNames[cnt] << " " << labelImages[cnt].cols << " x " << labelImages[cnt].rows << " \t " << endl;
-	}*/
+		cout << labelNames[cnt] << " " << labelImages[cnt].cols << " x " << labelImages[cnt].rows << " \t " << numOfPoints[cnt].size()<< endl;
+	}
 }
 
 /**************************************************************
@@ -843,5 +858,145 @@ void Data::loadData(string folderPath) {
 	this->loadPolSARData(fnames);
 }
 
+
+/***********************************************************************
+Extracting patches from labels dataset
+Author : Anupama Rajkumar
+Date : 27.05.2020
+*************************************************************************/
+
+void Data::ExtractLabelPatches(vector<vector<Point2i>> numOfPoints, int numOfSamples, int sizeOfPatch, vector<Mat> labelImages, vector<vector<Point2i>>& samplePoints) {
+	for (int cnt = 0; cnt < labelImages.size(); cnt++) {
+		if (numOfPoints[cnt].size() < numOfSamples) {
+			cout << "Class " << cnt + 1 << "does not have enough points to be drawn" << endl;
+			vector<Point2i> emptyPoint;
+			samplePoints.push_back(emptyPoint);
+		}
+		cout << "Drawing " << numOfSamples << "from " << numOfPoints[cnt].size() << "points from the class" << endl;
+		vector<Point2i> classSamples = DrawSamples(numOfPoints[cnt], numOfSamples, sizeOfPatch, labelImages[cnt]);
+		samplePoints.push_back(classSamples);
+	}
+}
+
+/***********************************************************************
+Draw random samples from labels
+Author : Anupama Rajkumar
+Date : 27.05.2020
+*************************************************************************/
+
+vector<Point2i> Data::DrawSamples(vector<Point2i> numOfPoints, int numOfSamples, int sizeOfPatch, Mat labelImages) {
+	vector<Point2i> samples;
+	samples.reserve(numOfSamples);
+	int samplesDrawn = 0;
+
+	//random samples generator
+	std::random_device rd;										   // obtain a random number from hardware
+	std::mt19937 eng(rd());										   // seed the generator
+	std::uniform_int_distribution<> distr(0, numOfPoints.size()); // define the range
+
+	while (samplesDrawn < numOfSamples)
+	{
+		int i = distr(eng);
+		cout << "i" << i << endl;
+		Point2i newSample(numOfPoints[i].x, numOfPoints[i].y);
+
+		// Make sure that the samples point is not on a border.
+		// This is needed in order to extract the patches.
+		if (newSample.x < sizeOfPatch || newSample.y < sizeOfPatch ||
+			newSample.x > labelImages.rows - sizeOfPatch || newSample.y > labelImages.cols - sizeOfPatch)
+			continue;
+
+		samples.push_back(newSample);
+		samplesDrawn += 1;
+	}
+	return samples;
+}
+
+/***********************************************************************
+Extract image patches around the label sample points
+Author : Anupama Rajkumar
+Date : 27.05.2020
+*************************************************************************/
+void Data::ExtractImagePatches(int numOfSamples, int sizeOfPatch, Mat RGBImg, vector<vector<Point2i>> samplePoints, vector<vector<Mat>>& patches) {
+
+	for (int cnt = 0; cnt < NUMOFCLASSES; cnt++) {
+		cout << "Getting patches for " << cnt + 1 << "label class" << endl;
+		vector<Mat> imgPatches;
+		imgPatches.reserve(numOfSamples);
+		imgPatches = GetPatches(RGBImg, samplePoints[cnt], sizeOfPatch);
+		patches.push_back(imgPatches);
+	}
+}
+
+/***********************************************************************
+Extract image patches around the label sample points
+Author : Anupama Rajkumar
+Date : 27.05.2020
+*************************************************************************/
+vector<Mat> Data::GetPatches(Mat origImg, vector<Point2i> samplePoints, int sizeOfPatch)
+{
+	vector<Mat> patches;
+	patches.reserve(samplePoints.size());
+	for (int cnt = 0; cnt < samplePoints.size(); cnt++)
+	{
+		Mat_<Vec3f> newPatch(sizeOfPatch, sizeOfPatch);
+		int pStart_r = samplePoints[cnt].x - sizeOfPatch / 2;
+		int pStart_c = samplePoints[cnt].y - sizeOfPatch / 2;
+
+		int pEnd_r = samplePoints[cnt].x + sizeOfPatch / 2;
+		int pEnd_c = samplePoints[cnt].y + sizeOfPatch / 2;
+
+		if (pStart_r < 0 || pStart_c < 0 || pEnd_r > origImg.rows || pEnd_c > origImg.cols)
+		{
+			cout << "Patch lies outside the image boundary" << endl;
+			continue;
+		}
+		//cout << "Extracting patches of size " << samplePoints.size() << endl;
+		//form patches
+		int r, row;
+		int c, col;
+		row = 0;
+		col = 0;
+		for (r = pStart_r; r < pEnd_r; r++)
+		{
+			col = 0;
+			for (c = pStart_c; c < pEnd_c; c++)
+			{
+				newPatch.at<Vec3f>(row, col) = origImg.at<Vec3f>(r, c);
+				col++;
+			}
+			row++;
+		}
+		patches.push_back(newPatch);
+	}
+	return patches;
+}
+
+/***********************************************************************
+Extract image points extraction
+Author : Anupama Rajkumar
+Date : 28.05.2020
+*************************************************************************/
+void Data::ExtractImagePoints(int numOfSamples, Mat& RGBImg, vector<Point2i>& samples) {
+
+	//vector<Point2i> samples;
+	//samples.reserve(numOfSamples);
+	int samplesDrawn = 0;
+
+	//random samples generator
+	std::random_device rd;										   // obtain a random number from hardware
+	std::mt19937 eng(rd());										   // seed the generator
+	std::uniform_int_distribution<> distrX(0, RGBImg.rows);		   // define the range
+	std::uniform_int_distribution<> distrY(0, RGBImg.cols);
+
+	while (samplesDrawn < numOfSamples)
+	{
+		int x = distrX(eng);
+		int y = distrY(eng);
+		Point2i newSample(x, y);
+		samples.push_back(newSample);
+		samplesDrawn += 1;
+	}
+}
 
 
