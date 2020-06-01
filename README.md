@@ -4,3 +4,4 @@ Done:
 * MPEG_7 CSD, DCD ( used MPEG_7 libraries by Muhammet Bastan, www.cs.bilkent.edu.tr/~bilmdg/bilvideo-7/Software.html)
 * Load dataset SEN12MS
 * Local statistic ( min, max, mean, std, median)
+* KNN - right now tested with Obf datasets. To be extended to Sen12ms
