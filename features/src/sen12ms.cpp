@@ -286,8 +286,6 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
  *
  * Arguments:
  *   string outputpath - the folder path to store all the pngs
- *   string s1FileList - the list of all s1 files(whole path)
- *   string lcFileList - the list of all lc files(whole path)
  *   MaskType mask_type - IGBP or LCCS
  * Returns:
  *  void
@@ -407,7 +405,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
 
 
  /*===================================================================
- * Function: ProcessData
+ * Function: LoadDataToMemeory
  *
  * Summary:
  *   load tiff files to vector<Mat> list_images, vector<vector<Mat>> list_masks,vector<vector<unsigned char>>list_classValue
@@ -462,10 +460,10 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
 
 
  /*===================================================================
- * Function: overriding ProcessData for dataloader
+ * Function: ProcessData
  *
  * Summary:
- *   process data to the dataloader's format
+ *   process data to torch's format
  *
  * Arguments:
  *   vector<Mat>& imageOfMaskArea - stores the image pixels within mask area
@@ -508,8 +506,6 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
  * Arguments:
  *   string s1FileList - the txt file of all s1 files path
  *   string lcFileList - the txt file list of all lc files path
- *   vector<string>& s1FileList -  list of path of s1 files
- *   vector<string>& lcFileList - list of path of lc files
  *
  * Returns:
  *  void

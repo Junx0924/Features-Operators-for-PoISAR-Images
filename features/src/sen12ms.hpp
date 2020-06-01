@@ -36,17 +36,15 @@ public:
 		if(list_classValue) { delete list_classValue; }
 	}
 
-	
-	// Load image and its masks, class value of the mask to memory
+	 
 	void LoadDataToMemeory(int BatchSize , MaskType mask_type);
 
-	// get data format for torch
+	 
 	void ProcessData(vector<Mat>& imageOfMaskArea, vector<unsigned char>& classValue);
 
 	// Get PNG files for images and maskes
 	void GeneratePNG(const string& outputpath, MaskType mask_type);
-
-	// get the class name
+	 
 	string GetClassName(unsigned char classValue,MaskType mask_type);
 
 	/*-----------still working---------*/
