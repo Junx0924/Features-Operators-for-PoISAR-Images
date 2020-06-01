@@ -10,7 +10,7 @@
 This code use GDAL libraries.
 Install GDAL in conda:
 conda install -c conda-forge gdal
-Add conda lib and incude path to CmakeLists.txt
+Add conda lib and include path to CmakeLists.txt
 */
 
 using namespace cv;
@@ -32,7 +32,7 @@ public:
     GeoTiff(const char* tiffname) {
         filename = tiffname;
         GDALAllRegister();
-
+        dimensions = { 0,0,0 };
         // set pointer to Geotiff dataset as class member.  
         geotiffDataset = (GDALDataset*)GDALOpen(filename, GA_ReadOnly);
 

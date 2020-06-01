@@ -24,12 +24,11 @@ add_library(feature
 src/glcm.cpp
 src/glcm.hpp
 src/elbp.cpp
-src/elbp.hpp)
-
-add_library(polsar 
+src/elbp.hpp
 src/sen12ms.cpp
 src/sen12ms.hpp
 src/Geotiff.cpp
+src/torchDataSet.cpp
 )
 
 
@@ -40,9 +39,8 @@ src/main.cpp
 set_property(TARGET main PROPERTY CXX_STANDARD 14)
 
 # libs to link with
-target_link_libraries(feature ${OpenCV_LIBS})
-target_link_libraries(polsar ${OpenCV_LIBS})
-target_link_libraries(main  ${TORCH_LIBRARIES} ${OpenCV_LIBS} feature  polsar gdal_i)
+target_link_libraries(feature ${OpenCV_LIBS} ${TORCH_LIBRARIES} gdal_i)
+target_link_libraries(main   feature )
 
 
 

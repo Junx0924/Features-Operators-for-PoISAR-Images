@@ -183,34 +183,38 @@ Mat sen12ms::GetPolStatistic(const Mat& src, const Mat& mask) {
  *  void
 =====================================================================
 */
-void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_mask, vector<unsigned char> &IGBP_list, vector<unsigned char>& LCCS_list) {
+void sen12ms::GetMask(const Mat& lc, vector<Mat>& list_masks,  vector<unsigned char> &list_classValue, MaskType mask_type) {
     Mat igbp = Mat(lc.rows, lc.cols, CV_8UC1);
     Mat lccs = Mat(lc.rows, lc.cols, CV_8UC1);
     // merge different LCCS class channels to one channel
-    sen12ms::GetClassCategory(lc, igbp, lccs);
+    GetClassCategory(lc, igbp, lccs);
     
     //get IGBP mask
-    for (int i = 0; i < IGBP_label.size(); i++) {
-        vector<std::pair<int, int> > ind;
-        if (FindLandClass(igbp,ind, IGBP_label[i])) {
-            IGBP_list.push_back(IGBP_label[i]);
-            Mat tmp = Mat::zeros(lc.rows, lc.cols, CV_8UC1);
-            for (auto const& p : ind) {
-               tmp.at<unsigned char>(p.first, p.second) = IGBP_label[i];
+    if(mask_type ==MaskType::IGBP){
+        for (int i = 0; i < IGBP_label.size(); i++) {
+            vector<std::pair<int, int> > ind;
+            if (FindLandClass(igbp, ind, IGBP_label[i])) {
+                list_classValue.push_back(IGBP_label[i]);
+                Mat tmp = Mat::zeros(lc.rows, lc.cols, CV_8UC1);
+                for (auto const& p : ind) {
+                    tmp.at<unsigned char>(p.first, p.second) = IGBP_label[i];
+                }
+                list_masks.push_back(tmp);
             }
-            IGBP_mask.push_back(tmp);
         }
     }
     // get LCCS_mask
-    for (int i = 0; i < LCCS_label.size(); i++) {
-        vector<std::pair<int, int> > ind;
-        if (FindLandClass(lccs, ind, LCCS_label[i])) {
-            LCCS_list.push_back(LCCS_label[i]);
-            Mat tmp = Mat::zeros(lc.rows, lc.cols, CV_8UC1);
-            for (auto const& p : ind) {
-               tmp.at<unsigned char>(p.first, p.second) = LCCS_label[i];
+    if (mask_type == MaskType::IGBP) {
+        for (int i = 0; i < LCCS_label.size(); i++) {
+            vector<std::pair<int, int> > ind;
+            if (FindLandClass(lccs, ind, LCCS_label[i])) {
+                list_classValue.push_back(LCCS_label[i]);
+                Mat tmp = Mat::zeros(lc.rows, lc.cols, CV_8UC1);
+                for (auto const& p : ind) {
+                    tmp.at<unsigned char>(p.first, p.second) = LCCS_label[i];
+                }
+                list_masks.push_back(tmp);
             }
-            LCCS_mask.push_back(tmp);
         }
     }
 }
@@ -297,23 +301,15 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
      string list_images_path = outputpath + "\\" + "list_images.txt";
      list_images.open(list_images_path, ios::out | ios::trunc);
 
-     fstream list_IGBP_masks;
-     fstream list_LCCS_masks;
+     fstream listofmasks;
 
      if(mask_type ==MaskType::IGBP){
      string list_IGBP_path = outputpath + "\\" + "list_IGBP_masks.txt";
-     list_IGBP_masks.open(list_IGBP_path, ios::out | ios::trunc);
+     listofmasks.open(list_IGBP_path, ios::out | ios::trunc);
      } else if(mask_type == MaskType::LCCS) {
          string list_LCCS_path = outputpath + "\\" + "list_LCCS_masks.txt";
-         list_LCCS_masks.open(list_LCCS_path, ios::out | ios::trunc);
+         listofmasks.open(list_LCCS_path, ios::out | ios::trunc);
      }
-     else {
-         string list_IGBP_path = outputpath + "\\" + "list_IGBP_masks.txt";
-         list_IGBP_masks.open(list_IGBP_path, ios::out | ios::trunc);
-         string list_LCCS_path = outputpath + "\\" + "list_LCCS_masks.txt";
-         list_LCCS_masks.open(list_LCCS_path, ios::out | ios::trunc);
-     }
-
 
      if (list_images.is_open()) {
          for (const auto &tp: s1FileList) {
@@ -323,11 +319,8 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
                  size_t position = base_filename.find(".");
                  string fileName = (string::npos == position) ? base_filename : base_filename.substr(0, position);
 
-                 const char* s1 = tp.c_str();
-                 GeoTiff* sar = new GeoTiff(s1);
-                 Mat patch = sar->GetMat().clone();
-                 delete sar;
-                 Mat colorImg = sen12ms::GetFalseColorImage(patch, true);
+                 Mat patch =  ReadTiff(tp);
+                 Mat colorImg =  GetFalseColorImage(patch, true);
                  string outputpng = outputpath + "\\" + fileName + ".png";
                  imwrite(outputpng, colorImg);
                  list_images << outputpng << endl;
@@ -336,7 +329,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
      }
 
 
-     if (list_IGBP_masks.is_open() || list_LCCS_masks.is_open()) {
+     if (listofmasks.is_open()) {
          for (const auto &tp: lcFileList) {
                  if (tp.empty()) { cout << "empty line find" << endl; break; }
                  //get the filename from path without extension
@@ -352,51 +345,34 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
                      pos += replace.length();
                  }
 
-                 const char* lc = tp.c_str();
-                 GeoTiff* ground = new GeoTiff(lc);
-                 Mat lc_mat = ground->GetMat().clone();
-                 delete ground;
+                 Mat lc_mat =  ReadTiff(fileName);
 
-                 vector<Mat> IGBP_mask, LCCS_mask;
-                 vector<unsigned char> IGBP_list; //store the class value
-                 vector<unsigned char> LCCS_list;  //store the class value
-                 sen12ms::GetMask(lc_mat, IGBP_mask, LCCS_mask, IGBP_list, LCCS_list);
+                 vector<Mat> list_mask;
+                 vector<unsigned char> list_classValue; //store the class value
+                  GetMask(lc_mat, list_mask, list_classValue, mask_type);
                  string outputpng;
+                 string outputFolder;
                  if (mask_type != MaskType::LCCS) {
-                     string outputIGBPFolder = outputpath + "\\" + fileName + "_IGBP";
-                     int statusIGBP = _mkdir(outputIGBPFolder.c_str());
-
-                     if (statusIGBP < 0) {
-                         cout << "failed to create IGBP mask folder for p" << fileName << endl;
-                         break;
-                     }
-                     else {
-                         for (int i = 0; i < IGBP_list.size(); i++) {
-                             outputpng = outputIGBPFolder + "\\" + to_string(IGBP_list[i]) + ".png";
-                             imwrite(outputpng, IGBP_mask[i]);
-                             list_IGBP_masks << outputpng << endl;
-                         }
+                     outputFolder = outputpath + "\\" + fileName + "_IGBP";
+                 }
+                 else {
+                     outputFolder = outputpath + "\\" + fileName + "_LCCS";
+                 }
+                  
+                 int status = _mkdir(outputFolder.c_str());
+                 if (status < 0) {
+                     cout << "failed to create LCCS mask folder for p" << fileName << endl;
+                     break;
+                 }
+                 else {
+                     for (int j = 0; j < list_classValue.size(); j++) {
+                         outputpng = outputFolder + "\\" + to_string(list_classValue[j]) + ".png";
+                         imwrite(outputpng, list_mask[j]);
+                         listofmasks << outputpng << endl;
                      }
                  }
-                 if (mask_type != MaskType::IGBP) {
-                     string outputLCCSFolder = outputpath + "\\" + fileName + "_LCCS";
-                     int statusLCCS = _mkdir(outputLCCSFolder.c_str());
-                     if (statusLCCS < 0) {
-                         cout << "failed to create LCCS mask folder for p" << fileName << endl;
-                         break;
-                     }
-                     else {
-                         for (int j = 0; j < LCCS_list.size(); j++) {
-                             outputpng = outputLCCSFolder + "\\" + to_string(LCCS_list[j]) + ".png";
-                             imwrite(outputpng, LCCS_mask[j]);
-                             list_LCCS_masks << outputpng << endl;
-                         }
-                     }
-                 }
-             
          }
-         list_IGBP_masks.close();
-         list_LCCS_masks.close();
+         listofmasks.close();
      }
      cout << "Generate PNG files done." << endl;
  }
@@ -426,34 +402,20 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
      }
      
      for (auto const& s1File : s1FileList) {
-         const char* s1 = s1File.c_str();
-         GeoTiff* sar = new GeoTiff(s1);
-         Mat patch = sar->GetMat().clone();
-         delete sar;
-         Mat unnomarlizedImg = sen12ms::GetFalseColorImage(patch, false);
+         Mat s1_mat =  ReadTiff(s1File);
+         Mat unnomarlizedImg = GetFalseColorImage(s1_mat, false);
          list_images->push_back(unnomarlizedImg);
          if (list_images->size() >= BatchSize) { break; }
      }
      
      for (auto const& lcFile : lcFileList) {
-         const char* lc = lcFile.c_str();
-         GeoTiff* ground = new GeoTiff(lc);
-         Mat lc_mat = ground->GetMat().clone();
-         delete ground;
-
-         vector<Mat> IGBP_mask, LCCS_mask;
-         vector<unsigned char> IGBP_list; //store the class value
-         vector<unsigned char> LCCS_list;  //store the class value
-         sen12ms::GetMask(lc_mat, IGBP_mask, LCCS_mask, IGBP_list, LCCS_list);
-         if (mask_type != MaskType::LCCS) {
-             list_masks->push_back(IGBP_mask);
-             list_classValue->push_back(IGBP_list);
-         }
-         else if (mask_type != MaskType::IGBP) {
-             list_masks->push_back(LCCS_mask);
-             list_classValue->push_back(LCCS_list);
-         }
-         if (list_masks->size() >= BatchSize) { break; }
+         Mat lc_mat =  ReadTiff(lcFile);
+         vector<Mat> masks;
+         vector<unsigned char> classValue; //store the class value
+          GetMask(lc_mat, masks, classValue, mask_type);
+          list_masks->push_back(masks);
+          list_classValue->push_back(classValue);
+          if (list_masks->size() >= BatchSize) { break; }
      }
      cout << "Load " << list_images->size() << " images and its masks to memory" << endl;
  }
@@ -463,7 +425,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
  * Function: ProcessData
  *
  * Summary:
- *   process data to torch's format
+ *   process data to fee torch dataset
  *
  * Arguments:
  *   vector<Mat>& imageOfMaskArea - stores the image pixels within mask area
@@ -475,6 +437,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
 */
  void sen12ms::ProcessData(vector<Mat>& imageOfMaskArea, vector<unsigned char>& classValue) {
      int count = 0;
+    if (list_images->empty()) { cout << "Please load data to memory first! " << endl;  exit(-1); }
      for (int i = 0; i < list_images->size(); i++) {
          Mat temp = list_images->at(i);
          Mat output = Mat(Size(temp.size()), CV_32FC3);
@@ -485,7 +448,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
 
              //for testing
              //normalize(mask, mask, 0, 255, NORM_MINMAX);
-             //cout << "class value: " << to_string(class_value) << "," << sen12ms::GetClassName(class_value, MaskType::IGBP) << endl;
+             //cout << "class value: " << to_string(class_value) << "," << GetClassName(class_value, MaskType::IGBP) << endl;
              //imshow("mask ", mask);
              //waitKey(0);
              //imshow("image of mask area:", output);
@@ -527,6 +490,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
              // if the path is not tiff file
              if (s1FilePath.find("tif", pos) == std::string::npos) { continue; }
               
+             // to make sure each s1File is corresponding to lcFile
              // get the lc filename, only need to replace all the _s1_ to _lc_
              string lcFileName = s1FilePath.substr(s1FilePath.find_last_of("/\\") + 1);
              //Replace replace all the _s1_ to _lc
@@ -624,4 +588,12 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& IGBP_mask, vector<Mat>& LCCS_m
          class_name = LCCS[classValue];
      }
      return class_name;
+ }
+
+ Mat sen12ms::ReadTiff(string filepath) {
+     const char* file = filepath.c_str();
+     GeoTiff* tiff = new GeoTiff(file);
+     Mat tiff_mat = tiff->GetMat().clone();
+     delete tiff;
+     return tiff_mat;
  }

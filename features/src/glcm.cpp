@@ -78,8 +78,13 @@ void GLCM::GrayMagnitude(Mat src, Mat& dst, GrayLevel level)
 {
     Mat tmp;
     src.copyTo(tmp);
-    if(tmp.channels() == 3)
+   
+    if(tmp.channels() == 3){
         cvtColor(tmp, tmp, cv::COLOR_BGR2GRAY);
+    }
+    else if (tmp.channels() == 1) {
+        tmp.convertTo(tmp, CV_8UC1);
+    }
 
   
     // Equalize Histogram
