@@ -101,7 +101,7 @@ namespace GLCM
     //Caculate Texture Eigenvalues of the whole image
     void CalcuTextureImages(Mat src, Mat& imgEnergy, Mat& imgContrast, Mat& imgHomogenity, Mat& imgEntropy,
                             int size = 5, GrayLevel level = GrayLevel::GRAY_8, bool ToAdjustImg = false);
-};
+}
 
 
 #endif
