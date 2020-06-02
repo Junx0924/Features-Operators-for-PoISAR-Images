@@ -20,14 +20,14 @@ int main() {
     sen12ms* sar = new sen12ms(s1FileListPath, lcFileListPath);
   
     MaskType mask_type = MaskType::IGBP;
-    int batch_size = 3;
+    int batch_size = 10;
     sar->SetMaskType(mask_type);
     sar->SetBatchSize(batch_size);
     sar->LoadBatchToMemeory(0); // load the first batch
 
     vector<Mat> imageOfMaskArea;
     vector<unsigned char> classValue;
-    sar->ProcessData(imageOfMaskArea, classValue);
+    sar->GetData(imageOfMaskArea, classValue);
 
     // load to torch
     //auto custom_dataset = torchDataset(imageOfMaskArea, classValue).map(torch::data::transforms::Stack<>());
@@ -37,9 +37,9 @@ int main() {
     vector<unsigned char> LBPLabels;
     sar->GetFeatureLBP(LBPfeatures, LBPLabels, 1, 8, 32);
 
-    vector<Mat> GLCMfeatures;
-    vector<unsigned char> GLCMLabels;
-    sar->GetFeatureGLCM(GLCMfeatures, GLCMLabels, 5, GrayLevel::GRAY_8, 32);
+   //vector<Mat> GLCMfeatures;
+   //vector<unsigned char> GLCMLabels;
+   //sar->GetFeatureGLCM(GLCMfeatures, GLCMLabels, 5, GrayLevel::GRAY_8, 32);
 
     vector<Mat> Statisticfeatures;
     vector<unsigned char> StatLabels;
