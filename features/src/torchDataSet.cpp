@@ -17,26 +17,9 @@ private:
 public:
 
     // Constructor
-    torchDataset(string s1FileListPath,  string lcFileListPath, MaskType mask_type) {
-        sen12ms *sar = new sen12ms(s1FileListPath, lcFileListPath);
-        sar->LoadDataToMemeory(sar->s1FileList.size(), mask_type);
-        vector<Mat> list_images;
-        vector<unsigned char> classValues;
-        sar->ProcessData(list_images, classValues);
-        // process_data will write to images, labels
-        process_data(list_images,classValues);
-        delete sar;
-    };
-
-    torchDataset(vector<std::string>& s1List, vector<std::string>& lcList, MaskType mask_type) {
-        sen12ms* sar = new sen12ms(s1List, lcList);
-        sar->LoadDataToMemeory(sar->s1FileList.size(), mask_type);
-        vector<Mat> list_images;
-        vector<unsigned char> classValues;
-        sar->ProcessData(list_images, classValues);
+    torchDataset(vector<Mat>& list_images, vector<unsigned char>& classValues) {
         // process_data will write to images, labels
         process_data(list_images, classValues);
-        delete sar;
     };
 
     // Override get() function to return tensor at location index
