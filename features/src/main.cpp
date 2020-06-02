@@ -23,13 +23,22 @@ int main() {
     int batch_size = 10;
     sar->SetMaskType(mask_type);
     sar->SetBatchSize(batch_size);
+
+    int totalBatch = int(sar->s1FileList.size() / batch_size) + 1;
+
+    // loop from 0 to totalBatch to load the data
     sar->LoadBatchToMemeory(0); // load the first batch
 
+    // load to KNN
+    vector<Mat> images;
+    vector<Mat> labelMaps;
+    sar->GetData(images, labelMaps);
+    // KNN::KNNTrain
+
+    // load to torch
     vector<Mat> imageOfMaskArea;
     vector<unsigned char> classValue;
     sar->GetData(imageOfMaskArea, classValue);
-
-    // load to torch
     //auto custom_dataset = torchDataset(imageOfMaskArea, classValue).map(torch::data::transforms::Stack<>());
     //auto data_loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(std::move(custom_dataset),batch_size);
      
