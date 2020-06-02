@@ -183,7 +183,7 @@ Mat sen12ms::GetPolStatistic(const Mat& src, const Mat& mask) {
  *  void
 =====================================================================
 */
-void sen12ms::GetMask(const Mat& lc, vector<Mat>& list_masks,  vector<unsigned char> &list_classValue) {
+void sen12ms::GetMask(const Mat& lc, vector<Mat>& list_masks,  vector<unsigned char> &list_classValue, MaskType mask_type) {
     Mat igbp = Mat(lc.rows, lc.cols, CV_8UC1);
     Mat lccs = Mat(lc.rows, lc.cols, CV_8UC1);
     // merge different LCCS class channels to one channel
@@ -248,7 +248,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& list_masks,  vector<unsigned c
 }
 
  /*===================================================================
- * Function: GetHistOfMaskArea
+ * Function: GetHistWithMask
  *
  * Summary:
  *   Caculate the historgram vector of a mat with mask
@@ -264,7 +264,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& list_masks,  vector<unsigned c
  *  Mat of Size(1,histSize)
 =====================================================================
 */
- Mat sen12ms::GetHistOfMaskArea(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed)
+ Mat sen12ms::GetHistWithMask(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed)
  {
      Mat result;
      // Set the ranges.
@@ -295,7 +295,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& list_masks,  vector<unsigned c
  *  void
 =====================================================================
 */
- void sen12ms::GeneratePNG(const string &outputpath) {
+ void sen12ms::GeneratePNG(const string &outputpath, MaskType mask_type) {
      
      fstream list_images;
      string list_images_path = outputpath + "\\" + "list_images.txt";
@@ -349,7 +349,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& list_masks,  vector<unsigned c
 
                  vector<Mat> list_mask;
                  vector<unsigned char> list_classValue; //store the class value
-                  GetMask(lc_mat, list_mask, list_classValue);
+                  GetMask(lc_mat, list_mask, list_classValue, mask_type);
                  string outputpng;
                  string outputFolder;
                  if (mask_type != MaskType::LCCS) {
@@ -361,7 +361,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& list_masks,  vector<unsigned c
                   
                  int status = _mkdir(outputFolder.c_str());
                  if (status < 0) {
-                     cout << "failed to create mask folder for p" << fileName << endl;
+                     cout << "failed to create LCCS mask folder for p" << fileName << endl;
                      break;
                  }
                  else {
@@ -381,69 +381,45 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& list_masks,  vector<unsigned c
 
 
  /*===================================================================
- * Function: LoadBatchToMemeory
+ * Function: LoadDataToMemeory
  *
  * Summary:
  *   load tiff files to vector<Mat> list_images, vector<vector<Mat>> list_masks,vector<vector<unsigned char>>list_classValue
  *
  * Arguments:
- *   int batch   - which batch to load, eg:batch =0 means load the first batch
+ *   int BatchSize  
+ *   MaskType mask_type - IGBP or LCCS
  *   
  * Returns:
  *  void
 =====================================================================
 */
- void sen12ms::LoadBatchToMemeory(int batch) {
+ void sen12ms::LoadDataToMemeory(int BatchSize, MaskType mask_type) {
 
-     int total_batch = int(s1FileList.size() / batchSize) ;
-     if (batch > total_batch ) {
-         cout << "batch must be smaller than " << total_batch << endl;
+     if (BatchSize > s1FileList.size()) { 
+         cout << "BatchSize must be smaller than " << s1FileList.size() << endl;
          exit(-1); 
      }
      
-     int start =  batch* batchSize;
-     int end = (batch + 1) * batchSize;
-     if( end > s1FileList.size()){
-         end = s1FileList.size();
-     }
-
-     for (int i = start; i < end;i++) {
-         Mat s1_mat =  ReadTiff(s1FileList[i]);
-         Mat unnomarlizedImg = GetFalseColorImage(s1_mat, false);
-         list_images->at(i) = unnomarlizedImg;
-     }
-     
-     for (int i = start; i < end; i++) {
-         Mat lc_mat =  ReadTiff(lcFileList[i]);
-         vector<Mat> masks;
-         vector<unsigned char> classValue; //store the class value
-          GetMask(lc_mat, masks, classValue);
-          list_masks->at(i) = masks;
-          list_classValue->at(i) = classValue ;
-     }
-     cout << "Load " << batchSize << " images and its masks to memory" << endl;
- }
-  
-
- void sen12ms::LoadAllToMemory() {
-     for (int i = 0; i < s1FileList.size(); i++) {
-         Mat s1_mat = ReadTiff(s1FileList[i]);
+     for (auto const& s1File : s1FileList) {
+         Mat s1_mat =  ReadTiff(s1File);
          Mat unnomarlizedImg = GetFalseColorImage(s1_mat, false);
          list_images->push_back(unnomarlizedImg);
-         if (list_images->size() >= batchSize) { break; }
+         if (list_images->size() >= BatchSize) { break; }
      }
-
-     for (int i = 0; i < lcFileList.size(); i++) {
-         Mat lc_mat = ReadTiff(lcFileList[i]);
+     
+     for (auto const& lcFile : lcFileList) {
+         Mat lc_mat =  ReadTiff(lcFile);
          vector<Mat> masks;
          vector<unsigned char> classValue; //store the class value
-         GetMask(lc_mat, masks, classValue);
-         list_masks->push_back(masks);
-         list_classValue->push_back(classValue);
-         if (list_masks->size() >= batchSize) { break; }
+          GetMask(lc_mat, masks, classValue, mask_type);
+          list_masks->push_back(masks);
+          list_classValue->push_back(classValue);
+          if (list_masks->size() >= BatchSize) { break; }
      }
-     cout << "Load " << s1FileList.size() << " images and its masks to memory" << endl;
+     cout << "Load " << list_images->size() << " images and its masks to memory" << endl;
  }
+
 
  /*===================================================================
  * Function: ProcessData
@@ -553,7 +529,7 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& list_masks,  vector<unsigned c
  *  void
 =====================================================================
 */
- string sen12ms::GetClassName(unsigned char classValue){
+ string sen12ms::GetClassName(unsigned char classValue, MaskType mask_type){
      string class_name;
      std::map<unsigned char, string> IGBP = {
        {1,"Evergreen Needleleaf Forests"},
@@ -620,96 +596,4 @@ void sen12ms::GetMask(const Mat& lc, vector<Mat>& list_masks,  vector<unsigned c
      Mat tiff_mat = tiff->GetMat().clone();
      delete tiff;
      return tiff_mat;
- }
-
- void sen12ms::GetFeatureLBP(vector<Mat>& features, vector<unsigned char>& classValue, int radius, int neighbors, int histsize) {
-     for(int i=0; i<list_images->size();i++){
-         Mat src = list_images->at(i);
-         for(int j=0; j<list_masks->at(i).size();j++){
-             Mat mask = list_masks->at(i)[j];
-             unsigned char class_type = list_classValue->at(i)[j];
-             Mat lbp = elbp::CaculateElbp(src, radius, neighbors, true);
-             // Apply mask
-             Mat lbp_hist = GetHistOfMaskArea(lbp, mask, 0, 255, histsize, true);
-             features.push_back(lbp_hist);
-             classValue.push_back(class_type);
-         }
-     }
-
- }
-
- /*===================================================================
- * Function: GetFeatureGLCM
- *
- * Summary:
- *   Calculate energy, contrast, homogenity and entropy of the mask area
- *    output the result and class labels.
- * 
- *
- * Arguments:
- *   vector<Mat>& features
- *   vector<unsigned char>& classValue
- *   int size - size of Mat Window (only support 5*5, 7*7)
- *   GrayLevel level - Destination image's Gray Level (choose in 4/8/16/32)
- *   int histsize - length of the feature vector
- *
- * Returns:
- *   void
-=====================================================================
-*/
- void sen12ms::GetFeatureGLCM(vector<Mat>& features, vector<unsigned char>& classValue, int winsize, GrayLevel level, int histsize) {
-     for (int i = 0; i < list_images->size(); i++) {
-         Mat src = list_images->at(i);
-
-         // src should be nomalized to color images
-         cv::normalize(src, src, 0, 255, NORM_MINMAX);
-         src.convertTo(src, CV_8UC3);
-         
-         vector<Mat> channels;
-         Mat temp;
-         GLCM::getOneChannel(src, temp, RGBChannel::CHANNEL_R); //VV
-         channels.push_back(temp);
-         GLCM::getOneChannel(src, temp, RGBChannel::CHANNEL_G); //VH
-         channels.push_back(temp);
-         
-         for(auto &dstChannel:channels){
-             // Magnitude Gray Image
-             Mat result;
-             GLCM::GrayMagnitude(dstChannel, dstChannel, level);
-             // Calculate Energy, Contrast, Homogenity, Entropy of the whole Image
-             Mat Energy_tmp, Contrast_tmp, Homogenity_tmp, Entropy_tmp;
-             GLCM::CalcuTextureImages(dstChannel, Energy_tmp, Contrast_tmp, Homogenity_tmp, Entropy_tmp, winsize, level, true);
-            
-             // Apply the mask
-             for (int j = 0; j < list_masks->at(i).size(); j++) {
-                 vector<Mat> tmp;
-                 Mat mask = list_masks->at(i)[j];
-                 unsigned char class_type = list_classValue->at(i)[j];
-                 Mat Energy_hist = GetHistOfMaskArea(Energy_tmp, mask, 0, 255, histsize, true);
-                 Mat Contrast_hist = GetHistOfMaskArea(Contrast_tmp, mask, 0, 255, histsize, true);
-                 Mat Homogenity_hist = GetHistOfMaskArea(Homogenity_tmp, mask, 0, 255, histsize, true);
-                 Mat Entropy_hist = GetHistOfMaskArea(Entropy_tmp, mask, 0, 255, histsize, true);
-                 tmp.push_back(Energy_hist);
-                 tmp.push_back(Contrast_hist);
-                 tmp.push_back(Homogenity_hist);
-                 tmp.push_back(Entropy_hist);
-                 vconcat(tmp, result);
-                 features.push_back(result);
-                 classValue.push_back(class_type);
-             }
-         }
-     }
- }
-
- void sen12ms::GetFeatureStatistic(vector<Mat>& features, vector<unsigned char>& classValue, int histsize) {
-     for (int i = 0; i < list_images->size(); i++) {
-         Mat src = list_images->at(i);
-         for (int j = 0; j < list_masks->at(i).size(); j++) {
-             Mat mask = list_masks->at(i)[j];
-             unsigned char class_type = list_classValue->at(i)[j];
-             Mat statPol = GetPolStatistic(src, mask);
-             features.push_back(statPol);
-             classValue.push_back(class_type);
-         }
-     }
  }

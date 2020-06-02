@@ -3,8 +3,8 @@
 
 #include <opencv2/opencv.hpp>
 #include <string>
-#include "glcm.hpp"
-#include "elbp.hpp"
+//#include "glcm.hpp"
+//#include "elbp.hpp"
 using namespace cv;
 using namespace std;
 
@@ -20,14 +20,9 @@ class sen12ms {
 public:
 	 vector<std::string>  s1FileList;
 	 vector<std::string>  lcFileList;
-	
-
-private:
-	 vector<Mat>* list_images;  // false color images(unnormalized)
-	 vector<vector<Mat>>* list_masks; // masks for each false color image
+	 vector<Mat> * list_images;  // false color images(unnormalized)
+	 vector<vector<Mat>>*  list_masks; // masks for each false color image
 	 vector<vector<unsigned char>>* list_classValue; // class labels for each mask
-	 int batchSize;
-	 MaskType mask_type;
 
 public:
 	// Constructor
@@ -36,18 +31,14 @@ public:
 		list_images = new vector<Mat>();
 		list_masks = new vector<vector<Mat>>();
 		list_classValue = new vector<vector<unsigned char>>();
-		batchSize = 0;
-		mask_type = MaskType::IGBP;
+		
 	}
-
 	sen12ms(vector<std::string>  &s1List, vector<std::string> & lcList) {
 		s1FileList = s1List;
 		lcFileList = lcList;
 		list_images = new vector<Mat>();
 		list_masks = new vector<vector<Mat>>();
 		list_classValue = new vector<vector<unsigned char>>();
-		batchSize = 0;
-		mask_type = MaskType::IGBP;
 	}
 
 	~sen12ms()
@@ -57,49 +48,26 @@ public:
 		if(list_classValue) { delete list_classValue; }
 	}
 
+	void LoadDataToMemeory(int BatchSize , MaskType mask_type);
 	
-	void SetMaskType(MaskType maskType) {
-		mask_type = maskType;
-	}
-
-	void SetBatchSize(int size) {
-		batchSize = size;
-
-		if (!list_images) free(list_images); 
-		if (!list_masks) free(list_masks);
-		if (!list_classValue) free(list_classValue);
-
-		list_images = new vector<Mat>(batchSize);
-		list_masks = new vector<vector<Mat>>(batchSize);
-		list_classValue = new vector<vector<unsigned char>>(batchSize);
-	}
-
-	// load current batch to memory 
-	void LoadBatchToMemeory(int batch);
-
-	// be careful to use this func
-	void LoadAllToMemory();
-	
-	// get the image of mask area and its class
+	// for torch dataloader
 	void ProcessData(vector<Mat>& imageOfMaskArea, vector<unsigned char>& classValue);
 
-	// get LBP feature of mask area 
-	void GetFeatureLBP(vector<Mat>& features, vector<unsigned char>& classValue, int radius,int neighbors, int histsize);
-
-	// get GLCM features on each channel of mask area
-	void GetFeatureGLCM(vector<Mat>& features, vector<unsigned char>& classValue, int winsize, GrayLevel level, int histsize);
-
-	// get statistic features of all channels of mask area
-	void GetFeatureStatistic(vector<Mat>& features, vector<unsigned char>& classValue,int histsize);
-
-	//  void GetMPEG7DCD(vector<Mat>& features, vector<unsigned char>& classValue, int numOfColor);
+	/*-----------still working---------*/
+	// get feature vectors (LBP,GLCM, Statistic,MPEG-7 DCD,SCD)
+	//  void GetFeatureLBP(vector<Mat>& features, vector<unsigned char>& classValue, int radius,int neighbors, int histsize);
+	//  void GetFeatureGLCM(vector<Mat>& Energy, vector<Mat>& Contrast, vector<Mat>& Homogenity, vector<Mat>& Entropy,int winsize, GrayLevel level, int histsize);
 
 	// Get PNG files for images and maskes
-	void GeneratePNG(const string& outputpath);
+	void GeneratePNG(const string& outputpath, MaskType mask_type);
 
-	string GetClassName(unsigned char classValue);
+	// get polarimetric min, max, mean, std, median of mask area 
+	Mat GetPolStatistic(const Mat& src, const Mat& mask);
 
-	
+	string GetClassName(unsigned char classValue, MaskType mask_type);
+
+	// Caculate the historgram vector of a mat with mask
+	Mat GetHistWithMask(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed);
 
 private:
 	// Load tiff file list
@@ -113,7 +81,7 @@ private:
 	bool FindLandClass(const Mat& src, vector<std::pair<int, int> >& ind, const unsigned char& landclass);
 
 	// Create Masks for each patch
-	void GetMask(const Mat& lc, vector<Mat>& list_masks, vector<unsigned char>& list_classValue);
+	void GetMask(const Mat& lc, vector<Mat>& list_masks, vector<unsigned char>& list_classValue, MaskType mask_type);
 
 	//read tiff file
 	Mat ReadTiff(string filepath);
@@ -121,12 +89,6 @@ private:
 	// Generate false color image from SAR data
 	// R: VV, G:VH, B: VV/VH
 	Mat GetFalseColorImage(const Mat& src, bool normed);
-
-	// get polarimetric min, max, mean, std, median of mask area 
-	Mat GetPolStatistic(const Mat& src, const Mat& mask);
-
-	// Caculate the historgram vector of a mat with mask
-	Mat GetHistOfMaskArea(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed);
 };
 
 #endif
