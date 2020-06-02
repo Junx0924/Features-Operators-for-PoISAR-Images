@@ -24,8 +24,8 @@ public:
 
 private:
 	 vector<Mat>* list_images;  // false color images(unnormalized)
-	 vector<vector<Mat>>* list_masks; // masks for each false color image
-	 vector<vector<unsigned char>>* list_classValue; // class labels for each mask
+	 vector<Mat>* list_labelMaps; // label map
+	 
 	 int batchSize;
 	 MaskType mask_type;
 
@@ -34,8 +34,7 @@ public:
 	sen12ms(const string& s1FileListPath, const string & lcFileListPath) {
 		LoadFileList(s1FileListPath, lcFileListPath);
 		list_images = new vector<Mat>();
-		list_masks = new vector<vector<Mat>>();
-		list_classValue = new vector<vector<unsigned char>>();
+		list_labelMaps = new vector<Mat>();
 		batchSize = 0;
 		mask_type = MaskType::IGBP;
 	}
@@ -44,8 +43,7 @@ public:
 		s1FileList = s1List;
 		lcFileList = lcList;
 		list_images = new vector<Mat>();
-		list_masks = new vector<vector<Mat>>();
-		list_classValue = new vector<vector<unsigned char>>();
+		list_labelMaps = new vector<Mat>();
 		batchSize = 0;
 		mask_type = MaskType::IGBP;
 	}
@@ -53,8 +51,8 @@ public:
 	~sen12ms()
 	{
 		if(list_images){ delete list_images; }
-		if(list_masks) { delete list_masks; }
-		if(list_classValue) { delete list_classValue; }
+		if(list_labelMaps) { delete list_labelMaps; }
+		 
 	}
 
 	
@@ -66,22 +64,26 @@ public:
 		batchSize = size;
 
 		if (!list_images) free(list_images); 
-		if (!list_masks) free(list_masks);
-		if (!list_classValue) free(list_classValue);
+		if (!list_labelMaps) free(list_labelMaps);
+		 
 
 		list_images = new vector<Mat>(batchSize);
-		list_masks = new vector<vector<Mat>>(batchSize);
-		list_classValue = new vector<vector<unsigned char>>(batchSize);
+		list_labelMaps = new vector<Mat>(batchSize);
+	}
+
+	void GetData(vector<Mat>& images, vector<Mat>& labelMaps) {
+		images = *list_images;
+		labelMaps = *list_labelMaps;
 	}
 
 	// load current batch to memory 
 	void LoadBatchToMemeory(int batch);
 
-	// be careful to use this func
+	// be careful to use this function
 	void LoadAllToMemory();
 	
 	// get the image of mask area and its class
-	void ProcessData(vector<Mat>& imageOfMaskArea, vector<unsigned char>& classValue);
+	void GetData(vector<Mat>& imageOfMaskArea, vector<unsigned char>& classValue);
 
 	// get LBP feature of mask area 
 	void GetFeatureLBP(vector<Mat>& features, vector<unsigned char>& classValue, int radius,int neighbors, int histsize);
@@ -98,7 +100,6 @@ public:
 	void GeneratePNG(const string& outputpath);
 
 	string GetClassName(unsigned char classValue);
-
 	
 
 private:
@@ -107,13 +108,13 @@ private:
 
 	// Merge LCCS_LC, LCCS_LU,LCCS_SH into LCCS class
 	//Generate IGBP, LCCS from the ground truth 
-	void GetClassCategory(const Mat& lc, Mat& IGBP, Mat& LCCS);
+	void GetLabelMap(const Mat& lc, Mat& labelMap);
 	
 	//check if cetain class type existed in a class category
-	bool FindLandClass(const Mat& src, vector<std::pair<int, int> >& ind, const unsigned char& landclass);
+	bool FindLandClass(const Mat& labelMap, vector<std::pair<int, int> >& ind, const unsigned char& landclass);
 
 	// Create Masks for each patch
-	void GetMask(const Mat& lc, vector<Mat>& list_masks, vector<unsigned char>& list_classValue);
+	void GetMask(const Mat& labelMap, vector<Mat>& list_masks, vector<unsigned char>& list_classValue);
 
 	//read tiff file
 	Mat ReadTiff(string filepath);
