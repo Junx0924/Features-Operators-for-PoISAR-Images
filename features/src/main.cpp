@@ -20,30 +20,12 @@ int main() {
     sen12ms* sar = new sen12ms(s1FileListPath, lcFileListPath);
   
     MaskType mask_type = MaskType::IGBP;
-    int batch_size = 3;
-    sar->SetMaskType(mask_type);
-    sar->SetBatchSize(batch_size);
-    sar->LoadBatchToMemeory(0); // load the first batch
-
-    vector<Mat> imageOfMaskArea;
-    vector<unsigned char> classValue;
-    sar->ProcessData(imageOfMaskArea, classValue);
-
-    // load to torch
-    //auto custom_dataset = torchDataset(imageOfMaskArea, classValue).map(torch::data::transforms::Stack<>());
-    //auto data_loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(std::move(custom_dataset),batch_size);
+    int batch_size = 10;
+    
+    auto custom_dataset = torchDataset(sar->s1FileList, sar->lcFileList, mask_type).map(torch::data::transforms::Stack<>());
+    //auto custom_dataset = torchDataset(s1FileListPath, lcFileListPath, mask_type).map(torch::data::transforms::Stack<>());
+    auto data_loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(std::move(custom_dataset),batch_size);
      
-    vector<Mat> LBPfeatures;
-    vector<unsigned char> LBPLabels;
-    sar->GetFeatureLBP(LBPfeatures, LBPLabels, 1, 8, 32);
-
-    vector<Mat> GLCMfeatures;
-    vector<unsigned char> GLCMLabels;
-    sar->GetFeatureGLCM(GLCMfeatures, GLCMLabels, 5, GrayLevel::GRAY_8, 32);
-
-    vector<Mat> Statisticfeatures;
-    vector<unsigned char> StatLabels;
-    sar->GetFeatureStatistic(Statisticfeatures, StatLabels, 32);
-
+ 
     return 0; // success
 }
