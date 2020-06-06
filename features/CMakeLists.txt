@@ -32,7 +32,8 @@ src/GetFeatures.cpp
 src/GetFeatures.hpp
 src/polsar.hpp
 src/polsar.cpp
-src/imreconstruct.cpp
+src/mp.cpp
+src/mp.hpp
 #src/torchDataSet.cpp
 )
 
