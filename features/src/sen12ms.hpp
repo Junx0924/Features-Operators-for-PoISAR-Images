@@ -1,12 +1,15 @@
-#ifndef SEN12MS_HPP
-#define SEN12MS_HPP
+#ifndef SEN12MS_HPP_
+#define SEN12MS_HPP_
 
 #include <opencv2/opencv.hpp>
+#include "Geotiff.cpp"
 #include <string>
-#include "glcm.hpp"
-#include "elbp.hpp"
-using namespace cv;
+#include <iostream>
+#include <fstream>
+#include <random>
+
 using namespace std;
+using namespace cv;
 
 // two types of masks
 // choose in (IGBP, LCCS)
@@ -16,6 +19,9 @@ enum class MaskType
 	LCCS = 1
 };
 
+
+
+// to load sen12ms dataset
 class sen12ms {
 public:
 	 vector<std::string>  s1FileList;
@@ -29,10 +35,15 @@ private:
 	 int batchSize;
 	 MaskType mask_type;
 
+	 // draw samples from each image of mask area
+	 int sampleSize = 64; 
+	 // Maximum sample points of each mask area
+	 int samplePointNum = 16;
+
 public:
 	// Constructor
 	sen12ms(const string& s1FileListPath, const string & lcFileListPath) {
-		LoadFileList(s1FileListPath, lcFileListPath);
+		loadFileList(s1FileListPath, lcFileListPath);
 		list_images = new vector<Mat>();
 		list_labelMaps = new vector<Mat>();
 		batchSize = 0;
@@ -71,6 +82,12 @@ public:
 		list_labelMaps = new vector<Mat>(batchSize);
 	}
 
+	// set the sample size and Maximum sample points of each mask area
+	void SetSample(int size,int num) {
+		sampleSize = size;
+		samplePointNum = num;
+	}
+
 	void GetData(vector<Mat>& images, vector<Mat>& labelMaps) {
 		images = *list_images;
 		labelMaps = *list_labelMaps;
@@ -82,19 +99,8 @@ public:
 	// be careful to use this function
 	void LoadAllToMemory();
 	
-	// get the image of mask area and its class
-	void GetData(vector<Mat>& imageOfMaskArea, vector<unsigned char>& classValue);
-
-	// get LBP feature of mask area 
-	void GetFeatureLBP(vector<Mat>& features, vector<unsigned char>& classValue, int radius,int neighbors, int histsize);
-
-	// get GLCM features on each channel of mask area
-	void GetFeatureGLCM(vector<Mat>& features, vector<unsigned char>& classValue, int winsize, GrayLevel level, int histsize);
-
-	// get statistic features of all channels of mask area
-	void GetFeatureStatistic(vector<Mat>& features, vector<unsigned char>& classValue,int histsize);
-
-	//  void GetMPEG7DCD(vector<Mat>& features, vector<unsigned char>& classValue, int numOfColor);
+	// get training data
+	void GetData(vector<Mat>& patches, vector<unsigned char>& classValue);
 
 	// Get PNG files for images and maskes
 	void GeneratePNG(const string& outputpath);
@@ -104,30 +110,28 @@ public:
 
 private:
 	// Load tiff file list
-	void LoadFileList(const string& s1FileListPath, const string& lcFileListPath);
+	void loadFileList(const string& s1FileListPath, const string& lcFileListPath);
 
 	// Merge LCCS_LC, LCCS_LU,LCCS_SH into LCCS class
 	//Generate IGBP, LCCS from the ground truth 
-	void GetLabelMap(const Mat& lc, Mat& labelMap);
+	void getLabelMap(const Mat& lc, Mat& labelMap);
 	
 	//check if cetain class type existed in a class category
-	bool FindLandClass(const Mat& labelMap, vector<std::pair<int, int> >& ind, const unsigned char& landclass);
+	bool findLandClass(const Mat& labelMap, vector<std::pair<int, int> >& ind, const unsigned char& landclass);
 
 	// Create Masks for each patch
-	void GetMask(const Mat& labelMap, vector<Mat>& list_masks, vector<unsigned char>& list_classValue);
+	void getMask(const Mat& labelMap, vector<Mat>& list_masks, vector<unsigned char>& list_classValue);
 
 	//read tiff file
-	Mat ReadTiff(string filepath);
+	Mat readTiff(string filepath);
 
 	// Generate false color image from SAR data
 	// R: VV, G:VH, B: VV/VH
-	Mat GetFalseColorImage(const Mat& src, bool normed);
+	Mat getFalseColorImage(const Mat& src, bool normed);
 
-	// get polarimetric min, max, mean, std, median of mask area 
-	Mat GetPolStatistic(const Mat& src, const Mat& mask);
-
-	// Caculate the historgram vector of a mat with mask
-	Mat GetHistOfMaskArea(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed);
+	// Generate samples from each img
+	void getSamples(const Mat& img, const Mat& mask, const unsigned char& mask_label, vector<Mat>& samples, vector<unsigned char>& sample_labels);
+	void getSafeSamplePoints(const Mat& mask, vector<Point>& pts);
 };
 
 #endif

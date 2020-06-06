@@ -1,17 +1,12 @@
-#include "opencv2/core/core.hpp"
 #include "sen12ms.hpp"
-#include "Geotiff.cpp"
-#include <string>
-#include <iostream>
-#include <fstream>
 
- 
+
+// record the class values
 std::array<unsigned char, 17>  IGBP_label = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 };
 // LCCS_LC, LCCS_LU,LCCS_SH merged into LCCS
 std::array<unsigned char, 26>  LCCS_label = { 11,12,13,14,15,16,10,21,22,30,31,32,40,41,43,42,27,50,36,9,25,35,51,2,1,3 };
-
 /*===================================================================
- * Function: GetFalseColorImage
+ * Function: getFalseColorImage
  *
  * Summary:
  *   Generate false color image from SAR data;
@@ -24,12 +19,12 @@ std::array<unsigned char, 26>  LCCS_label = { 11,12,13,14,15,16,10,21,22,30,31,3
  *   3 channel matrix: R: VV, G:VH, B: VV/VH
 =====================================================================
 */
-Mat sen12ms::GetFalseColorImage(const Mat& src, bool normed) {
+Mat sen12ms::getFalseColorImage(const Mat& src, bool normed) {
     vector<Mat>  Channels;
     split(src, Channels);
 
-    Mat R = cv::abs(Channels[0]); //VV
-    Mat G = cv::abs(Channels[1]);  //VH
+    Mat R = abs(Channels[0]); //VV
+    Mat G = abs(Channels[1]);  //VH
     
     
 
@@ -48,7 +43,7 @@ Mat sen12ms::GetFalseColorImage(const Mat& src, bool normed) {
     temp.push_back(R);
     merge(temp, dst);
     if (normed) {
-        cv::normalize(dst, dst, 0, 255, NORM_MINMAX);
+        normalize(dst, dst, 0, 255, NORM_MINMAX);
         dst.convertTo(dst, CV_8UC3);
     }
     return dst;
@@ -56,7 +51,7 @@ Mat sen12ms::GetFalseColorImage(const Mat& src, bool normed) {
 
 
 /*===================================================================
- * Function: GetLabelMap
+ * Function: getLabelMap
  *
  * Summary:
  *   Merge LCCS_LC, LCCS_LU,LCCS_SH into LCCS class
@@ -70,7 +65,7 @@ Mat sen12ms::GetFalseColorImage(const Mat& src, bool normed) {
  *   void
 =====================================================================
 */
-void sen12ms::GetLabelMap(const Mat& lc, Mat& labelMap) {
+void sen12ms::getLabelMap(const Mat& lc, Mat& labelMap) {
 
     labelMap = Mat(Size(lc.size()), CV_8UC1);
     vector<Mat> temp(lc.channels());
@@ -98,75 +93,10 @@ void sen12ms::GetLabelMap(const Mat& lc, Mat& labelMap) {
     }
 }
  
-/*===================================================================
- * Function: GetPolStatistic
- *
- * Summary:
- *   Compute min, max, mean, std, median of mask area
- *
- * Arguments:
- *   Mat src - matrix of PolSAR data ( VV, VH for each channel)
- *   const Mat& mask - single channel mask matrix 
- *
- * Returns:
- *   Single channel Mat of Size(src.channels(), 5)
-=====================================================================
-*/
-Mat sen12ms::GetPolStatistic(const Mat& src, const Mat& mask) {
 
-    Mat stat;
-    
-    for (int i =0; i<src.channels(); i++){
-        Mat result= Mat(1, 5, CV_32FC1);
-
-        Mat src_temp = Mat(src.rows, src.cols, CV_32FC1);
-        extractChannel(src, src_temp, i);
-       
-        // put the mask area into a vector
-        vector<float> srcWithMask;
-        for (int x = 0; x < src.rows; x++) {
-            for (int y = 0; y < src.cols; y++) {
-                if (mask.at<unsigned char>(x, y) == 0) {
-                    continue;
-                }
-                else {
-                    srcWithMask.push_back(src_temp.at<float>(x, y));
-
-                }
-            }
-        }
-        //median
-        int size = srcWithMask.size();
-        // sort the vector
-        std::sort(srcWithMask.begin(), srcWithMask.end());
-        if (size % 2 == 0)
-        {
-            result.at<float>(0,4) = (srcWithMask[ size / 2.0  - 1] + srcWithMask[size / 2]) / 2;
-        }
-        else
-        {
-            result.at<float>(0,4) = srcWithMask[size / 2];
-        }
-
-        //min
-        result.at<float>(0,0) = srcWithMask[0];
-        //max
-        result.at<float>(0, 1) = srcWithMask[size-1];
-
-        cv::Scalar mean, stddev; //0:1st channel, 1:2nd channel and 2:3rd channel
-        cv::meanStdDev(srcWithMask, mean, stddev);
-        //mean
-        result.at<float>(0, 2) = mean[0];
-        //stddev
-        result.at<float>(0, 3) = stddev[0];
-
-        stat.push_back(result);
-    }
-    return stat;
-}
 
 /*===================================================================
- * Function: GetMask
+ * Function: getMask
  *
  * Summary:
  *   Create Masks for each class category
@@ -180,12 +110,12 @@ Mat sen12ms::GetPolStatistic(const Mat& src, const Mat& mask) {
  *  void
 =====================================================================
 */
-void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsigned char> &list_classValue) {
+void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsigned char> &list_classValue) {
     //get IGBP mask
     if(mask_type ==MaskType::IGBP){
         for (int i = 0; i < IGBP_label.size(); i++) {
             vector<std::pair<int, int> > ind;
-            if (FindLandClass(labelMap, ind, IGBP_label[i])) {
+            if (findLandClass(labelMap, ind, IGBP_label[i])) {
                 list_classValue.push_back(IGBP_label[i]);
                 Mat tmp = Mat::zeros(labelMap.rows, labelMap.cols, CV_8UC1);
                 for (auto const& p : ind) {
@@ -199,7 +129,7 @@ void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
     if (mask_type == MaskType::IGBP) {
         for (int i = 0; i < LCCS_label.size(); i++) {
             vector<std::pair<int, int> > ind;
-            if (FindLandClass(labelMap, ind, LCCS_label[i])) {
+            if (findLandClass(labelMap, ind, LCCS_label[i])) {
                 list_classValue.push_back(LCCS_label[i]);
                 Mat tmp = Mat::zeros(labelMap.rows, labelMap.cols, CV_8UC1);
                 for (auto const& p : ind) {
@@ -212,7 +142,7 @@ void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
 }
 
 /*===================================================================
- * Function: FindLandClass
+ * Function: findLandClass
  *
  * Summary:
  *   check if cetain class type existed in a class category
@@ -226,7 +156,7 @@ void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
  *  bool
 =====================================================================
 */
- bool sen12ms::FindLandClass(const Mat& labelMap, vector<std::pair<int, int> > &ind, const unsigned char&landclass) {
+ bool sen12ms::findLandClass(const Mat& labelMap, vector<std::pair<int, int> > &ind, const unsigned char&landclass) {
      bool flag = false;
     for (int i = 0; i < labelMap.rows; i++) {
         for (int j = 0; j < labelMap.cols; j++) {
@@ -239,37 +169,7 @@ void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
     return flag;
 }
 
- /*===================================================================
- * Function: GetHistOfMaskArea
- *
- * Summary:
- *   Caculate the historgram vector of a mat with mask
- *
- * Arguments:
- *   Mat & src - IGBP mat or LCCS mat
- *   const Mat& mask -  single channel mask matrix 
- *   int minVal - the min of bin boundaries
- *   int maxVal - the max of bin boundaries
- *   int histSize 
- *   bool normed - normalized to make the sum become 1
- * Returns:
- *  Mat of Size(1,histSize)
-=====================================================================
-*/
- Mat sen12ms::GetHistOfMaskArea(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed)
- {
-     Mat result;
-     // Set the ranges.
-     float range[] = { static_cast<float>(minVal), static_cast<float>(maxVal + 1) };
-     const float* histRange = { range };
-     // calc histogram with mask
-     calcHist(&src, 1, 0, mask, result, 1, &histSize, &histRange, true, false);
-     // normalize
-     if (normed) {
-         result /= (int)src.total();
-     }
-     return result.reshape(1, 1);
- }
+ 
 
 /*===================================================================
  * Function: GeneratePNG
@@ -311,8 +211,8 @@ void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
                  size_t position = base_filename.find(".");
                  string fileName = (string::npos == position) ? base_filename : base_filename.substr(0, position);
 
-                 Mat patch =  ReadTiff(tp);
-                 Mat colorImg =  GetFalseColorImage(patch, true);
+                 Mat patch =  readTiff(tp);
+                 Mat colorImg =  getFalseColorImage(patch, true);
                  string outputpng = outputpath + "\\" + fileName + ".png";
                  imwrite(outputpng, colorImg);
                  list_images << outputpng << endl;
@@ -337,13 +237,13 @@ void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
                      pos += replace.length();
                  }
 
-                 Mat lc_mat =  ReadTiff(fileName);
+                 Mat lc_mat =  readTiff(fileName);
 
                  vector<Mat> list_mask;
                  vector<unsigned char> list_classValue; //store the class value
                  Mat labelMap = Mat(Size(lc_mat.size()), CV_8UC1);
-                 GetLabelMap(lc_mat, labelMap);
-                 GetMask(labelMap, list_mask, list_classValue);
+                 getLabelMap(lc_mat, labelMap);
+                 getMask(labelMap, list_mask, list_classValue);
                  string outputpng;
                  string outputFolder;
                  if (mask_type == MaskType::IGBP) {
@@ -397,17 +297,17 @@ void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
 
          int start = batch * batchSize;
          int end = (batch + 1) * batchSize;
-         if (end > s1FileList.size()) {
+         if (end > static_cast<int>(s1FileList.size())) {
              end = s1FileList.size();
          }
 
          for (int i = start; i < end; i++) {
-             Mat s1_mat = ReadTiff(s1FileList[i]);
-             Mat unnomarlizedImg = GetFalseColorImage(s1_mat, false);
+             Mat s1_mat = readTiff(s1FileList[i]);
+             Mat unnomarlizedImg = getFalseColorImage(s1_mat, false);
              list_images->at(i) = unnomarlizedImg;
-             Mat lc_mat = ReadTiff(lcFileList[i]);
+             Mat lc_mat = readTiff(lcFileList[i]);
              Mat labelMap = Mat(Size(lc_mat.size()), CV_8UC1);
-             GetLabelMap(lc_mat, labelMap);
+             getLabelMap(lc_mat, labelMap);
              list_labelMaps->at(i) = labelMap;
          }
  
@@ -421,12 +321,12 @@ void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
 
  void sen12ms::LoadAllToMemory() {
      for (int i = 0; i < s1FileList.size(); i++) {
-         Mat s1_mat = ReadTiff(s1FileList[i]);
-         Mat unnomarlizedImg = GetFalseColorImage(s1_mat, false);
+         Mat s1_mat = readTiff(s1FileList[i]);
+         Mat unnomarlizedImg = getFalseColorImage(s1_mat, true);
          list_images->at(i) = unnomarlizedImg;
-         Mat lc_mat = ReadTiff(lcFileList[i]);
+         Mat lc_mat = readTiff(lcFileList[i]);
          Mat labelMap = Mat(Size(lc_mat.size()), CV_8UC1);
-         GetLabelMap(lc_mat, labelMap);
+         getLabelMap(lc_mat, labelMap);
          list_labelMaps->at(i) = labelMap;
      }
      cout << "Load " << s1FileList.size() << " images and its masks to memory" << endl;
@@ -439,48 +339,32 @@ void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
  *   process data to feed torch dataset
  *
  * Arguments:
- *   vector<Mat>& imageOfMaskArea - store  the image pixels within mask area
- *   vector<unsigned char>& classValue  - store the class type for each image
+ *   vector<Mat>& patches - patches drawed from each image
+ *   vector<unsigned char>& classValue  - store the class type for each patch
  *
  * Returns:
  *  void
 =====================================================================
 */
- void sen12ms::GetData(vector<Mat>& imageOfMaskArea, vector<unsigned char>& classValue) {
-     int count = 0;
-    if (list_images->empty()) { cout << "Please load data to memory first! " << endl;  exit(-1); }
+ void sen12ms::GetData(vector<Mat>& samples, vector<unsigned char>& sample_label) {
+     if (list_images->empty()) { cout << "Please load data to memory first! " << endl;  exit(-1); }
      for (int i = 0; i < list_images->size(); i++) {
-         Mat temp = list_images->at(i);
-         Mat labelMap = list_labelMaps->at(i);
+         Mat img = list_images->at(i);
+         Mat label_map = list_labelMaps->at(i);
 
-         vector<Mat> list_masks;
-         vector<unsigned char> list_classValue;
-         GetMask(labelMap, list_masks, list_classValue);
-
-         Mat output = Mat(Size(temp.size()), CV_32FC3);
-         for(int j=0;j< list_masks.size();j++){
-             Mat mask = list_masks[j];
-             unsigned char class_value = list_classValue[j];
-             bitwise_and(temp, temp, output, mask);
-
-             //for testing
-             //normalize(mask, mask, 0, 255, NORM_MINMAX);
-             //cout << "class value: " << to_string(class_value) << "," << GetClassName(class_value, MaskType::IGBP) << endl;
-             //imshow("mask ", mask);
-             //waitKey(0);
-             //imshow("image of mask area:", output);
-             //waitKey(0);
-
-             imageOfMaskArea.push_back(output);
-             classValue.push_back(class_value);
+         vector<Mat> masks;
+         vector<unsigned char> mask_labels;
+         getMask(label_map, masks, mask_labels);
+         // generate patches from mask area
+         for (int i = 0; i < masks.size(); i++) {
+             getSamples(img, masks[i], mask_labels[i], samples, sample_label);
          }
      }
  }
-
-
+ 
   
  /*===================================================================
- * Function: LoadFileList
+ * Function: loadFileList
  *
  * Summary:
  *   Load tiff file list
@@ -493,7 +377,7 @@ void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
  *  void
 =====================================================================
 */
- void sen12ms::LoadFileList(const string& s1FileListPath, const string& lcFileListPath) {
+ void sen12ms::loadFileList(const string& s1FileListPath, const string& lcFileListPath) {
      fstream s1File;
      s1File.open(s1FileListPath, ios::in);
 
@@ -609,7 +493,7 @@ void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
      return class_name;
  }
 
- Mat sen12ms::ReadTiff(string filepath) {
+ Mat sen12ms::readTiff(string filepath) {
      const char* file = filepath.c_str();
      GeoTiff* tiff = new GeoTiff(file);
      Mat tiff_mat = tiff->GetMat().clone();
@@ -617,112 +501,68 @@ void sen12ms::GetMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
      return tiff_mat;
  }
 
- void sen12ms::GetFeatureLBP(vector<Mat>& features, vector<unsigned char>& classValue, int radius, int neighbors, int histsize) {
-     for(int i=0; i<list_images->size();i++){
-         Mat src = list_images->at(i);
-         Mat labelMap = list_labelMaps->at(i);
 
-         vector<Mat> list_masks;
-         vector<unsigned char> list_classValue;
-         GetMask(labelMap, list_masks, list_classValue);
 
-         for(int j=0; j<list_masks.size();j++){
-             Mat mask = list_masks[j];
-             unsigned char class_type = list_classValue[j];
-             Mat lbp = elbp::CaculateElbp(src, radius, neighbors, true);
-             // Apply mask
-             Mat lbp_hist = GetHistOfMaskArea(lbp, mask, 0, 255, histsize, true);
-             features.push_back(lbp_hist);
-             classValue.push_back(class_type);
+ // input: img and its label_map, output: samples with its label
+ void sen12ms::getSamples(const Mat& img, const Mat& mask, const unsigned char& mask_label, vector<Mat>& samples, vector<unsigned char>& sample_labels)
+ {
+     // get the masks and labels for the image
+     vector<Point> samplePoints;
+     getSafeSamplePoints(mask,samplePoints);
+     if(!samplePoints.empty()){
+         //draw patches centered at each sample point
+         for (const auto& p : samplePoints)
+         {
+             int start_x = int(p.x) - sampleSize / 2;
+             int start_y = int(p.y) - sampleSize / 2;
+             Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
+             // only continuous data can be reshaped
+             Mat tmp = img(roi).clone();
+             samples.push_back(tmp);
+             sample_labels.push_back(mask_label);
          }
      }
-
  }
 
- /*===================================================================
- * Function: GetFeatureGLCM
- *
- * Summary:
- *   Calculate energy, contrast, homogenity and entropy of the mask area
- *    output the result and class labels.
- * 
- *
- * Arguments:
- *   vector<Mat>& features
- *   vector<unsigned char>& classValue
- *   int size - size of Mat Window (only support 5*5, 7*7)
- *   GrayLevel level - Destination image's Gray Level (choose in 4/8/16/32)
- *   int histsize - length of the feature vector
- *
- * Returns:
- *   void
-=====================================================================
-*/
- void sen12ms::GetFeatureGLCM(vector<Mat>& features, vector<unsigned char>& classValue, int winsize, GrayLevel level, int histsize) {
-     for (int i = 0; i < list_images->size(); i++) {
-         Mat src = list_images->at(i);
+ // input : mask
+ // output: random safe sample points
+ void sen12ms::getSafeSamplePoints(const Mat& mask, vector<Point>& pts) {
 
-         // src should be nomalized to color images
-         cv::normalize(src, src, 0, 255, NORM_MINMAX);
-         src.convertTo(src, CV_8UC3);
-         
-         Mat labelMap = list_labelMaps->at(i);
+     vector<Point> ind;
+     cv::findNonZero(mask, ind);
+     int nonZeros = static_cast<int>(ind.size());
 
-         vector<Mat> list_masks;
-         vector<unsigned char> list_classValue;
-         GetMask(labelMap, list_masks, list_classValue);
+     if (nonZeros > 0) {
+         std::random_device random_device;
+         std::mt19937 engine{ random_device() };
+         std::uniform_int_distribution<int> dist(0, nonZeros - 1);
 
-         vector<Mat> channels;
-         Mat temp;
-         GLCM::getOneChannel(src, temp, RGBChannel::CHANNEL_R); //VV
-         channels.push_back(temp);
-         GLCM::getOneChannel(src, temp, RGBChannel::CHANNEL_G); //VH
-         channels.push_back(temp);
-         
-         for(auto &dstChannel:channels){
-             // Magnitude Gray Image
-             Mat result;
-             GLCM::GrayMagnitude(dstChannel, dstChannel, level);
-             // Calculate Energy, Contrast, Homogenity, Entropy of the whole Image
-             Mat Energy_tmp, Contrast_tmp, Homogenity_tmp, Entropy_tmp;
-             GLCM::CalcuTextureImages(dstChannel, Energy_tmp, Contrast_tmp, Homogenity_tmp, Entropy_tmp, winsize, level, true);
-            
-             // Apply the mask
-             for (int j = 0; j < list_masks.size(); j++) {
-                 vector<Mat> tmp;
-                 Mat mask = list_masks[j];
-                 unsigned char class_type = list_classValue[j];
-                 Mat Energy_hist = GetHistOfMaskArea(Energy_tmp, mask, 0, 255, histsize, true);
-                 Mat Contrast_hist = GetHistOfMaskArea(Contrast_tmp, mask, 0, 255, histsize, true);
-                 Mat Homogenity_hist = GetHistOfMaskArea(Homogenity_tmp, mask, 0, 255, histsize, true);
-                 Mat Entropy_hist = GetHistOfMaskArea(Entropy_tmp, mask, 0, 255, histsize, true);
-                 tmp.push_back(Energy_hist);
-                 tmp.push_back(Contrast_hist);
-                 tmp.push_back(Homogenity_hist);
-                 tmp.push_back(Entropy_hist);
-                 vconcat(tmp, result);
-                 features.push_back(result);
-                 classValue.push_back(class_type);
+         int count = 0;
+         int N = nonZeros;
+         if (nonZeros > samplePointNum) { N = samplePointNum; }
+
+         while (count < N) {
+             Point  p = ind[dist(engine)];
+             //check if p is on the border
+             int j_min = p.x - int(sampleSize / 2); // (x,y) -> (col,row)
+             int j_max = p.x + int(sampleSize / 2);
+             int i_min = p.y - int(sampleSize / 2);
+             int i_max = p.y + int(sampleSize / 2);
+             // get rid of the points on the borders
+             if (i_max < mask.rows && j_max < mask.cols && i_min >= 0 && j_min >= 0) {
+                 // get rid of points which are half patch size away from the mask zero area
+                 if (mask.at<unsigned char>(i_min, j_min) != unsigned char(0) &&
+                     mask.at<unsigned char>(i_min, j_max) != unsigned char(0) &&
+                     mask.at<unsigned char>(i_max, j_min) != unsigned char(0) &&
+                     mask.at<unsigned char>(i_max, j_max) != unsigned char(0)) {
+                     pts.push_back(p);
+                     count = count + 1;
+                 }
              }
+             else { continue; }
          }
      }
  }
 
- void sen12ms::GetFeatureStatistic(vector<Mat>& features, vector<unsigned char>& classValue, int histsize) {
-     for (int i = 0; i < list_images->size(); i++) {
-         Mat src = list_images->at(i);
-         Mat labelMap = list_labelMaps->at(i);
-
-         vector<Mat> list_masks;
-         vector<unsigned char> list_classValue;
-         GetMask(labelMap, list_masks, list_classValue);
-
-         for (int j = 0; j < list_masks.size(); j++) {
-             Mat mask = list_masks[j];
-             unsigned char class_type = list_classValue[j];
-             Mat statPol = GetPolStatistic(src, mask);
-             features.push_back(statPol);
-             classValue.push_back(class_type);
-         }
-     }
- }
+ 
+  
