@@ -63,7 +63,7 @@ Mat polsar::getComplexAngle(const Mat& in) {
 }
 
 // input: img and its label_map, output: samples with its label
-void polsar::getSamples(const Mat& img, const vector<Point>& points, unsigned char& mask_label, vector<Mat>& samples, vector<unsigned char>& sample_labels)
+void polsar::getSamples(const Mat& img, const vector<Point>& points, const unsigned char& mask_label, vector<Mat>& samples, vector<unsigned char>& sample_labels)
 {
 	if (!points.empty()) {
 		//draw patches centered at each sample point
@@ -86,34 +86,46 @@ void polsar::getSafeSamplePoints(const Mat& mask, vector<Point>& pts) {
 	vector<Point> ind;
 	cv::findNonZero(mask, ind);
 	int nonZeros = static_cast<int>(ind.size());
-	 
+
 	if (nonZeros > 0) {
 		std::random_device random_device;
 		std::mt19937 engine{ random_device() };
-		std::uniform_int_distribution<int> dist(0, nonZeros-1);
+		std::uniform_int_distribution<int> dist(0, nonZeros - 1);
 
-		int count = 0;
-		int N = nonZeros; 
+		int count = 0; // to record how many right sample points are found
+		int iter = 0; // to record how many random points are tried out
+
+		int N = nonZeros;
 		if (nonZeros > samplePointNum) { N = samplePointNum; }
 
-		while(count < N){
+		std::multiset<pair<int, int>> new_ind;
+
+		while (count < N) {
 			Point  p = ind[dist(engine)];
-			//check if p is on the border
+			//check if the sample corners are on the border
 			int j_min = p.x - int(sampleSize / 2); // (x,y) -> (col,row)
 			int j_max = p.x + int(sampleSize / 2);
 			int i_min = p.y - int(sampleSize / 2);
 			int i_max = p.y + int(sampleSize / 2);
 			// get rid of the points on the borders
-			if (i_max < mask.rows && j_max < mask.cols && i_min >= 0 && j_min >= 0) { 
+			if (i_max < mask.rows && j_max < mask.cols && i_min >= 0 && j_min >= 0) {
 				// get rid of points which are half patch size away from the mask zero area
-				if (mask.at<unsigned char>(i_min, j_min) != unsigned char(0) && 
-					mask.at<unsigned char>(i_min, j_max) != unsigned char(0) && 
+				if (mask.at<unsigned char>(i_min, j_min) != unsigned char(0) &&
+					mask.at<unsigned char>(i_min, j_max) != unsigned char(0) &&
 					mask.at<unsigned char>(i_max, j_min) != unsigned char(0) &&
-					mask.at<unsigned char>(i_max, j_max) != unsigned char(0)) { 
-						pts.push_back(p);
-						count = count + 1;
+					mask.at<unsigned char>(i_max, j_max) != unsigned char(0)) {
+					//pts.push_back(p);
+					new_ind.insert(pair<int, int>(p.x, p.y));
+					count = count + 1;
 				}
-			}else { continue; }
+			}
+			iter = iter + 1;
+			if (iter > nonZeros) { break; }
+		}
+
+		for (auto it = new_ind.begin(); it != new_ind.end(); ++it)
+		{
+			pts.push_back(Point(it->first, it->second));
 		}
 	}
 }
@@ -123,7 +135,7 @@ void polsar::getSafeSamplePoints(const Mat& mask, vector<Point>& pts) {
 
 // to compute Color features
 // get patches of 3 channel (HH+VV,HV,HH-VV) intensity(dB)
-void polsar::GetPauliData(vector<Mat>& patches, vector<unsigned char>& classValue) {
+void polsar::GetPauliPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
 	
 	if (!samplePoints.empty()){
 		if (static_cast<int>(data.size() == 3)) {
@@ -139,7 +151,7 @@ void polsar::GetPauliData(vector<Mat>& patches, vector<unsigned char>& classValu
 
 // to compute Texture and Morphological feature
 // get patches of 3 channel (HH,HV,VV) intensity(dB)
-void polsar::GetData(vector<Mat>& patches, vector<unsigned char>& classValue) {
+void polsar::GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
 	Mat img;
 	if (static_cast<int>(data.size() == 3)) {
 		img = getFalseColorImg(data[0], data[1], data[2],false);
@@ -185,62 +197,7 @@ Mat polsar::getPauliColorImg(const Mat& hh, const Mat& hv, const Mat &vv) {
 	return getFalseColorImg(R, G, B, true);
 }
 
-/*===================================================================
- * Function: CalculateStatistic
- *
- * Summary:
- *   Compute min, max, mean, std, median of mask area
- *
- * Arguments:
- *   Mat src -  PolSAR data
- *   const Mat& mask - single channel mask Matrix
- *
- * Returns:
- *   Single channel Mat of Size(src.channels(), 5)
-=====================================================================
-*/
-Mat polsar::CalculateStatistic(const Mat& src) {
 
-	Mat stat;
-
-	for (int i = 0; i < src.channels(); i++) {
-		Mat result = Mat(1, 5, CV_32FC1);
-
-		Mat src_temp = Mat(src.rows, src.cols, CV_32FC1);
-		extractChannel(src, src_temp, i);
-		vector<float> vec(src_temp.begin<float>(), src_temp.end<float>());
-
-
-		int size = static_cast<int>(src_temp.total());
-		// sort the vector
-		std::sort(vec.begin(), vec.end());
-		if (size % 2 == 0)
-		{
-			//median
-			result.at<float>(0, 4) = (vec[size / 2.0 - 1] + vec[size / 2]) / 2;
-		}
-		else
-		{
-			//median
-			result.at<float>(0, 4) = vec[size / 2];
-		}
-
-		//min
-		result.at<float>(0, 0) = vec[0];
-		//max
-		result.at<float>(0, 1) = vec[size - 1];
-
-		Scalar mean, stddev; //0:1st channel, 1:2nd channel and 2:3rd channel
-		meanStdDev(vec, mean, stddev);
-		//mean
-		result.at<float>(0, 2) = mean[0];
-		//stddev
-		result.at<float>(0, 3) = stddev[0];
-
-		stat.push_back(result);
-	}
-	return stat;
-}
 
 
 

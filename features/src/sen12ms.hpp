@@ -83,7 +83,7 @@ public:
 	}
 
 	// set the sample size and Maximum sample points of each mask area
-	void SetSample(int size,int num) {
+	void SetSample(const int &size,const int & num) {
 		sampleSize = size;
 		samplePointNum = num;
 	}
@@ -100,7 +100,7 @@ public:
 	void LoadAllToMemory();
 	
 	// get training data
-	void GetData(vector<Mat>& patches, vector<unsigned char>& classValue);
+	void GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue);
 
 	// Get PNG files for images and maskes
 	void GeneratePNG(const string& outputpath);

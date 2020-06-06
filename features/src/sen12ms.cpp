@@ -333,7 +333,7 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
  }
 
  /*===================================================================
- * Function: GetData
+ * Function: GetPatches
  *
  * Summary:
  *   process data to feed torch dataset
@@ -346,7 +346,7 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
  *  void
 =====================================================================
 */
- void sen12ms::GetData(vector<Mat>& samples, vector<unsigned char>& sample_label) {
+ void sen12ms::GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
      if (list_images->empty()) { cout << "Please load data to memory first! " << endl;  exit(-1); }
      for (int i = 0; i < list_images->size(); i++) {
          Mat img = list_images->at(i);
@@ -356,8 +356,8 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
          vector<unsigned char> mask_labels;
          getMask(label_map, masks, mask_labels);
          // generate patches from mask area
-         for (int i = 0; i < masks.size(); i++) {
-             getSamples(img, masks[i], mask_labels[i], samples, sample_label);
+         for (int j = 0; j < masks.size(); j++) {
+             getSamples(img, masks[j], mask_labels[j], patches, classValue);
          }
      }
  }
@@ -537,13 +537,17 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
          std::mt19937 engine{ random_device() };
          std::uniform_int_distribution<int> dist(0, nonZeros - 1);
 
-         int count = 0;
+         int count = 0; // to record how many right sample points are found
+         int iter = 0; // to record how many random points are tried out
+         
          int N = nonZeros;
          if (nonZeros > samplePointNum) { N = samplePointNum; }
 
+         std::multiset<pair<int, int>> new_ind;
+
          while (count < N) {
              Point  p = ind[dist(engine)];
-             //check if p is on the border
+             //check if the sample corners are on the border
              int j_min = p.x - int(sampleSize / 2); // (x,y) -> (col,row)
              int j_max = p.x + int(sampleSize / 2);
              int i_min = p.y - int(sampleSize / 2);
@@ -555,11 +559,18 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
                      mask.at<unsigned char>(i_min, j_max) != unsigned char(0) &&
                      mask.at<unsigned char>(i_max, j_min) != unsigned char(0) &&
                      mask.at<unsigned char>(i_max, j_max) != unsigned char(0)) {
-                     pts.push_back(p);
+                     //pts.push_back(p);
+                     new_ind.insert(pair<int, int>(p.x, p.y));
                      count = count + 1;
                  }
              }
-             else { continue; }
+             iter = iter + 1;
+             if (iter > nonZeros) { break; }
+         }
+
+         for (auto it = new_ind.begin(); it != new_ind.end(); ++it)
+         {
+             pts.push_back(Point(it->first, it->second));
          }
      }
  }
