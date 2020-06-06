@@ -1,42 +1,60 @@
 #include "GetFeatures.hpp"
 
-// the structure element radius for MP features
-std::array<int, 3> morph_size = { 1,3,5 };
+
+
 /*===================================================================
- * Function: GetHistOfMaskArea
- *
- * Summary:
- *   Caculate the historgram vector of a Mat with mask
- *
- * Arguments:
- *   Mat & src - IGBP Mat or LCCS Mat
- *   const Mat& mask -  single channel mask Matrix
- *   int minVal - the min of bin boundaries
- *   int maxVal - the max of bin boundaries
- *   int histSize
- *   bool normed - normalized to make the sum become 1
- * Returns:
- *  Mat of Size(1,histSize)
+* Function: GetMP
+*
+* Summary:
+*   Get Morphological profiles (MP) composed of opening-closing by reconstruction
+*
+* Arguments:
+*   vector<Mat>& features
+*   vector<unsigned char>& classValue
+*   const array<int,3> & morph_size - the diameter of circular structureing element,default {1,2,3} 
+*
+* Returns:
+*   void
 =====================================================================
 */
-Mat cvFeatures::GetHistOfMaskArea(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed)
-{
-    Mat result;
-    // Set the ranges.
-    float range[] = { static_cast<float>(minVal), static_cast<float>(maxVal + 1) };
-    const float* histRange = { range };
-    // calc histogram with mask
-    calcHist(&src, 1, 0, mask, result, 1, &histSize, &histRange, true, false);
-    // normalize
-    if (normed) {
-        result /= (int)src.total();
+void cvFeatures::GetMP(vector<Mat>& features, vector<unsigned char>& classValue, const array<int,3> & morph_size) {
+
+    Mat src = image.clone();
+    normalize(src, src, 0, 255, NORM_MINMAX);
+    src.convertTo(src, CV_8UC3);
+    vector<Mat> channels;
+    split(src, channels);
+
+    for (auto& dstChannel : channels) {
+        for (int i = 0; i < morph_size.size(); i++) {
+            Mat result = mp::CaculateMP(dstChannel, morph_size[i]);
+            features.push_back(result);
+            classValue.push_back(class_type);
+        }
     }
-    return result.reshape(1, 1);
 }
 
+
+/*===================================================================
+* Function: GetLBP
+*
+* Summary:
+*   Get local binary pattern 
+*
+* Arguments:
+*   vector<Mat>& features
+*   vector<unsigned char>& classValue
+*   int radius  - default 1
+*   int neighbors - default 8
+*   int histsize - length of the feature vector,default 32
+*
+* Returns:
+*   void
+=====================================================================
+*/
 void cvFeatures::GetLBP(vector<Mat> &features, vector<unsigned char> &classValue, int radius, int neighbors, int histsize) {
      
-        Mat lbp = elbp::CaculateElbp(image, radius, neighbors, true);
+        Mat lbp = elbp::CaculateElbp(this->image, radius, neighbors, true);
             // Apply mask
         Mat mask = Mat();
         Mat lbp_hist = GetHistOfMaskArea(lbp, mask, 0, 255, histsize, true);
@@ -46,19 +64,18 @@ void cvFeatures::GetLBP(vector<Mat> &features, vector<unsigned char> &classValue
 
 
 /*===================================================================
-* Function: GetFeatureGLCM
+* Function: GetGLCM
 *
 * Summary:
-*   Calculate energy, contrast, homogenity and entropy of the mask area
-*    output the result and class labels.
+*   Calculate energy, contrast, homogenity and entropy of all channels
 *
 *
 * Arguments:
-*   vector<Mat>& features
-*   vector<unsigned char>& classValue
+*   vector<Mat>& features  - Destination  
+*   vector<unsigned char>& classValue - Destination 
 *   int size - size of Mat Window (only support 5*5, 7*7)
 *   GrayLevel level - Destination image's Gray Level (choose in 4/8/16/32)
-*   int histsize - length of the feature vector
+*   int histsize - length of the feature vector,default 32
 *
 * Returns:
 *   void
@@ -99,10 +116,22 @@ void cvFeatures::GetGLCM(vector<Mat> &features, vector<unsigned char> &classValu
 
 
 
-
-
-
-// numOfColor = 3
+/*===================================================================
+* Function: GetMPEG7DCD
+*
+* Summary:
+*   Get MPEG-7 dominant color descriptor (DCD)
+*   include three color components and the weight of the most dominant color
+*
+* Arguments:
+*   vector<Mat>& features  - Destination
+*   vector<unsigned char>& classValue - Destination
+*   int numOfColor - default 3
+*
+* Returns:
+*   void
+=====================================================================
+*/
 void cvFeatures::GetMPEG7DCD(vector<Mat>& features, vector<unsigned char>& classValue, int numOfColor) {
     Mat src = image.clone();
     Mat dst;
@@ -135,7 +164,22 @@ void cvFeatures::GetMPEG7DCD(vector<Mat>& features, vector<unsigned char>& class
     }
  }
 
-
+/*===================================================================
+* Function: GetMPEG7CSD
+*
+* Summary:
+*   Get MPEG-7 color structure descriptor (CSD)
+*   include three color components and the weight of the most dominant color
+*
+* Arguments:
+*   vector<Mat>& features  - Destination
+*   vector<unsigned char>& classValue - Destination
+*   int Size - length of the feature vector,default 32
+*
+* Returns:
+*   void
+=====================================================================
+*/
 void cvFeatures::GetMPEG7CSD(vector<Mat>& features, vector<unsigned char>& classValue, int Size) {
     Mat src = image.clone();
     Mat dst;
@@ -156,81 +200,73 @@ void cvFeatures::GetMPEG7CSD(vector<Mat>& features, vector<unsigned char>& class
     delete csd;
  }
 
-auto* cvFeatures::matToArray(Mat& image) {
-    if (image.channels() != 1) {
-        cvtColor(image, image, COLOR_BGR2GRAY);
-    }
-    // flatten the Mat.
-    uint totalElements = static_cast<int>(image.total()) * image.channels();
-    Mat flat = image.reshape(1, totalElements);
-    if (!image.isContinuous()) {
-        flat = flat.clone();
-    }
-    auto* ptr = flat.data;
-    return ptr;
-}
+/*===================================================================
+ * Function: GetStatistic
+ *
+ * Summary:
+ *   Compute min, max, mean, std, median of mask area
+ *
+ * Arguments:
+ *   Mat src -  PolSAR data single channel
+ *
+ * Returns:
+ *   void
+=====================================================================
+*/
+void cvFeatures::GetStatistic(vector<Mat>& features, vector<unsigned char>& classValue) {
 
-// compute opening-closing by reconstruction from image
-// example:https://de.Mathworks.com/help/images/marker-controlled-watershed-segmentation.html
-Mat cvFeatures::CaculateMP(const Mat& src, int morph_size) {
-    //convert img to grayscale
-    Mat dst;
-    if (src.channels() != 1) {
-        cvtColor(src, dst, COLOR_BGR2GRAY);
-    }
-    else {
-        src.copyTo(dst);
-    }
-    equalizeHist(dst, dst);
-    //imshow("image", dst);
-    // waitKey(0);
+    for (int i = 0; i < image.channels(); i++) {
 
-    Mat element = getStructuringElement(MORPH_ELLIPSE, Size(2 * morph_size + 1, 2 * morph_size + 1), Point(morph_size, morph_size));
+        Mat image_temp;
+        extractChannel(image, image_temp, i);
+        Mat result = Mat(1, 5, CV_32FC1);
 
-    
-    //erode and reconstruct ( opening-by-reconstruction )
-    Mat Iobr = Mat(Size(dst.size()), dst.type());
-    erode(dst, Iobr, element);
-    auto* ptr = matToArray(Iobr);
-    mp::Reconstruct(ptr, matToArray(dst), dst.cols, dst.rows);
-    //restore cv Mat
-    Mat dst2 = Mat(dst.rows, dst.cols, dst.type(), ptr);
-    //imshow("openning by reconstruction: ", dst2);
-    //waitKey(0);
-
-     //dilate and reconstruct (closing-by-Reconstruction)
-    Mat Icbr = Mat(Size(dst2.size()), dst2.type());
-    dilate(dst2, Icbr, element);
-    // imcomplement
-    dst2 = 255 - dst2;
-    Icbr = 255 - Icbr;
-    auto* ptr2 = matToArray(Icbr);
-    mp::Reconstruct(ptr2, matToArray(dst2), dst2.cols, dst2.rows);
-    //restore cv Mat
-    Mat dst3 = Mat(dst.rows, dst.cols, dst.type(), ptr2);
-    // imcomplement
-    dst3 = 255 - dst3;
-    //imshow("opening-closing by reconstruction: ", dst3);
-    //waitKey(0);
-    return dst3;
-}
-
-void cvFeatures::GetMP(vector<Mat>& features, vector<unsigned char>& classValue) {
-    Mat src = image.clone();
-    normalize(src, src, 0, 255, NORM_MINMAX);
-    src.convertTo(src, CV_8UC3);
-    vector<Mat> channels;
-    split(src, channels);
-
-    for (auto& dstChannel : channels) {
-        for (int i = 0; i < morph_size.size(); i++) {
-            Mat result = CaculateMP(dstChannel, morph_size[i]);
-            features.push_back(result);
-            classValue.push_back(class_type);
+        vector<float> vec(image_temp.begin<float>(), image_temp.end<float>());
+        int size = static_cast<int>(image_temp.total());
+        // sort the vector
+        std::sort(vec.begin(), vec.end());
+        if (size % 2 == 0)
+        {
+            //median
+            result.at<float>(0, 4) = (vec[size / 2.0 - 1] + vec[size / 2]) / 2;
         }
+        else
+        {
+            //median
+            result.at<float>(0, 4) = vec[size / 2];
+        }
+
+        //min
+        result.at<float>(0, 0) = vec[0];
+        //max
+        result.at<float>(0, 1) = vec[size - 1];
+
+        Scalar mean, stddev; //0:1st channel, 1:2nd channel and 2:3rd channel
+        meanStdDev(vec, mean, stddev);
+        //mean
+        result.at<float>(0, 2) = mean[0];
+        //stddev
+        result.at<float>(0, 3) = stddev[0];
+
+        features.push_back(result);
+        classValue.push_back(class_type);
     }
 }
-        
+ 
+Mat cvFeatures::GetHistOfMaskArea(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed)
+{
+    Mat result;
+    // Set the ranges.
+    float range[] = { static_cast<float>(minVal), static_cast<float>(maxVal + 1) };
+    const float* histRange = { range };
+    // calc histogram with mask
+    calcHist(&src, 1, 0, mask, result, 1, &histSize, &histRange, true, false);
+    // normalize
+    if (normed) {
+        result /= (int)src.total();
+    }
+    return result.reshape(1, 1);
+}
 
 
 
