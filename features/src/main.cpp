@@ -1,58 +1,31 @@
-#include <torch/torch.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
 #include "sen12ms.hpp"
-#include "torchDataSet.cpp"
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <valarray>
+#include "GetFeatures.hpp"
+#include "polsar.hpp"
+
 
 
 using namespace std;
 using namespace cv;
  
 int main() {
+    string ratfolder = "E:\\Oberpfaffenhofen\\sar-data";
+    string labelfolder = "E:\\Oberpfaffenhofen\\label";
 
-    // generate the list by using "dir /a-D /S /B >s1FileList.txt" in window10 command
-    string s1FileListPath = "../data/s1FileList.txt";
-    string lcFileListPath = "../data/lcFileList.txt";
-    sen12ms* sar = new sen12ms(s1FileListPath, lcFileListPath);
-  
-    MaskType mask_type = MaskType::IGBP;
-    int batch_size = 10;
-    sar->SetMaskType(mask_type);
-    sar->SetBatchSize(batch_size);
-
-    int totalBatch = int(sar->s1FileList.size() / batch_size) + 1;
-
-    // loop from 0 to totalBatch to load the data
-    sar->LoadBatchToMemeory(0); // load the first batch
-
-    // load to KNN
-    vector<Mat> images;
-    vector<Mat> labelMaps;
-    sar->GetData(images, labelMaps);
-    // KNN::KNNTrain
-
-    // load to torch
-    vector<Mat> imageOfMaskArea;
-    vector<unsigned char> classValue;
-    sar->GetData(imageOfMaskArea, classValue);
-    //auto custom_dataset = torchDataset(imageOfMaskArea, classValue).map(torch::data::transforms::Stack<>());
-    //auto data_loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(std::move(custom_dataset),batch_size);
+    // set patch size 64, maximum sample points per class is 2000
+    polsar* ober = new polsar(ratfolder, labelfolder,64,2000); 
      
-    vector<Mat> LBPfeatures;
-    vector<unsigned char> LBPLabels;
-    sar->GetFeatureLBP(LBPfeatures, LBPLabels, 1, 8, 32);
 
-   //vector<Mat> GLCMfeatures;
-   //vector<unsigned char> GLCMLabels;
-   //sar->GetFeatureGLCM(GLCMfeatures, GLCMLabels, 5, GrayLevel::GRAY_8, 32);
+    vector<Mat> patches;
+    vector<unsigned char> labels;
+    ober->GetData(patches, labels);
 
-    vector<Mat> Statisticfeatures;
-    vector<unsigned char> StatLabels;
-    sar->GetFeatureStatistic(Statisticfeatures, StatLabels, 32);
+    cvFeatures f = cvFeatures(patches[0], labels[0]);
+    vector<Mat> MPfeatures;
+    vector<unsigned char> MPLabels;
+    f.GetMP(MPfeatures, MPLabels);
 
+    
     return 0; // success
 }
