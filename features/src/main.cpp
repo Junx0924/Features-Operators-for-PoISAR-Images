@@ -10,35 +10,36 @@ using namespace std;
 using namespace cv;
  
 int main() {
+
     string ratfolder = "E:\\Oberpfaffenhofen\\sar-data";
     string labelfolder = "E:\\Oberpfaffenhofen\\label";
 
-    // set patch size 64, maximum sample points per class is 2000d
-    polsar* ober = new polsar(ratfolder, labelfolder,64,2000); 
-     
+    // set patch size 64, maximum sample points per class is 3000
+    polsar* ober = new polsar(ratfolder, labelfolder, 10, 3000);
 
     vector<Mat> patches;
     vector<unsigned char> labels;
-    ober->GetData(patches, labels);
+    ober->GetPatches(patches, labels);
 
     cvFeatures f = cvFeatures(patches[0], labels[0]);
     vector<Mat> MPfeatures;
     vector<unsigned char> MPLabels;
     f.GetMP(MPfeatures, MPLabels);
 
-    vector<Mat> MPfeatures;
-    vector<unsigned char> MPLabels;
-    f.GetMP(MPfeatures, MPLabels);
-    
     vector<Mat> texture;
     vector<unsigned char> textureLabels;
     f.GetLBP(texture, textureLabels, 1, 8, 32);
     f.GetGLCM(texture, textureLabels, 5, GrayLevel::GRAY_8, 32);
 
-    vector<Mat> colorfeatures;
-    vector<unsigned char> colorLabels;
-    f.GetMPEG7DCD(colorfeatures, colorLabels, 3);
-    f.GetMPEG7CSD(colorfeatures, colorLabels, 32);
+    //vector<Mat> colorfeatures;
+    //vector<unsigned char> colorLabels;
+    //f.GetMPEG7DCD(colorfeatures, colorLabels, 3);
+    //f.GetMPEG7CSD(colorfeatures, colorLabels, 32);
+
+    vector<Mat> Statfeatures;
+    vector<unsigned char> StatLabels;
+    f.GetStatistic(Statfeatures, StatLabels);
+
 
     return 0; // success
 }
