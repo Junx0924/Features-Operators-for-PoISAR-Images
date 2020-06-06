@@ -26,11 +26,10 @@
 #include <opencv2/opencv.hpp>
 #include  <opencv2/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <math.h>
+#include <Math.h>
 
-using namespace cv;
 using namespace std;
-
+using namespace cv;
 
 // Gray Level (Choose in 4/8/16)
 enum class GrayLevel

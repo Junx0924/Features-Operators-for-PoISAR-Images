@@ -1,17 +1,31 @@
-#include "opencv2/core/core.hpp"
-#include "elbp.hpp"
-#include <string>
-#include <iostream>
+# include "elbp.hpp"
 
-//------------------------------------------------------------------------------
-// cv::elbp
-//------------------------------------------------------------------------------
-using namespace cv;
 using namespace std;
+using namespace cv;
 
-template <typename _Tp>  void elbp::ElbpWrapper_(const Mat& src, Mat &dst, int radius, int neighbors)
+std::string elbp::type2str(int type) {
+    std::string r;
+    uchar depth = type & CV_MAT_DEPTH_MASK;
+    uchar chans = 1 + (type >> CV_CN_SHIFT);
+    switch (depth) {
+    case CV_8U:  r = "CV_8U"; break;
+    case CV_8S:  r = "CV_8S"; break;
+    case CV_16U: r = "CV_16U"; break;
+    case CV_16S: r = "CV_16S"; break;
+    case CV_32S: r = "CV_32S"; break;
+    case CV_32F: r = "CV_32F"; break;
+    case CV_64F: r = "CV_64F"; break;
+    default:     r = "User"; break;
+    }
+    r += "C";
+    r += (chans + '0');
+    return r;
+}
+
+template <typename _Tp>
+void elbp::ELBP(const Mat& src, Mat& dst, int radius, int neighbors)
 {
-   
+
     for (int n = 0; n < neighbors; n++) {
         // sample points
         float x = static_cast<float>(-radius * sin(2.0 * CV_PI * n / static_cast<float>(neighbors)));
@@ -41,38 +55,38 @@ template <typename _Tp>  void elbp::ElbpWrapper_(const Mat& src, Mat &dst, int r
     }
 }
 
-void elbp::ElbpWrapper(const Mat& src, Mat & dst, int radius, int neighbors)
+void elbp::ElbpWrapper(const Mat& src, Mat& dst, int radius, int neighbors)
 {
-    std::string type = elbp::type2str(src.type());
-    if (type == "CV_8SC1") { 
+    std::string type = type2str(src.type());
+    if (type == "CV_8SC1") {
         dst = Mat(src.rows, src.cols, CV_8SC1);
-        elbp::ElbpWrapper_<char>(src, dst, radius, neighbors);
+        ELBP<char>(src, dst, radius, neighbors);
     }
     else if (type == "CV_8UC1") {
         dst = Mat(src.rows, src.cols, CV_8UC1);
-        elbp::ElbpWrapper_<unsigned char>(src, dst, radius, neighbors);
+        ELBP<unsigned char>(src, dst, radius, neighbors);
     }
-    else if (type == "CV_16SC1") { 
+    else if (type == "CV_16SC1") {
         dst = Mat(src.rows, src.cols, CV_16SC1);
-        elbp::ElbpWrapper_<short>(src, dst, radius, neighbors);
+        ELBP<short>(src, dst, radius, neighbors);
     }
-    else if (type == "CV_16UC1") { 
+    else if (type == "CV_16UC1") {
         dst = Mat(src.rows, src.cols, CV_16UC1);
-        elbp::ElbpWrapper_<unsigned short>(src, dst, radius, neighbors);
+        ELBP<unsigned short>(src, dst, radius, neighbors);
     }
-    else if (type == "CV_32SC1") { 
+    else if (type == "CV_32SC1") {
         dst = Mat(src.rows, src.cols, CV_32SC1);
-        elbp::ElbpWrapper_<int>(src, dst, radius, neighbors);
+        ELBP<int>(src, dst, radius, neighbors);
     }
-    else if (type == "CV_32FC1") { 
+    else if (type == "CV_32FC1") {
         dst = Mat(src.rows, src.cols, CV_32FC1);
-        elbp::ElbpWrapper_<float>(src, dst, radius, neighbors);
+        ELBP<float>(src, dst, radius, neighbors);
     }
-    else   { 
+    else {
         dst = Mat(src.rows, src.cols, CV_64FC1);
-        elbp::ElbpWrapper_<double>(src, dst, radius, neighbors);
+        ELBP<double>(src, dst, radius, neighbors);
     }
-    
+
 }
 
 /*===================================================================
@@ -96,35 +110,15 @@ Mat elbp::CaculateElbp(const Mat& src, int radius, int neighbors, bool normed) {
     if (src.channels() > 1)
     {
         Mat tmp;
-        cv::cvtColor(src, tmp, cv::COLOR_BGR2GRAY);
-        elbp::ElbpWrapper(tmp, dst, radius, neighbors);
+        cvtColor(src, tmp, COLOR_BGR2GRAY);
+        ElbpWrapper(tmp, dst, radius, neighbors);
     }
     else {
-        elbp::ElbpWrapper(src, dst, radius, neighbors);
+        ElbpWrapper(src, dst, radius, neighbors);
     }
-    
+
     if (normed) {
         cv::normalize(dst, dst, 0, 255, NORM_MINMAX, CV_8UC1);
     }
     return dst;
 }
-
-std::string elbp::type2str(int type) {
-    std::string r;
-    uchar depth = type & CV_MAT_DEPTH_MASK;
-    uchar chans = 1 + (type >> CV_CN_SHIFT);
-    switch (depth) {
-    case CV_8U:  r = "CV_8U"; break;
-    case CV_8S:  r = "CV_8S"; break;
-    case CV_16U: r = "CV_16U"; break;
-    case CV_16S: r = "CV_16S"; break;
-    case CV_32S: r = "CV_32S"; break;
-    case CV_32F: r = "CV_32F"; break;
-    case CV_64F: r = "CV_64F"; break;
-    default:     r = "User"; break;
-    }
-    r += "C";
-    r += (chans + '0');
-    return r;
-}
-

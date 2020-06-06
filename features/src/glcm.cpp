@@ -21,6 +21,8 @@
 
 #include "glcm.hpp"
 
+
+using namespace cv;
 /*===================================================================
  * Function: getOneChannel
  *
@@ -79,12 +81,10 @@ void GLCM::GrayMagnitude(Mat src, Mat& dst, GrayLevel level)
     Mat tmp;
     src.copyTo(tmp);
    
-    if(tmp.channels() == 3){
-        cvtColor(tmp, tmp, cv::COLOR_BGR2GRAY);
+    if(tmp.channels() !=1){
+        cvtColor(tmp, tmp, COLOR_BGR2GRAY);
     }
-    else if (tmp.channels() == 1) {
-        tmp.convertTo(tmp, CV_8UC1);
-    }
+    
 
   
     // Equalize Histogram
@@ -100,16 +100,16 @@ void GLCM::GrayMagnitude(Mat src, Mat& dst, GrayLevel level)
             switch(level)
             {
             case GrayLevel::GRAY_4:
-                output[i] = cv::saturate_cast<uchar>(current[i] / 64);
+                output[i] = saturate_cast<uchar>(current[i] / 64);
                 break;
             case GrayLevel::GRAY_8:
-                output[i] = cv::saturate_cast<uchar>(current[i] / 32);
+                output[i] = saturate_cast<uchar>(current[i] / 32);
                 break;
             case GrayLevel::GRAY_16:
-                output[i] = cv::saturate_cast<uchar>(current[i] / 16);
+                output[i] = saturate_cast<uchar>(current[i] / 16);
                 break;
             case GrayLevel::GRAY_32:
-                output[i] = cv::saturate_cast<uchar>(current[i] / 32);
+                output[i] = saturate_cast<uchar>(current[i] / 32);
                 break;
             default:
                 cout<<"ERROR in GrayMagnitude(): No Such GrayLevel."<<endl;
@@ -353,10 +353,10 @@ void GLCM::CalcuOneTextureEValue(Mat src, TextureEValues& EValue, bool ToCheckMa
         }
     }
 
-    EValue.contrast = 0;
-    EValue.energy = 0;
-    EValue.entropy = 0;
-    EValue.homogenity = 0;
+    EValue.contrast = 0.0;
+    EValue.energy = 0.0;
+    EValue.entropy = 0.0;
+    EValue.homogenity = 0.0;
 
     for(int i = 0; i < src.rows; i++)
         for(int j = 0; j < src.cols; j++)
@@ -460,10 +460,10 @@ void GLCM::CalcuTextureImages(Mat src, Mat& imgEnergy, Mat& imgContrast, Mat& im
     // Adjust output Texture Feature Images, Change its type from CV_32FC1 to CV_8UC1, Change its value range as 0--255
     if(ToAdjustImg)
     {
-        cv::normalize(imgEnergy, imgEnergy, 0, 255, NORM_MINMAX);
-        cv::normalize(imgContrast, imgContrast, 0, 255, NORM_MINMAX);
-        cv::normalize(imgEntropy, imgEntropy, 0, 255, NORM_MINMAX);
-        cv::normalize(imgHomogenity, imgHomogenity, 0, 255, NORM_MINMAX);
+        normalize(imgEnergy, imgEnergy, 0, 255, NORM_MINMAX);
+        normalize(imgContrast, imgContrast, 0, 255, NORM_MINMAX);
+        normalize(imgEntropy, imgEntropy, 0, 255, NORM_MINMAX);
+        normalize(imgHomogenity, imgHomogenity, 0, 255, NORM_MINMAX);
         imgEnergy.convertTo(imgEnergy, CV_8UC1);
         imgContrast.convertTo(imgContrast, CV_8UC1);
         imgEntropy.convertTo(imgEntropy, CV_8UC1);
