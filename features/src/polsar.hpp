@@ -12,7 +12,7 @@ using namespace cv;
 //load data from Oberpfaffenhofen
 class polsar {
 
-public:
+private:
 	// data = complex mat with values [HH, VV, HV]
 	vector<Mat> data;
 	vector<unsigned  char> labels;
@@ -20,7 +20,6 @@ public:
 	// record sample Points of each mask area
 	vector<vector<Point>> samplePoints;
 
-private:
 	// draw samples from each image of mask area
 	int sampleSize = 64;
 	// Maximum sample points of each mask area
@@ -49,6 +48,7 @@ public:
 			// get the sample points in each mask area
 			vector<Point> pts;
 			getSafeSamplePoints(masks[i], pts);
+			cout << "Get " << pts.size() << " sample points for class " << labelNames[i] << endl;
 			samplePoints.push_back(pts);
 		}
 		
@@ -56,32 +56,47 @@ public:
 
 	~polsar() {}
 
-
-	// to compute Color features
-	// get patches of 3 channel (HH+VV,HV,HH-VV) intensity(dB)
-	 void GetPauliPatches(vector<Mat>& patches, vector<unsigned char>& classValue);
-
-	 // to compute Texture and Morphological feature
+	  // data for torch
+	 // get patches of 3 channel (HH+VV,HV,HH-VV) intensity(dB)
+	 void GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& classValue);
 	 // get patches of 3 channel (HH,HV,VV) intensity(dB)
 	 void GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue);
 
-	
+
+	 // get statistical features(min,max,mean,median,std) on polsar parameters, size 1*35
+	 void GetStatisticFeature(vector<Mat>& features, vector<unsigned char>& classValue);
+	 // get texture features(LBP and GLCM) on HH,VV,VH, default size 1*64
+	 void GetTextureFeature(vector<Mat>& features, vector<unsigned char>& classValue);
+	 // get color features(MPEG-7 DCD,CSD) on Pauli Color image, default size 1*44
+	 void GetColorFeature(vector<Mat>& features, vector<unsigned char>& classValue);
+	 // get MP features on HH,VV,VH, default size (sampleSize*3,sampleSize)
+	 void GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue);
+
+	 //---------still working---------
+	 // void GetTargetDecomposition(vector<Mat>& features, vector<unsigned char>& classValue);
+	 // get elements from covariance matrix C and coherent matrix T
+	 // void GetElementCT(vector<Mat>& features, vector<unsigned char>& classValue);
+
 private:
 	//Generate false color image
 	// R:HH, G:HV, B:VV
-	Mat getFalseColorImg(const Mat& hh, const Mat& hv, const Mat& vv, bool normed = false);
+	Mat getFalseColorImg(const Mat& hh, const Mat& vv, const Mat& hv,  bool normed = false);
 	//R: HH+VV, G:HV, B: HH-VV
-	Mat getPauliColorImg(const Mat& hh, const Mat& hv, const Mat& vv);
+	Mat getPauliColorImg(const Mat& hh, const Mat& vv, const Mat& hv);
 
 	// Generate samples from each img
-	void getSamples(const Mat& img, const vector<Point>& points, const unsigned char& mask_label, vector<Mat>& samples, vector<unsigned char>& sample_labels);
 	void getSafeSamplePoints(const Mat& mask, vector<Point>& pts);
 
 
 	// process complex scattering values
 	Mat getComplexAmpl(const Mat& in);
-	Mat logTransform(const Mat& in);  //intensity in dB
 	Mat getComplexAngle(const Mat& in);
+	Mat logTransform(const Mat& in);  //intensity in dB
+	
+	Mat getPhaseDiff(const Mat& hh, const Mat& vv);
+
+	 
+	
 
 
 	/***Author: Anupama Rajkumar***/
