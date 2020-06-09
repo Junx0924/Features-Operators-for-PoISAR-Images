@@ -41,8 +41,8 @@ Mat mp::CaculateMP(const Mat& src, int morph_size) {
     mp::Reconstruct(ptr, matToArray(dst), dst.cols, dst.rows);
     //restore cv Mat
     Mat dst2 = Mat(dst.rows, dst.cols, dst.type(), ptr);
-    //imshow("openning by reconstruction: ", dst2);
-    //waitKey(0);
+   // imshow("openning by reconstruction: ", dst2);
+   // waitKey(0);
 
      //dilate and reconstruct (closing-by-Reconstruction)
     Mat Icbr = Mat(Size(dst2.size()), dst2.type());
@@ -56,7 +56,7 @@ Mat mp::CaculateMP(const Mat& src, int morph_size) {
     Mat dst3 = Mat(dst.rows, dst.cols, dst.type(), ptr2);
     // imcomplement
     dst3 = 255 - dst3;
-    //imshow("opening-closing by reconstruction: ", dst3);
+   // imshow("opening-closing by reconstruction: ", dst3);
     //waitKey(0);
     return dst3;
 }

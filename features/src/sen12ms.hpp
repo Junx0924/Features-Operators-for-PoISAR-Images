@@ -36,9 +36,9 @@ private:
 	 MaskType mask_type;
 
 	 // draw samples from each image of mask area
-	 int sampleSize = 64; 
+	 int sampleSize = 10; 
 	 // Maximum sample points of each mask area
-	 int samplePointNum = 16;
+	 int samplePointNum = 100;
 
 public:
 	// Constructor

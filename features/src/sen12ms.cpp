@@ -336,10 +336,10 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
  * Function: GetPatches
  *
  * Summary:
- *   process data to feed torch dataset
+ *   get samples for each mask area
  *
  * Arguments:
- *   vector<Mat>& patches - patches drawed from each image
+ *   vector<Mat>& patches - store patches drawed from each image
  *   vector<unsigned char>& classValue  - store the class type for each patch
  *
  * Returns:
@@ -429,7 +429,7 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
  *   MaskType mask_type: choose in IGBP or LCCS
  *
  * Returns:
- *  string
+ *  string - class name
 =====================================================================
 */
  string sen12ms::GetClassName(unsigned char classValue){
@@ -516,7 +516,6 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
              int start_x = int(p.x) - sampleSize / 2;
              int start_y = int(p.y) - sampleSize / 2;
              Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
-             // only continuous data can be reshaped
              Mat tmp = img(roi).clone();
              samples.push_back(tmp);
              sample_labels.push_back(mask_label);

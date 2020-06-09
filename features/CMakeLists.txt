@@ -28,8 +28,8 @@ src/elbp.cpp
 src/sen12ms.cpp
 src/sen12ms.hpp
 src/Geotiff.cpp
-src/GetFeatures.cpp
-src/GetFeatures.hpp
+src/cvFeatures.cpp
+src/cvFeatures.hpp
 src/polsar.hpp
 src/polsar.cpp
 src/mp.cpp
