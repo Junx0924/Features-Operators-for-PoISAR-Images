@@ -6,9 +6,11 @@ cmake_policy(SET CMP0015 NEW)
 # Libraries
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
+
 #find_package(Torch REQUIRED)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
+
 
 # To use GDAL libraries:
 # Install GDAL in conda,
@@ -17,6 +19,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
 link_directories(D:/Anaconda/Library/lib)
 include_directories(D:/Anaconda/Library/include)
 set(CMAKE_MSVCIDE_RUN_PATH  D:/Anaconda/Library/bin)
+
+# To use Eigen3.3.3
+include_directories("D:/Program Files/Eigen")
 
 add_subdirectory(src/MPEG-7)
 
@@ -30,13 +35,13 @@ src/sen12ms.hpp
 src/Geotiff.cpp
 src/cvFeatures.cpp
 src/cvFeatures.hpp
-src/polsar.hpp
-src/polsar.cpp
+src/ober.hpp
+src/ober.cpp
 src/mp.cpp
 src/mp.hpp
-#src/torchDataSet.cpp
+src/sarFeatures.hpp
+src/sarFeatures.cpp
 )
-
 
 add_executable(main
 src/main.cpp
@@ -48,9 +53,8 @@ set_property(TARGET feature PROPERTY CXX_STANDARD 17)
 
 # libs to link with
 #target_link_libraries(feature ${OpenCV_LIBS} ${TORCH_LIBRARIES} gdal_i MPEG-7)
-target_link_libraries(feature ${OpenCV_LIBS}  gdal_i MPEG-7)
+target_link_libraries(feature ${OpenCV_LIBS}  MPEG-7 gdal_i)
 target_link_libraries(main feature )
-
 
 
 # The following code block is suggested to be used on Windows.
