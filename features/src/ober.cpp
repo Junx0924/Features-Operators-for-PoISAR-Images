@@ -1,6 +1,7 @@
-#include "polsar.hpp" 
+#include "ober.hpp" 
 #include <opencv2/opencv.hpp>
 #include "cvFeatures.hpp"
+#include "sarFeatures.hpp"
 #ifdef VC
 #include <filesystem>
 #endif // VC
@@ -20,51 +21,11 @@ using namespace std;
 using namespace cv;
 namespace fs = std::filesystem;
 
-Mat polsar::getComplexAmpl(const Mat& in) {
-
-    vector<Mat> channels;
-
-    split(in, channels);
-    pow(channels[0], 2, channels[0]);
-    pow(channels[1], 2, channels[1]);
-    Mat out = channels[0] + channels[1];
-    pow(out, 0.5, out);
-
-    return out;
-
-}
-
-Mat polsar::logTransform(const Mat& in) {
-
-    Mat out;
-    if (in.channels() == 2) {
-        out = getComplexAmpl(in);
-    }
-    else
-        out = in;
-
-    out = out + 1;
-    log(out, out); 
-
-    return out;
-
-}
-
-Mat polsar::getComplexAngle(const Mat& in) {
-
-    vector<Mat> channels;
-    split(in, channels);
-    Mat amp, out;
-    cartToPolar(channels[0], channels[1], amp, out);
-
-    return out;
-
-}
 
 
 // input : mask
 // output: random safe sample points
-void polsar::getSafeSamplePoints(const Mat& mask, vector<Point>& pts) {
+void ober::getSafeSamplePoints(const Mat& mask, vector<Point>& pts) {
 
 	vector<Point> ind;
 	cv::findNonZero(mask, ind);
@@ -115,7 +76,7 @@ void polsar::getSafeSamplePoints(const Mat& mask, vector<Point>& pts) {
 
 
 // get patches of 3 channel (HH+VV,HV,HH-VV) intensity(dB)
-void polsar::GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
+void ober::GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
 	
 	if (!samplePoints.empty()) {
 		for (int i = 0; i < static_cast<int>(masks.size()); i++) {
@@ -124,15 +85,16 @@ void polsar::GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& c
 				int start_y = int(p.y) - sampleSize / 2;
 				Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
 
-				patches.push_back(getPauliColorImg(data[0](roi), data[1](roi), data[2](roi)));
+				patches.push_back(polsar::GetPauliColorImg(data[0](roi), data[1](roi), data[2](roi)));
 				classValue.push_back(labels[i]);
 			}
 		}
 	}
 }
 
+
 // get patches of 3 channel (HH,VV,HV) intensity(dB)
-void polsar::GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
+void ober::GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
 		 
 		if(!samplePoints.empty()){
 			for (int i = 0; i < static_cast<int>(masks.size()); i++) {
@@ -141,15 +103,16 @@ void polsar::GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue)
 					int start_y = int(p.y) - sampleSize / 2;
 					Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
 
-					patches.push_back(getFalseColorImg(data[0](roi), data[1](roi), data[2](roi)));
+					patches.push_back(polsar::GetFalseColorImg(data[0](roi), data[1](roi), data[2](roi)));
 					classValue.push_back(labels[i]);
 				}
 			}
 		}
 }
 
-// statistical feature vector length: 7*5= 35
-void polsar::GetStatisticFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
+
+// get texture features(LBP and GLCM) on HH,VV,VH, default feature mat size 1*64
+void ober::GetTextureFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
 	for (int i = 0; i < static_cast<int>(masks.size()); i++) {
 		for (const auto& p : samplePoints[i]) {
 			int start_x = int(p.x) - sampleSize / 2;
@@ -158,53 +121,11 @@ void polsar::GetStatisticFeature(vector<Mat>& features, vector<unsigned char>& c
 
 			vector<Mat> temp;
 			// intensity of HH channel
-			Mat hh = logTransform(getComplexAmpl(data[0](roi)));
+			Mat hh = polsar::logTransform(polsar::getComplexAmpl(data[0](roi)));
 			// intensity of VV channel
-			Mat vv = logTransform(getComplexAmpl(data[1](roi)));
+			Mat vv = polsar::logTransform(polsar::getComplexAmpl(data[1](roi)));
 			// intensity of HV channel
-			Mat hv = logTransform(getComplexAmpl(data[2](roi)));
-			// phase difference HH-VV
-			Mat phaseDiff = getPhaseDiff(data[0](roi), data[1](roi));
-			//statistic of Co-polarize ratio VV-HH
-			Mat coPolarize = vv - hh;
-			// Cross-polarize ratio HV-HH
-			Mat crossPolarize = hv - hh;
-			// polarize ratio HV-VV
-			Mat otherPolarize = hv - vv;
-
-			temp.push_back(hh);
-			temp.push_back(vv);
-			temp.push_back(hv);
-			temp.push_back(phaseDiff);
-			temp.push_back(coPolarize);
-			temp.push_back(crossPolarize);
-			temp.push_back(otherPolarize);
-
-			Mat result;
-			for (const auto& t : temp) {
-				result.push_back(cvFeatures::GetStatistic(t));
-			}
-			features.push_back(result.reshape(1,1));
-			classValue.push_back(labels[i]);
-		}
-	}
-}
-
-// texture feature vector length: 64
-void polsar::GetTextureFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
-	for (int i = 0; i < static_cast<int>(masks.size()); i++) {
-		for (const auto& p : samplePoints[i]) {
-			int start_x = int(p.x) - sampleSize / 2;
-			int start_y = int(p.y) - sampleSize / 2;
-			Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
-
-			vector<Mat> temp;
-			// intensity of HH channel
-			Mat hh = logTransform(getComplexAmpl(data[0](roi)));
-			// intensity of VV channel
-			Mat vv = logTransform(getComplexAmpl(data[1](roi)));
-			// intensity of HV channel
-			Mat hv = logTransform(getComplexAmpl(data[2](roi)));
+			Mat hv = polsar::logTransform(polsar::getComplexAmpl(data[2](roi)));
 
 			temp.push_back(hh);
 			temp.push_back(vv);
@@ -220,15 +141,18 @@ void polsar::GetTextureFeature(vector<Mat>& features, vector<unsigned char>& cla
 	}
 }
 
-// color feature vector length: 32 + 12 = 44
-void polsar::GetColorFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
+
+// get color features(MPEG-7 DCD,CSD) on Pauli Color image, default feature mat size 1*44
+void ober::GetColorFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
 	
 	for (int i = 0; i < static_cast<int>(masks.size()); i++) {
 		for (const auto& p : samplePoints[i]) {
 			int start_x = int(p.x) - sampleSize / 2;
 			int start_y = int(p.y) - sampleSize / 2;
 			Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
-			Mat colorImg = getPauliColorImg(data[0](roi), data[1](roi), data[2](roi));
+
+			Mat colorImg = polsar::GetPauliColorImg(data[0](roi), data[1](roi), data[2](roi));
+
 			Mat result;
 			hconcat(cvFeatures::GetMPEG7CSD(colorImg, 32), cvFeatures::GetMPEG7DCD(colorImg, 3),result);
 			features.push_back(result);
@@ -237,8 +161,9 @@ void polsar::GetColorFeature(vector<Mat>& features, vector<unsigned char>& class
 	}
 }
 
-// MP feature vector size:(sampleSize, sampleSize*3)
-void polsar::GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
+
+// get MP features on HH,VV,VH, default feature mat size (sampleSize*3,sampleSize)
+void ober::GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
 	for (int i = 0; i < static_cast<int>(masks.size()); i++) {
 		for (const auto& p : samplePoints[i]) {
 			int start_x = int(p.x) - sampleSize / 2;
@@ -247,11 +172,11 @@ void polsar::GetMPFeature(vector<Mat>& features, vector<unsigned char>& classVal
 
 			vector<Mat> temp;
 			// intensity of HH channel
-			Mat hh = logTransform(getComplexAmpl(data[0](roi)));
+			Mat hh = polsar::logTransform(polsar::getComplexAmpl(data[0](roi)));
 			// intensity of VV channel
-			Mat vv = logTransform(getComplexAmpl(data[1](roi)));
+			Mat vv = polsar::logTransform(polsar::getComplexAmpl(data[1](roi)));
 			// intensity of HV channel
-			Mat hv = logTransform(getComplexAmpl(data[2](roi)));
+			Mat hv = polsar::logTransform(polsar::getComplexAmpl(data[2](roi)));
 
 			temp.push_back(hh);
 			temp.push_back(vv);
@@ -265,55 +190,105 @@ void polsar::GetMPFeature(vector<Mat>& features, vector<unsigned char>& classVal
 	}
 }
 
-// R:|HH|, G:|HV|, B:|VV|
-Mat polsar::getFalseColorImg(const Mat& hh, const Mat& vv, const Mat& hv, bool normed)
-{
-	vector<Mat>  Channels;
-	Mat output;
-	Mat R = logTransform(getComplexAmpl(hh));
-	Mat G = logTransform(getComplexAmpl(hv));
-	Mat B = logTransform(getComplexAmpl(vv));
-	Channels.push_back(B);
-	Channels.push_back(G);
-	Channels.push_back(R);
-	merge(Channels, output);
-	if (normed) {
-		normalize(output, output, 0, 255, NORM_MINMAX);
-		output.convertTo(output, CV_8UC3);
-	}
-	return output;
-}
+// default feature mat size 1*72
+void ober::GetAllPolsarFeatures(vector<Mat>& features, vector<unsigned char>& classValue) {
+	int winSize = 3; 
+	for (int i = 0; i < static_cast<int>(masks.size()); i++) {
+		for (const auto& p : samplePoints[i]) {
+			int start_x = int(p.x) - winSize / 2;
+			int start_y = int(p.y) - winSize / 2;
+			Rect roi = Rect(start_x, start_y, winSize, winSize);
 
+			Mat result1;
+			vector<Mat> statistic;
+			getStatisticFeature(data[0](roi), data[1](roi), data[2](roi), statistic);  
+			hconcat(statistic, result1);
 
+			vector<Mat> decomposition;
+			getTargetDecomposition(data[0](roi), data[1](roi), data[2](roi), decomposition); 
+			Mat result2;
+			for (auto& d : decomposition) {
+				result2.push_back(d.at<float>(winSize /2, winSize /2));
+			}
 
-//R: |HH+VV|, G:|HV|, B: |HH-VV|
-Mat polsar::getPauliColorImg(const Mat& hh,  const Mat &vv, const Mat& hv ) {
-	
-	Mat R = hh + vv;
-	Mat G = hv;
-	Mat B  = hh - vv;
-	return getFalseColorImg(R, G, B, true);
-}
-
-
-Mat polsar::getPhaseDiff(const Mat& hh, const Mat& vv) {
-	Mat temp = Mat(Size(hh.size()), CV_32FC2);
-	for(int i=0; i< hh.rows;i++)
-		for (int j = 0; j < hh.cols; j++) {
-			std::complex a(hh.at<Vec2f>(i, j)[0], hh.at<Vec2f>(i, j)[1]);
-			std::complex b(vv.at<Vec2f>(i, j)[0], vv.at<Vec2f>(i, j)[1]);
-			std::complex c = a * std::conj(b);
-			temp.at<Vec2f>(i, j)[0] = c.real();
-			temp.at<Vec2f>(i, j)[1] = c.imag();
+			Mat result;
+			hconcat(result1.reshape(1, 1), result2.reshape(1, 1), result);
+			features.push_back(result);
+			classValue.push_back(labels[i]);
 		}
-	return getComplexAngle(temp);
+	}
 }
 
- 
- 
+
+
+// get statistical (min,max,mean,median,std) on polsar parameters
+// vector<mat>& result - vector length : 7, mat size: 1*5
+void ober::getStatisticFeature(const Mat& hh, const Mat& vv, const Mat hv, vector<Mat>& result) {
+
+	vector<Mat> temp;
+	// intensity of HH channel
+	Mat hh_log = polsar::logTransform(polsar::getComplexAmpl(hh));
+	// intensity of VV channel
+	Mat vv_log = polsar::logTransform(polsar::getComplexAmpl(vv));
+	// intensity of HV channel
+	Mat hv_log = polsar::logTransform(polsar::getComplexAmpl(hv));
+	// phase difference HH-VV
+	Mat phaseDiff = polsar::getPhaseDiff(hh, vv);
+	//statistic of Co-polarize ratio VV-HH
+	Mat coPolarize = vv_log - hh_log;
+	// Cross-polarized ratio HV-HH
+	Mat crossPolarize = hv_log - hh_log;
+	// polarized ratio HV-VV
+	Mat otherPolarize = hv_log - vv_log;
+
+
+	temp.push_back(hh_log);
+	temp.push_back(vv_log);
+	temp.push_back(hv_log);
+	temp.push_back(phaseDiff);
+	temp.push_back(coPolarize);
+	temp.push_back(crossPolarize);
+	temp.push_back(otherPolarize);
+
+	for (const auto& t : temp) {
+		result.push_back(cvFeatures::GetStatistic(t));
+	}
+}
+
+// get upper triangle matrix elements of C, T, and target decompostion features
+// vector<mat>& result - vector length: 37, mat size: (hh.size())
+void ober::getTargetDecomposition(const Mat& hh, const Mat& vv, const Mat hv, vector<Mat> & result) {
+	vector<Mat> pauli;
+	vector<Mat> circ;
+	vector<Mat> lexi;
+	polsar::getPauliBasis(hh, vv, hv, pauli);
+	polsar::getCircBasis(hh, vv, hv, circ);
+	polsar::getLexiBasis(hh, vv, hv, lexi);
+	vector<Mat> covariance;
+	vector<Mat> coherency;
+	polsar::GetCoherencyT(pauli, coherency);
+	polsar::GetCovarianceC(lexi, covariance);
+
+	polsar::GetCloudePottierDecomp(coherency, result); //3  
+	polsar::GetFreemanDurdenDecomp(coherency, result); //3  
+	polsar::GetKrogagerDecomp(circ, result); // 3  
+	polsar::GetPauliDecomp(pauli, result); // 3  
+	polsar::GetHuynenDecomp(covariance, result); // 9  
+	polsar::GetYamaguchi4Decomp(coherency, covariance, result); //4  
+
+	// upper triangle matrix elements of covariance matrix C and coherency matrix T
+	std::array<int, 6> ind = { 0,1,2,4,5,8 };
+	for (auto& i : ind) {
+		result.push_back(polsar::logTransform(covariance[i]));  // 6
+		result.push_back(polsar::logTransform(coherency[i]));   // 6
+	}
+}
+
+
+
 
 #ifdef VC
-void polsar::loadData(string RATfolderPath) {
+void ober::loadData(string RATfolderPath) {
     vector<string> fnames;
     fnames.reserve(5);
 
@@ -374,7 +349,7 @@ void polsar::loadData(string RATfolderPath) {
 /**************************************************************
 Function to load Oberpfaffenhofen PolSAR data file (RAT format)
 ***************************************************************/
-Size polsar::loadRAT2(string fname, vector<Mat>& data, bool metaOnly) {
+Size ober::loadRAT2(string fname, vector<Mat>& data, bool metaOnly) {
 
 	bool verbose = false;
 
@@ -720,7 +695,7 @@ Size polsar::loadRAT2(string fname, vector<Mat>& data, bool metaOnly) {
 Function to load Oberpfaffenhofen PolSAR data file (RAT format
 ***************************************************************/
 
-Size polsar::loadRAT(string fname, vector<Mat>& data, bool metaOnly) {
+Size ober::loadRAT(string fname, vector<Mat>& data, bool metaOnly) {
 
 	bool verbose = true;
 
@@ -1065,7 +1040,7 @@ Date: 23.05.2020
 ***************************************************************/
 #ifdef VC
 
-void polsar::ReadClassLabels(string labelPath, vector<string>& labelNames, vector<Mat>& labelImages) {
+void ober::ReadClassLabels(string labelPath, vector<string>& labelNames, vector<Mat>& labelImages) {
 	fs::recursive_directory_iterator iter(labelPath);
 	fs::recursive_directory_iterator end;
 	while (iter != end) {
@@ -1106,7 +1081,7 @@ void polsar::ReadClassLabels(string labelPath, vector<string>& labelNames, vecto
 
 #ifdef GCC
 
-void polsar::ReadClassLabels(string labelPath, vector<string>& labelNames, vector<Mat>& labelImages) {
+void ober::ReadClassLabels(string labelPath, vector<string>& labelNames, vector<Mat>& labelImages) {
 	struct dirent* entry;
 	DIR* dir = opendir(labelPath.c_str());
 
@@ -1141,7 +1116,7 @@ void polsar::ReadClassLabels(string labelPath, vector<string>& labelNames, vecto
 
 #endif //GCC
 
-void polsar::getTileInfo(cv::Size size, unsigned border, unsigned& tile, vector<unsigned>& tileSize, vector<unsigned>& tileStart) {
+void ober::getTileInfo(cv::Size size, unsigned border, unsigned& tile, vector<unsigned>& tileSize, vector<unsigned>& tileStart) {
 
 	cout << "Size:" << size.width << "x" << size.height << endl;				//1390 x 6640; number of channels:3
 	tileSize[0] = size.width;

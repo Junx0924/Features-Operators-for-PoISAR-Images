@@ -1,6 +1,6 @@
 #pragma once
-#ifndef  POLSAR_HPP_
-#define  POLSAR_HPP_
+#ifndef  OBER_HPP_
+#define  OBER_HPP_
 #include <opencv2/opencv.hpp>
 /*defining compiler versions for some
 compiler specific includes*/
@@ -10,7 +10,7 @@ using namespace std;
 using namespace cv;
 
 //load data from Oberpfaffenhofen
-class polsar {
+class ober{
 
 private:
 	// data = complex mat with values [HH, VV, HV]
@@ -31,7 +31,7 @@ private:
 public:
 	// constructor
 	// input: rat file folder, label file folder, sample size, maximum sample points of each mask area
-	polsar(const string & RATfileFolder, const string & labelFolder, const int &patchSize, const int &pointNum) {
+	ober(const string & RATfileFolder, const string & labelFolder, const int &patchSize, const int &pointNum) {
 
 		sampleSize = patchSize;
 		samplePointNum = pointNum;
@@ -54,50 +54,39 @@ public:
 		
 	}
 
-	~polsar() {}
+	~ober() {}
 
-	  // data for torch
 	 // get patches of 3 channel (HH+VV,HV,HH-VV) intensity(dB)
 	 void GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& classValue);
+
 	 // get patches of 3 channel (HH,HV,VV) intensity(dB)
 	 void GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue);
 
-
-	 // get statistical features(min,max,mean,median,std) on polsar parameters, size 1*35
-	 void GetStatisticFeature(vector<Mat>& features, vector<unsigned char>& classValue);
-	 // get texture features(LBP and GLCM) on HH,VV,VH, default size 1*64
+	 // get texture features(LBP and GLCM) on HH,VV,VH, default feature mat size 1*64
 	 void GetTextureFeature(vector<Mat>& features, vector<unsigned char>& classValue);
-	 // get color features(MPEG-7 DCD,CSD) on Pauli Color image, default size 1*44
-	 void GetColorFeature(vector<Mat>& features, vector<unsigned char>& classValue);
-	 // get MP features on HH,VV,VH, default size (sampleSize*3,sampleSize)
-	 void GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue);
 
-	 //---------still working---------
-	 // void GetTargetDecomposition(vector<Mat>& features, vector<unsigned char>& classValue);
-	 // get elements from covariance matrix C and coherent matrix T
-	 // void GetElementCT(vector<Mat>& features, vector<unsigned char>& classValue);
+	 // get color features(MPEG-7 DCD,CSD) on Pauli Color image, default feature mat size 1*44
+	 void GetColorFeature(vector<Mat>& features, vector<unsigned char>& classValue);
+
+	 // get MP features on HH,VV,VH, default feature mat size (sampleSize*3,sampleSize)
+	 void GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue);
+	 
+	 // get polsar features on target decompostion, upper triangle matrix elements of C and T , statistic of polsar parameters
+	 // default feature mat size 1*72
+	 void GetAllPolsarFeatures(vector<Mat>& features, vector<unsigned char>& classValue);
 
 private:
-	//Generate false color image
-	// R:HH, G:HV, B:VV
-	Mat getFalseColorImg(const Mat& hh, const Mat& vv, const Mat& hv,  bool normed = false);
-	//R: HH+VV, G:HV, B: HH-VV
-	Mat getPauliColorImg(const Mat& hh, const Mat& vv, const Mat& hv);
-
+	
 	// Generate samples from each img
 	void getSafeSamplePoints(const Mat& mask, vector<Point>& pts);
 
+	// get upper triangle matrix elements of C, T, and target decompostion features
+	// vector<mat> result, vector length: 37, mat size: (hh.rows,hh.cols)
+	void getTargetDecomposition(const Mat & hh, const Mat &vv, const Mat hv, vector<Mat>& result);
 
-	// process complex scattering values
-	Mat getComplexAmpl(const Mat& in);
-	Mat getComplexAngle(const Mat& in);
-	Mat logTransform(const Mat& in);  //intensity in dB
-	
-	Mat getPhaseDiff(const Mat& hh, const Mat& vv);
-
-	 
-	
-
+	// get statistical (min,max,mean,median,std) on polsar parameters
+	// vector<mat> result, vector length : 7, mat size: 1*5
+	void getStatisticFeature(const Mat& hh, const Mat& vv, const Mat hv, vector<Mat>& result);
 
 	/***Author: Anupama Rajkumar***/
 	void loadData(string RATfolderPath);
