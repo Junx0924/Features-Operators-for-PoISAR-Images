@@ -26,7 +26,7 @@ namespace cvFeatures {
 	// get opening-closing by reconstruction profile for grayscale img
 	Mat GetMP(const Mat& src, const array<int, 3>& morph_size = { 1,2,3 });
 
-	// Compute min, max, mean, std, median for single channel mat
+	// Compute median, min, max, mean, std for single channel mat
 	Mat GetStatistic(const Mat& src);
 	
 	Mat GetHistOfMaskArea(const Mat& src, const Mat& mask, int minVal=0, int maxVal=255, int histSize =32, bool normed = true);

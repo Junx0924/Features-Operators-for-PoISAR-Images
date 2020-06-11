@@ -184,18 +184,18 @@ Mat cvFeatures::GetMPEG7CSD(const Mat& src, int Size) {
  * Function: GetStatistic
  *
  * Summary:
- *   Compute min, max, mean, std, median of mask area
+ *   Compute median, min, max, mean, std of mask area
  *
  * Arguments:
  *   Mat src -  CV_32FC1
  *
  * Returns:
- *   Mat of Size(1,5)
+ *   Mat of Size(5,1)
 =====================================================================
 */
 Mat cvFeatures::GetStatistic(const Mat& src) {
 
-        Mat result = Mat(1, 5, CV_32FC1);
+        Mat result;
 
         vector<float> vec(src.begin<float>(), src.end<float>());
         int size = static_cast<int>(src.total());
@@ -204,26 +204,28 @@ Mat cvFeatures::GetStatistic(const Mat& src) {
         if (size % 2 == 0)
         {
             //median
-            result.at<float>(0, 4) = (vec[size / 2.0 - 1] + vec[size / 2]) / 2;
+            result.push_back ( (vec[size / 2.0 - 1] + vec[size / 2]) / 2);
         }
         else
         {
             //median
-            result.at<float>(0, 4) = vec[size / 2];
+            result.push_back( vec[size / 2]);
         }
 
         //min
-        result.at<float>(0, 0) = vec[0];
+        result.push_back(vec[0]);
         //max
-        result.at<float>(0, 1) = vec[size - 1];
+        result.push_back(vec[size - 1]);
 
         Scalar mean, stddev; //0:1st channel, 1:2nd channel and 2:3rd channel
         meanStdDev(vec, mean, stddev);
+        float m = mean[0];
+        float s = stddev[0];
         //mean
-        result.at<float>(0, 2) = mean[0];
+        result.push_back(m);
         //stddev
-        result.at<float>(0, 3) = stddev[0];
-        return result.reshape(1,1);
+        result.push_back(s);
+        return result;
  }
  
 Mat cvFeatures::GetHistOfMaskArea(const Mat& src, const Mat& mask, int minVal, int maxVal, int histSize, bool normed)
