@@ -1,5 +1,6 @@
 Done:
-* target decomposition (Krogager, Pauli, Huynen, Freeman-Durden, Yamaguchi4, Cloude-Pottier)
+* Despeckling filter ( Refined Lee)
+* Target decomposition (Krogager, Pauli, Huynen, Freeman-Durden, Yamaguchi4, Cloude-Pottier)
 * MP ( opening-closing by reconstruction)
 * ELBP
 * GLCM ( contrast, entrophy, homogenity, energy)
