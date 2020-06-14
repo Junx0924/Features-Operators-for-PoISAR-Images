@@ -5,7 +5,6 @@
 #include <tuple>
 #include <opencv2/opencv.hpp>
 #include <string>
-#include "sen12ms.hpp"
 
 using namespace cv;
 using namespace std;

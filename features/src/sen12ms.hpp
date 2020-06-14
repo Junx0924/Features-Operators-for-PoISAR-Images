@@ -3,10 +3,10 @@
 
 #include <opencv2/opencv.hpp>
 #include "Geotiff.cpp"
+#include "Utils.h"
 #include <string>
 #include <iostream>
 #include <fstream>
-#include <random>
 
 using namespace std;
 using namespace cv;
@@ -131,7 +131,6 @@ private:
 
 	// Generate samples from each img
 	void getSamples(const Mat& img, const Mat& mask, const unsigned char& mask_label, vector<Mat>& samples, vector<unsigned char>& sample_labels);
-	void getSafeSamplePoints(const Mat& mask, vector<Point>& pts);
 };
 
 #endif

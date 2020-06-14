@@ -1,6 +1,5 @@
 #include "sen12ms.hpp"
 
-
 // record the class values
 std::array<unsigned char, 17>  IGBP_label = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 };
 // LCCS_LC, LCCS_LU,LCCS_SH merged into LCCS
@@ -435,6 +434,7 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
  string sen12ms::GetClassName(unsigned char classValue){
      string class_name;
      std::map<unsigned char, string> IGBP = {
+       {0,"Unclassified"},
        {1,"Evergreen Needleleaf Forests"},
 {2,"Evergreen Broadleaf Forests"},
 {3,"Deciduous Needleleaf Forests"},
@@ -455,6 +455,7 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
      };
 
      std::map<unsigned char, string> LCCS = {
+       {0,"Unclassified"},
 {1,"Barren"},
 {2,"Permanent Snow and Ice"},
 {3,"Water Bodies"},
@@ -506,9 +507,10 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
  // input: img and its label_map, output: samples with its label
  void sen12ms::getSamples(const Mat& img, const Mat& mask, const unsigned char& mask_label, vector<Mat>& samples, vector<unsigned char>& sample_labels)
  {
+     int cnt = 0;
      // get the masks and labels for the image
      vector<Point> samplePoints;
-     getSafeSamplePoints(mask,samplePoints);
+     Utils::getSafeSamplePoints(mask, samplePointNum, sampleSize, samplePoints);
      if(!samplePoints.empty()){
          //draw patches centered at each sample point
          for (const auto& p : samplePoints)
@@ -519,60 +521,13 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
              Mat tmp = img(roi).clone();
              samples.push_back(tmp);
              sample_labels.push_back(mask_label);
+             cnt++;
          }
+         cout << cnt <<" samples drawed for class " << int(mask_label) << ": " << GetClassName(mask_label) << endl;
      }
  }
 
- // input : mask
- // output: random safe sample points
- void sen12ms::getSafeSamplePoints(const Mat& mask, vector<Point>& pts) {
-
-     vector<Point> ind;
-     cv::findNonZero(mask, ind);
-     int nonZeros = static_cast<int>(ind.size());
-
-     if (nonZeros > 0) {
-         std::random_device random_device;
-         std::mt19937 engine{ random_device() };
-         std::uniform_int_distribution<int> dist(0, nonZeros - 1);
-
-         int count = 0; // to record how many right sample points are found
-         int iter = 0; // to record how many random points are tried out
-         
-         int N = nonZeros;
-         if (nonZeros > samplePointNum) { N = samplePointNum; }
-
-         std::multiset<pair<int, int>> new_ind;
-
-         while (count < N) {
-             Point  p = ind[dist(engine)];
-             //check if the sample corners are on the border
-             int j_min = p.x - int(sampleSize / 2); // (x,y) -> (col,row)
-             int j_max = p.x + int(sampleSize / 2);
-             int i_min = p.y - int(sampleSize / 2);
-             int i_max = p.y + int(sampleSize / 2);
-             // get rid of the points on the borders
-             if (i_max < mask.rows && j_max < mask.cols && i_min >= 0 && j_min >= 0) {
-                 // get rid of points which are half patch size away from the mask zero area
-                 if (mask.at<unsigned char>(i_min, j_min) != unsigned char(0) &&
-                     mask.at<unsigned char>(i_min, j_max) != unsigned char(0) &&
-                     mask.at<unsigned char>(i_max, j_min) != unsigned char(0) &&
-                     mask.at<unsigned char>(i_max, j_max) != unsigned char(0)) {
-                     //pts.push_back(p);
-                     new_ind.insert(pair<int, int>(p.x, p.y));
-                     count = count + 1;
-                 }
-             }
-             iter = iter + 1;
-             if (iter > nonZeros) { break; }
-         }
-
-         for (auto it = new_ind.begin(); it != new_ind.end(); ++it)
-         {
-             pts.push_back(Point(it->first, it->second));
-         }
-     }
- }
+ 
 
  
   
