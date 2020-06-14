@@ -7,8 +7,8 @@ cmake_policy(SET CMP0015 NEW)
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-#find_package(Torch REQUIRED)
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
+find_package(Torch REQUIRED)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
 
 
@@ -41,6 +41,11 @@ src/mp.cpp
 src/mp.hpp
 src/sarFeatures.hpp
 src/sarFeatures.cpp
+src/Utils.cpp
+src/Utils.h
+src/torchDataSet.cpp
+src/specklefilter.hpp
+src/specklefilter.cpp
 )
 
 add_executable(main
@@ -52,18 +57,17 @@ set_property(TARGET feature PROPERTY CXX_STANDARD 17)
 
 
 # libs to link with
-#target_link_libraries(feature ${OpenCV_LIBS} ${TORCH_LIBRARIES} gdal_i MPEG-7)
-target_link_libraries(feature ${OpenCV_LIBS}  MPEG-7 gdal_i)
+target_link_libraries(feature ${OpenCV_LIBS} ${TORCH_LIBRARIES} gdal_i MPEG-7)
 target_link_libraries(main feature )
 
 
 # The following code block is suggested to be used on Windows.
-#if (MSVC)
-#  file(GLOB TORCH_DLLS "${TORCH_INSTALL_PREFIX}/lib/*.dll")
-#  add_custom_command(TARGET main
-#                     POST_BUILD
-#                     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-#                     ${TORCH_DLLS}
-#                     $<TARGET_FILE_DIR:main>)
-#endif (MSVC)
+if (MSVC)
+  file(GLOB TORCH_DLLS "${TORCH_INSTALL_PREFIX}/lib/*.dll")
+  add_custom_command(TARGET main
+                    POST_BUILD
+                     COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                     ${TORCH_DLLS}
+                     $<TARGET_FILE_DIR:main>)
+endif (MSVC)
  

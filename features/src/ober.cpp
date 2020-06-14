@@ -1,7 +1,8 @@
 #include "ober.hpp" 
-#include <opencv2/opencv.hpp>
 #include "cvFeatures.hpp"
 #include "sarFeatures.hpp"
+#include <opencv2/opencv.hpp>
+
 #ifdef VC
 #include <filesystem>
 #endif // VC
@@ -12,83 +13,44 @@
 
 #include <complex>
 #include <string>
-#include <random>
 #include <iostream>
 #include <fstream>
-#include <forward_list>
 
 using namespace std;
 using namespace cv;
 namespace fs = std::filesystem;
 
+void ober::LoadSamplePoints(const int &size, const int &num) {
 
+	samplePointNum = num;
+	sampleSize = size;
 
-// input : mask
-// output: random safe sample points
-void ober::getSafeSamplePoints(const Mat& mask, vector<Point>& pts) {
+	samplePoints->reserve(static_cast<int>(labels.size()) * samplePointNum); // pre-allocate memory
+	samplePointClassLabel->reserve(static_cast<int>(labels.size()) * samplePointNum); // pre-allocate memory
 
-	vector<Point> ind;
-	cv::findNonZero(mask, ind);
-	int nonZeros = static_cast<int>(ind.size());
-
-	if (nonZeros > 0) {
-		std::random_device random_device;
-		std::mt19937 engine{ random_device() };
-		std::uniform_int_distribution<int> dist(0, nonZeros - 1);
-
-		int count = 0; // to record how many right sample points are found
-		int iter = 0; // to record how many random points are tried out
-
-		int N = nonZeros;
-		if (nonZeros > samplePointNum) { N = samplePointNum; }
-
-		std::multiset<pair<int, int>> new_ind;
-
-		while (count < N) {
-			Point  p = ind[dist(engine)];
-			//check if the sample corners are on the border
-			int j_min = p.x - int(sampleSize / 2); // (x,y) -> (col,row)
-			int j_max = p.x + int(sampleSize / 2);
-			int i_min = p.y - int(sampleSize / 2);
-			int i_max = p.y + int(sampleSize / 2);
-			// get rid of the points on the borders
-			if (i_max < mask.rows && j_max < mask.cols && i_min >= 0 && j_min >= 0) {
-				// get rid of points which are half patch size away from the mask zero area
-				if (mask.at<unsigned char>(i_min, j_min) != unsigned char(0) &&
-					mask.at<unsigned char>(i_min, j_max) != unsigned char(0) &&
-					mask.at<unsigned char>(i_max, j_min) != unsigned char(0) &&
-					mask.at<unsigned char>(i_max, j_max) != unsigned char(0)) {
-					//pts.push_back(p);
-					new_ind.insert(pair<int, int>(p.x, p.y));
-					count = count + 1;
-				}
-			}
-			iter = iter + 1;
-			if (iter > nonZeros) { break; }
-		}
-
-		for (auto it = new_ind.begin(); it != new_ind.end(); ++it)
-		{
-			pts.push_back(Point(it->first, it->second));
-		}
+	// get the sample points in each mask area
+	for (int i = 0; i < masks.size(); i++) {
+		vector<Point> pts;
+		Utils::getSafeSamplePoints(masks[i], samplePointNum, sampleSize, pts);
+		cout << "Get " << pts.size() << " sample points for class " << classNames[labels[i]] << endl;
+		// store the sample points
+		samplePoints->insert(samplePoints->end(), pts.begin(), pts.end());
+		// store the sample points label
+		for (int j = 0; j < pts.size(); j++) { samplePointClassLabel->push_back(labels[i]); }
 	}
 }
-
 
 // get patches of 3 channel (HH+VV,HV,HH-VV) intensity(dB)
 void ober::GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
 	
-	if (!samplePoints.empty()) {
-		for (int i = 0; i < static_cast<int>(masks.size()); i++) {
-			for (const auto& p : samplePoints[i]) {
-				int start_x = int(p.x) - sampleSize / 2;
-				int start_y = int(p.y) - sampleSize / 2;
-				Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
+	if (!samplePoints->empty()) {
+			for (const auto& p : *samplePoints) {
+				Mat hh, vv, hv;
+				getSample(p, hh, vv, hv);
 
-				patches.push_back(polsar::GetPauliColorImg(data[0](roi), data[1](roi), data[2](roi)));
-				classValue.push_back(labels[i]);
-			}
+				patches.push_back(polsar::GetPauliColorImg(hh, vv, hv));
 		}
+			classValue = *samplePointClassLabel;
 	}
 }
 
@@ -96,36 +58,39 @@ void ober::GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& cla
 // get patches of 3 channel (HH,VV,HV) intensity(dB)
 void ober::GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
 		 
-		if(!samplePoints.empty()){
-			for (int i = 0; i < static_cast<int>(masks.size()); i++) {
-				for (const auto& p : samplePoints[i]) {
-					int start_x = int(p.x) - sampleSize / 2;
-					int start_y = int(p.y) - sampleSize / 2;
-					Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
+		if(!samplePoints->empty()){
+				for (const auto& p : *samplePoints) {
+					Mat hh, vv, hv;
+					getSample(p, hh, vv, hv);
 
-					patches.push_back(polsar::GetFalseColorImg(data[0](roi), data[1](roi), data[2](roi)));
-					classValue.push_back(labels[i]);
+					patches.push_back(polsar::GetFalseColorImg(hh, vv, hv));
 				}
-			}
+				classValue = *samplePointClassLabel;
 		}
 }
 
 
-// get texture features(LBP and GLCM) on HH,VV,VH, default feature mat size 1*64
+// get texture features(LBP and GLCM) on HH,VV,VH, default feature mat size 3*64
 void ober::GetTextureFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
-	for (int i = 0; i < static_cast<int>(masks.size()); i++) {
-		for (const auto& p : samplePoints[i]) {
-			int start_x = int(p.x) - sampleSize / 2;
-			int start_y = int(p.y) - sampleSize / 2;
-			Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
+
+		std::map< unsigned char, int> count;
+		cout << "start to draw texture features ... " <<endl;
+
+		for (int i = 0; i < samplePoints->size();i++) {
+			Point p = samplePoints->at(i);
+
+			cout << classNames[samplePointClassLabel->at(i)] << " :draw texture feature at Point (" << p.x << ", " << p.y << ")" << endl;
+
+			Mat hh, vv, hv;
+			getSample(p, hh, vv, hv);
 
 			vector<Mat> temp;
 			// intensity of HH channel
-			Mat hh = polsar::logTransform(polsar::getComplexAmpl(data[0](roi)));
+			  hh = polsar::logTransform(polsar::getComplexAmpl(hh));
 			// intensity of VV channel
-			Mat vv = polsar::logTransform(polsar::getComplexAmpl(data[1](roi)));
+			  vv = polsar::logTransform(polsar::getComplexAmpl(vv));
 			// intensity of HV channel
-			Mat hv = polsar::logTransform(polsar::getComplexAmpl(data[2](roi)));
+			  hv = polsar::logTransform(polsar::getComplexAmpl(hv));
 
 			temp.push_back(hh);
 			temp.push_back(vv);
@@ -133,89 +98,134 @@ void ober::GetTextureFeature(vector<Mat>& features, vector<unsigned char>& class
 
 			Mat result;
 			for (const auto& t : temp) {
-				hconcat(cvFeatures::GetGLCM(t, 8, GrayLevel::GRAY_8, 32), cvFeatures::GetLBP(t, 1, 8, 32), result);
-				features.push_back(result);
-				classValue.push_back(labels[i]);
+				Mat temp;
+				cv::hconcat(cvFeatures::GetGLCM(t, 8, GrayLevel::GRAY_8, 32), cvFeatures::GetLBP(t, 1, 8, 32), temp);
+				result.push_back(temp);
 			}
+			features.push_back(result);
+			classValue.push_back(samplePointClassLabel->at(i));
+
+			count[samplePointClassLabel->at(i)]++;
 		}
-	}
+
+		for (auto it = count.begin(); it != count.end(); ++it)
+		{
+			std::cout << "get "<< it->second  <<" texture samples for class " <<  classNames[it->first] << std::endl;
+		}
 }
+
 
 
 // get color features(MPEG-7 DCD,CSD) on Pauli Color image, default feature mat size 1*44
 void ober::GetColorFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
-	
-	for (int i = 0; i < static_cast<int>(masks.size()); i++) {
-		for (const auto& p : samplePoints[i]) {
-			int start_x = int(p.x) - sampleSize / 2;
-			int start_y = int(p.y) - sampleSize / 2;
-			Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
+	std::map< unsigned char, int> count;
+	cout << "start to draw color features ... " << endl;
 
-			Mat colorImg = polsar::GetPauliColorImg(data[0](roi), data[1](roi), data[2](roi));
+	for (int i = 0; i < samplePoints->size(); i++) {
+		Point p = samplePoints->at(i);
 
-			Mat result;
-			hconcat(cvFeatures::GetMPEG7CSD(colorImg, 32), cvFeatures::GetMPEG7DCD(colorImg, 3),result);
-			features.push_back(result);
-			classValue.push_back(labels[i]);
-		}
+		cout << classNames[samplePointClassLabel->at(i)] << " :draw color feature at Point (" << p.y << ", " << p.x << ")" << endl;
+		
+		Mat hh, vv, hv;
+		getSample(p, hh, vv, hv);
+
+		Mat colorImg = polsar::GetPauliColorImg(hh, vv, hv);
+
+		Mat result;
+		cv::hconcat(cvFeatures::GetMPEG7CSD(colorImg, 32), cvFeatures::GetMPEG7DCD(colorImg, 3), result);
+		features.push_back(result);
+		classValue.push_back(samplePointClassLabel->at(i));
+
+		count[samplePointClassLabel->at(i)]++;
+	}
+
+	for (auto it = count.begin(); it != count.end(); ++it)
+	{
+		std::cout << "get " << it->second << " color samples for class " << classNames[it->first] << std::endl;
 	}
 }
 
 
-// get MP features on HH,VV,VH, default feature mat size (sampleSize*3,sampleSize)
+// get MP features on HH,VV,VH, default feature mat size (sampleSize*9,sampleSize)
 void ober::GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
-	for (int i = 0; i < static_cast<int>(masks.size()); i++) {
-		for (const auto& p : samplePoints[i]) {
-			int start_x = int(p.x) - sampleSize / 2;
-			int start_y = int(p.y) - sampleSize / 2;
-			Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
+	std::map< unsigned char, int> count;
+	cout << "start to draw MP features ... " << endl;
 
-			vector<Mat> temp;
-			// intensity of HH channel
-			Mat hh = polsar::logTransform(polsar::getComplexAmpl(data[0](roi)));
-			// intensity of VV channel
-			Mat vv = polsar::logTransform(polsar::getComplexAmpl(data[1](roi)));
-			// intensity of HV channel
-			Mat hv = polsar::logTransform(polsar::getComplexAmpl(data[2](roi)));
+	for (int i = 0; i < samplePoints->size(); i++) {
+		Point p = samplePoints->at(i);
 
-			temp.push_back(hh);
-			temp.push_back(vv);
-			temp.push_back(hv);
+		cout << classNames[samplePointClassLabel->at(i)] << " :draw MP feature at Point (" << p.y << ", " << p.x << ")" << endl;
 
-			for (const auto& t : temp) {
-				features.push_back(cvFeatures::GetMP(t, { 1,2,3 }));
-				classValue.push_back(labels[i]);
-			}
+		Mat hh, vv, hv;
+		getSample(p, hh, vv, hv);
+
+		vector<Mat> temp;
+		// intensity of HH channel
+		hh = polsar::logTransform(polsar::getComplexAmpl(hh));
+		// intensity of VV channel
+		vv = polsar::logTransform(polsar::getComplexAmpl(vv));
+		// intensity of HV channel
+		hv = polsar::logTransform(polsar::getComplexAmpl(hv));
+
+		temp.push_back(hh);
+		temp.push_back(vv);
+		temp.push_back(hv);
+
+		Mat result;
+		for (const auto& t : temp) {
+			result.push_back(cvFeatures::GetMP(t, { 1,2,3 }));
 		}
+		features.push_back(result);
+		classValue.push_back(samplePointClassLabel->at(i));
+
+		count[samplePointClassLabel->at(i)]++;
+	}
+
+	for (auto it = count.begin(); it != count.end(); ++it)
+	{
+		std::cout << "get " << it->second << " mp samples for class " << classNames[it->first] << std::endl;
 	}
 }
 
 // default feature mat size 1*72
 void ober::GetAllPolsarFeatures(vector<Mat>& features, vector<unsigned char>& classValue) {
-	int winSize = 3; 
-	for (int i = 0; i < static_cast<int>(masks.size()); i++) {
-		for (const auto& p : samplePoints[i]) {
-			int start_x = int(p.x) - winSize / 2;
-			int start_y = int(p.y) - winSize / 2;
-			Rect roi = Rect(start_x, start_y, winSize, winSize);
+	std::map< unsigned char, int> count;
+	cout << "start to draw polsar features ... " << endl;
 
-			Mat result1;
-			vector<Mat> statistic;
-			getStatisticFeature(data[0](roi), data[1](roi), data[2](roi), statistic);  
-			hconcat(statistic, result1);
+	for (int i = 0; i < samplePoints->size(); i++) {
+		Point p = samplePoints->at(i);
 
-			vector<Mat> decomposition;
-			getTargetDecomposition(data[0](roi), data[1](roi), data[2](roi), decomposition); 
-			Mat result2;
-			for (auto& d : decomposition) {
-				result2.push_back(d.at<float>(winSize /2, winSize /2));
-			}
+		cout << classNames[samplePointClassLabel->at(i)] << " :draw polsar feature at Point (" << p.y << ", " << p.x << ")" << endl;
 
-			Mat result;
-			hconcat(result1.reshape(1, 1), result2.reshape(1, 1), result);
-			features.push_back(result);
-			classValue.push_back(labels[i]);
+		Mat hh, vv, hv;
+		getSample(p, hh, vv, hv);
+
+		Mat result1;
+		vector<Mat> statistic;
+		getStatisticFeature(hh, vv, hv, statistic);
+		cv::hconcat(statistic, result1);
+
+		//caculate the decomposition at sample point
+		int winSize = 3;
+		Mat result2;
+		vector<Mat> decomposition;
+		Rect roi = Rect(sampleSize/2 - winSize/2, sampleSize / 2 - winSize/2, winSize, winSize);
+		getTargetDecomposition(hh(roi), vv(roi), hv(roi), decomposition);
+		for (auto& d : decomposition) {
+			result2.push_back(d.at<float>(winSize / 2, winSize / 2));
 		}
+
+		Mat result;
+		cv::hconcat(result1.reshape(1, 1), result2.reshape(1, 1), result);
+		features.push_back(result);
+		classValue.push_back(samplePointClassLabel->at(i));
+
+		count[samplePointClassLabel->at(i)]++;
+	}
+
+	for (auto it = count.begin(); it != count.end(); ++it)
+	{
+		std::cout << "get " << it->second << " polsar samples for class " << classNames[it->first] << std::endl;
 	}
 }
 
@@ -284,6 +294,30 @@ void ober::getTargetDecomposition(const Mat& hh, const Mat& vv, const Mat hv, ve
 	}
 }
 
+
+
+// set despeckling filter size, choose from ( 5, 7, 9, 11)
+void ober::SetFilterSize(int filter_size) { filterSize = filter_size; }
+
+// get data at sample point
+void ober::getSample(const Point& sample_point, Mat& hh, Mat& vv, Mat& hv) {
+	int start_x = int(sample_point.x) - sampleSize / 2;
+	int start_y = int(sample_point.y) - sampleSize / 2;
+	Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
+	if (filterSize > 0) {
+		hh = data[0](roi).clone();
+		vv = data[1](roi).clone();
+		hv = data[2](roi).clone();
+		RefinedLee* filter = new RefinedLee(filterSize, 1);
+		filter->filterFullPol(hh, vv, hv);
+		delete filter;
+	}
+	else {
+		hh = data[0](roi);
+		vv = data[1](roi);
+		hv = data[2](roi);
+	}
+}
 
 
 

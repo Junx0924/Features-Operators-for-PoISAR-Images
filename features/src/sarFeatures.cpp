@@ -26,7 +26,6 @@ Mat polsar::getComplexAmpl(const Mat& in) {
 
 }
 
-// should be 10*log(|A|)
 Mat polsar::logTransform(const Mat& in) {
 
 	Mat out;

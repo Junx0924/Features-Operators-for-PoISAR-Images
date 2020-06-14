@@ -2,6 +2,8 @@
 #ifndef  OBER_HPP_
 #define  OBER_HPP_
 #include <opencv2/opencv.hpp>
+#include "specklefilter.hpp"
+#include "Utils.h"
 /*defining compiler versions for some
 compiler specific includes*/
 #define VC				//GCC/VC
@@ -13,48 +15,58 @@ using namespace cv;
 class ober{
 
 private:
+	unsigned border = 3;
+	int filterSize;
+public:
 	// data = complex mat with values [HH, VV, HV]
 	vector<Mat> data;
-	vector<unsigned  char> labels;
+	vector<unsigned  char> labels; // class label
 	vector<Mat> masks;
-	// record sample Points of each mask area
-	vector<vector<Point>> samplePoints;
 
-	// draw samples from each image of mask area
-	int sampleSize = 64;
-	// Maximum sample points of each mask area
-	int samplePointNum = 1000;
+	// record the class name of class label
+	std::map< unsigned char, string>classNames; 
 
-	std::map<string, unsigned char>classNames;
-	unsigned border = 3;
+	vector<Point> *samplePoints;
+	vector<unsigned char> *samplePointClassLabel;
+	int sampleSize;
+	int samplePointNum;
 
-public:
 	// constructor
-	// input: rat file folder, label file folder, sample size, maximum sample points of each mask area
-	ober(const string & RATfileFolder, const string & labelFolder, const int &patchSize, const int &pointNum) {
+	// input: rat file folder, label file folder 
+	ober(const string& RATfileFolder, const string& labelFolder) {
 
-		sampleSize = patchSize;
-		samplePointNum = pointNum;
+		samplePoints = new vector<Point>();
+		samplePointClassLabel = new vector<unsigned char>;
+		sampleSize = 0;
+		samplePointNum = 0;
+		filterSize = 0;
 
+		// read rat data
 		loadData(RATfileFolder);
+		// read labels
 		vector<string>  labelNames;
 		ReadClassLabels(labelFolder, labelNames, masks);
 
 		// read the labelNames to dict
+		classNames[unsigned char(0)] = "Unclassified";
 		for (int i = 0; i < labelNames.size(); i++) {
-			classNames.insert(pair<string, unsigned char>(labelNames[i], i+1));
+			classNames.insert(pair< unsigned char, string>(i + 1, labelNames[i]));
 			labels.push_back(i + 1);
-
-			// get the sample points in each mask area
-			vector<Point> pts;
-			getSafeSamplePoints(masks[i], pts);
-			cout << "Get " << pts.size() << " sample points for class " << labelNames[i] << endl;
-			samplePoints.push_back(pts);
 		}
+
 		
 	}
 
-	~ober() {}
+	~ober() {
+		if (samplePoints) { delete samplePoints; }
+		if (samplePointClassLabel) { delete samplePointClassLabel; }
+	}
+
+	// set despeckling filter size, choose from ( 5, 7, 9, 11)
+	 void SetFilterSize(int filter_size);
+
+	// input sample size and the maximum number of sample points 
+	 void LoadSamplePoints(const int& sampleSize, const int& samplePointNum);
 
 	 // get patches of 3 channel (HH+VV,HV,HH-VV) intensity(dB)
 	 void GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& classValue);
@@ -77,9 +89,6 @@ public:
 
 private:
 	
-	// Generate samples from each img
-	void getSafeSamplePoints(const Mat& mask, vector<Point>& pts);
-
 	// get upper triangle matrix elements of C, T, and target decompostion features
 	// vector<mat> result, vector length: 37, mat size: (hh.rows,hh.cols)
 	void getTargetDecomposition(const Mat & hh, const Mat &vv, const Mat hv, vector<Mat>& result);
@@ -87,6 +96,9 @@ private:
 	// get statistical (min,max,mean,median,std) on polsar parameters
 	// vector<mat> result, vector length : 7, mat size: 1*5
 	void getStatisticFeature(const Mat& hh, const Mat& vv, const Mat hv, vector<Mat>& result);
+
+	// apply refined Lee filter to samples, filterSize choose from (5,7,9,11)
+	void getSample(const Point& sample_point, Mat& hh, Mat& vv, Mat& hv);
 
 	/***Author: Anupama Rajkumar***/
 	void loadData(string RATfolderPath);

@@ -1,7 +1,9 @@
+//#include "torchDataSet.cpp"
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
-#include "sen12ms.hpp"
+//#include "sen12ms.hpp"
 #include "ober.hpp"
+#include "sarFeatures.hpp"
 
 
 
@@ -13,9 +15,12 @@ int main() {
     string ratfolder = "E:\\Oberpfaffenhofen\\sar-data";
     string labelfolder = "E:\\Oberpfaffenhofen\\label";
 
-    // set patch size 10, maximum sample points per class is 100
-    ober* ob = new ober(ratfolder, labelfolder, 10, 10);
+    ober* ob = new ober(ratfolder, labelfolder);
 
+     
+    // set patch size 20, maximum sample points per class is 10
+    ob->LoadSamplePoints(20, 10);
+    ob->SetFilterSize(5);
 
     vector<Mat> texture;
     vector<unsigned char> textureLabels;
@@ -33,6 +38,10 @@ int main() {
     vector<unsigned char> sarLabels;
     ob->GetAllPolsarFeatures(sarfeatures, sarLabels);
 
+    //int batch_size = 64;
+    //auto custom_dataset =  torchDataset(texture, textureLabels).map(torch::data::transforms::Stack<>());
+    //auto data_loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(std::move(custom_dataset), batch_size);
+     
 
     return 0; // success
 }
