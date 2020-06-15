@@ -79,7 +79,7 @@ void ober::GetTextureFeature(vector<Mat>& features, vector<unsigned char>& class
 		for (int i = 0; i < samplePoints->size();i++) {
 			Point p = samplePoints->at(i);
 
-			cout << classNames[samplePointClassLabel->at(i)] << " :draw texture feature at Point (" << p.x << ", " << p.y << ")" << endl;
+			//cout << classNames[samplePointClassLabel->at(i)] << " :draw texture feature at Point (" << p.x << ", " << p.y << ")" << endl;
 
 			Mat hh, vv, hv;
 			getSample(p, hh, vv, hv);
@@ -124,7 +124,7 @@ void ober::GetColorFeature(vector<Mat>& features, vector<unsigned char>& classVa
 	for (int i = 0; i < samplePoints->size(); i++) {
 		Point p = samplePoints->at(i);
 
-		cout << classNames[samplePointClassLabel->at(i)] << " :draw color feature at Point (" << p.y << ", " << p.x << ")" << endl;
+		//cout << classNames[samplePointClassLabel->at(i)] << " :draw color feature at Point (" << p.y << ", " << p.x << ")" << endl;
 		
 		Mat hh, vv, hv;
 		getSample(p, hh, vv, hv);
@@ -154,7 +154,7 @@ void ober::GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue
 	for (int i = 0; i < samplePoints->size(); i++) {
 		Point p = samplePoints->at(i);
 
-		cout << classNames[samplePointClassLabel->at(i)] << " :draw MP feature at Point (" << p.y << ", " << p.x << ")" << endl;
+		//cout << classNames[samplePointClassLabel->at(i)] << " :draw MP feature at Point (" << p.y << ", " << p.x << ")" << endl;
 
 		Mat hh, vv, hv;
 		getSample(p, hh, vv, hv);
@@ -196,7 +196,7 @@ void ober::GetDecompFeatures(vector<Mat>& features, vector<unsigned char>& class
 	for (int i = 0; i < samplePoints->size(); i++) {
 		Point p = samplePoints->at(i);
 
-		cout << classNames[samplePointClassLabel->at(i)] << " :draw target decomposition feature at Point (" << p.y << ", " << p.x << ")" << endl;
+		//cout << classNames[samplePointClassLabel->at(i)] << " :draw target decomposition feature at Point (" << p.y << ", " << p.x << ")" << endl;
 
 		Mat hh, vv, hv;
 		getSample(p, hh, vv, hv);
@@ -230,7 +230,7 @@ void ober::GetCTFeatures(vector<Mat>& features, vector<unsigned char>& classValu
 	for (int i = 0; i < samplePoints->size(); i++) {
 		Point p = samplePoints->at(i);
 
-		cout << classNames[samplePointClassLabel->at(i)] << " :draw matrix C and T elements at Point (" << p.y << ", " << p.x << ")" << endl;
+		//cout << classNames[samplePointClassLabel->at(i)] << " :draw matrix C and T elements at Point (" << p.y << ", " << p.x << ")" << endl;
 
 		Mat hh, vv, hv;
 		getSample(p, hh, vv, hv);
@@ -264,7 +264,7 @@ void ober::GetPolsarStatistic(vector<Mat>& features, vector<unsigned char>& clas
 	for (int i = 0; i < samplePoints->size(); i++) {
 		Point p = samplePoints->at(i);
 
-		cout << classNames[samplePointClassLabel->at(i)] << " :draw statistic polarimetric feature at Point (" << p.y << ", " << p.x << ")" << endl;
+		//cout << classNames[samplePointClassLabel->at(i)] << " :draw statistic polarimetric feature at Point (" << p.y << ", " << p.x << ")" << endl;
 
 		Mat hh, vv, hv;
 		getSample(p, hh, vv, hv);
@@ -375,6 +375,7 @@ void ober::getSample(const Point& sample_point, Mat& hh, Mat& vv, Mat& hv) {
 	int start_x = int(sample_point.x) - sampleSize / 2;
 	int start_y = int(sample_point.y) - sampleSize / 2;
 	Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
+
 	if (filterSize ==5 || filterSize ==7 || filterSize ==9 || filterSize ==11) {
 		hh = data[0](roi).clone();
 		vv = data[1](roi).clone();
