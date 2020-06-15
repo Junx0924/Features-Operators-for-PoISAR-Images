@@ -46,6 +46,8 @@ src/Utils.h
 src/torchDataSet.cpp
 src/specklefilter.hpp
 src/specklefilter.cpp
+src/KNN.hpp
+src/KNN.cpp
 )
 
 add_executable(main

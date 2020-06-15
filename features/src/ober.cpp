@@ -304,7 +304,7 @@ void ober::getSample(const Point& sample_point, Mat& hh, Mat& vv, Mat& hv) {
 	int start_x = int(sample_point.x) - sampleSize / 2;
 	int start_y = int(sample_point.y) - sampleSize / 2;
 	Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
-	if (filterSize > 0) {
+	if (filterSize ==5 || filterSize ==7 || filterSize ==9 || filterSize ==11) {
 		hh = data[0](roi).clone();
 		vv = data[1](roi).clone();
 		hv = data[2](roi).clone();

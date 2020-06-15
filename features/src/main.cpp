@@ -1,10 +1,10 @@
 //#include "torchDataSet.cpp"
+//#include "sen12ms.hpp"
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
-//#include "sen12ms.hpp"
 #include "ober.hpp"
-#include "sarFeatures.hpp"
-
+#include "KNN.hpp"
 
 
 using namespace std;
@@ -16,32 +16,24 @@ int main() {
     string labelfolder = "E:\\Oberpfaffenhofen\\label";
 
     ober* ob = new ober(ratfolder, labelfolder);
-
      
     // set patch size 20, maximum sample points per class is 10
-    ob->LoadSamplePoints(20, 10);
+    ob->LoadSamplePoints(20, 100);
     ob->SetFilterSize(5);
 
-    vector<Mat> texture;
-    vector<unsigned char> textureLabels;
-    ob->GetTextureFeature(texture, textureLabels);
+    KNN* knn = new KNN();
+    vector<Mat> feature;
+    vector<unsigned char> featureLabels;
+    ob->GetTextureFeature(feature, featureLabels);
 
-    vector<Mat> colorfeatures;
-    vector<unsigned char> colorLabels;
-    ob->GetColorFeature(colorfeatures, colorLabels);
+    knn->applyKNN(feature, featureLabels, 20, 80);
 
-    vector<Mat> MPfeatures;
-    vector<unsigned char>MPLabels;
-    ob->GetMPFeature(MPfeatures, MPLabels);
+    //ob->GetColorFeature(feature, featureLabels);
 
-    vector<Mat> sarfeatures;
-    vector<unsigned char> sarLabels;
-    ob->GetAllPolsarFeatures(sarfeatures, sarLabels);
+    //ob->GetMPFeature(feature, featureLabels);
 
-    //int batch_size = 64;
-    //auto custom_dataset =  torchDataset(texture, textureLabels).map(torch::data::transforms::Stack<>());
-    //auto data_loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(std::move(custom_dataset), batch_size);
-     
+    //ob->GetAllPolsarFeatures(feature, featureLabels);
+
 
     return 0; // success
 }

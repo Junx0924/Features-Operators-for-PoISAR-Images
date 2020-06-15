@@ -1,5 +1,4 @@
 #include "Utils.h"
-#include "Ober.hpp"
 #include <iostream>
 #include <fstream>
 #include <random>
@@ -174,7 +173,7 @@ void Utils::GetLabelPatchIndex(int sizeOfPatch, Point2i samplePoints, Mat& Label
  * Author: Jun Xiang
  *
  * Summary:
- *   Extract sample points from mask area
+ *   Extract sample points from mask area or any img
  *
  * Arguments:
  *   Mat& mask  -- binarized image mask, zeros are background
@@ -225,7 +224,7 @@ void Utils::getSafeSamplePoints(const Mat& img, const int& samplePointNum, const
 						mask.at<unsigned char>(y_max, x_max) != unsigned char(0)) {
 						//pts.push_back(p);
 						new_ind.insert(pair<int, int>(p.x, p.y));
-						count = count + 1;
+						count = new_ind.size();
 					}
 				}
 				iter = iter + 1;
@@ -265,7 +264,7 @@ void Utils::getSafeSamplePoints(const Mat& img, const int& samplePointNum, const
 			if (y_max < img.rows && x_max < img.cols && y_min >= 0 && x_min >= 0) {
 				 
 					new_ind.insert(pair<int, int>(p.x, p.y));
-					count = count + 1;
+					count = new_ind.size();
 				
 			}
 			iter = iter + 1;
@@ -280,7 +279,7 @@ void Utils::getSafeSamplePoints(const Mat& img, const int& samplePointNum, const
 }
 
 // convert img data to png file
-Mat Utils::writeImgToPNG(const Mat& src) {
+Mat Utils::convertDataToPNG(const Mat& src) {
 	Mat dst;
 	dst = src.clone();
 
@@ -296,37 +295,109 @@ Mat Utils::writeImgToPNG(const Mat& src) {
 	return dst;
 }
 
-/***********************************************************************
-Helper function to print the name of the identified class
-Author : Anupama Rajkumar
-Date : 29.05.2020
-Description: This function prints the  name of the class identified
-*************************************************************************/
-void Utils::DisplayClassName(int finalClass) {
-	switch (finalClass) {
-	case 1:
-		cout << "Point classified as City" << endl;
-		break;
-	case 2:
-		cout << "Point classified as Field" << endl;
-		break;
-	case 3:
-		cout << "Point classified as Forest" << endl;
-		break;
-	case 4:
-		cout << "Point classified as Grassland" << endl;
-		break;
-	case 5:
-		cout << "Point classified as Street" << endl;
-		break;
-	default:
-		cout << finalClass << endl;
-		cout << "Something went wrong..can't be classified" << endl;
-		break;
-	}
+/************************************************************
+Dividing the data samples into training and test samples
+Take some training samples for each class and same for
+test samples
+Date: 11.06.2020
+Modified by: Jun 15.06.2020
+*************************************************************/
+void Utils::DivideTrainTestData(const vector<Mat> &data, const vector<unsigned char> & data_label, int percentOfTrain,
+	vector<Mat> & train_img,  vector<unsigned char> &train_label, vector<Mat>& test_img, vector<unsigned char> & test_label) {
+	
+	std::map<unsigned char, int> numPerClass;
+	for (auto c : data_label) { numPerClass[c]++; }
+	std::map<unsigned char, int> count;
 
+	/*The idea is to get a balanced division between all the classes.
+	5 classes with equal number of points. Also, the first 1/5th region is
+	reserved for testing data set and from remaining area training samples are taken*/
+	/*for each class*/
+	for (int i = 0; i < data.size();i++ ) {
+		unsigned char c = data_label[i];
+		Mat img = data[i];
+		++count[c];
+		if (count[c] < numPerClass[c] * percentOfTrain / 100) {
+			train_img.push_back(img);
+			train_label.push_back(c);
+		}
+		else {
+			test_img.push_back(img);
+			test_label.push_back(c);
+		}
+	}
 }
 
+// shuffle the data
+void Utils::shuffleDataSet(vector<Mat>& data, vector<unsigned char>& data_label) {
+	int size = data.size();
+	std::random_device random_device;
+	std::mt19937 engine{ random_device() };
+	std::uniform_int_distribution<int> rnd(0, size - 1);
+	for (int i = 0; i < size; i++) {
+		Mat temp = data[i];
+		signed char temp_c = data_label[i];
+		int swap = rnd(engine);
+		if (swap == i) { continue; }
+		else {
+			data[i] = data[swap];
+			data[swap] = temp;
+			data_label[i] = data_label[swap];
+			data_label[swap] = temp_c;
+		}
+	}
+}
+
+double Utils::calculatePredictionAccuracy(const vector<unsigned char>& classResult, const vector<unsigned char>& testLabels)
+{
+	double accuracy = 0.0;
+	if (classResult.size() != testLabels.size()) {
+		cerr << "Predicted and actual label vectors differ in length. Somethig doesn't seem right." << endl;
+		exit(-1);
+	}
+	else {
+		int dim = classResult.size();
+		double hit, miss;
+		hit = 0;
+		miss = 0;
+		for (int i = 0; i < dim; i++) {
+			if (classResult[i] == testLabels[i]) {
+				hit++;
+			}
+			else {
+				miss++;
+			}
+		}
+		accuracy = double(hit / dim);
+	}
+	return accuracy;
+}
+
+Mat Utils::getConfusionMatrix(const map<unsigned char, string>& className, vector<unsigned char>& classResult, vector<unsigned char>& testLabels) {
+	map<pair<unsigned char, signed char>, int> testCount;
+
+	for (int i = 0; i < testLabels.size(); i++) {
+		for (int j = 0; j < classResult.size(); j++) {
+			pair temp = make_pair(testLabels[i], classResult[j]);
+			testCount[temp]++;
+		}
+	}
+
+	int numOfClass = className.size();
+	vector<unsigned char> classList(numOfClass);
+	for (auto it = className.begin(); it != className.end(); it++) {
+		classList.push_back(it->first);
+	}
+
+	Mat count = Mat(className.size(), className.size(), CV_8UC1);
+	for (int i = 0; i < numOfClass; i++) {
+		for (int j = 0; j < numOfClass; j++) {
+			pair temp = make_pair(classList[i], classList[j]);
+			count.at<unsigned char>(i, j) = testCount[temp];
+		}
+	}
+	return count;
+}
 
 
 

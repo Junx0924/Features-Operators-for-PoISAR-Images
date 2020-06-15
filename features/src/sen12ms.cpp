@@ -431,7 +431,7 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
  *  string - class name
 =====================================================================
 */
- string sen12ms::GetClassName(unsigned char classValue){
+ string sen12ms::GetClassName(signed char classValue){
      string class_name;
      std::map<unsigned char, string> IGBP = {
        {0,"Unclassified"},

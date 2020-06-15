@@ -20,11 +20,11 @@ private:
 public:
 	// data = complex mat with values [HH, VV, HV]
 	vector<Mat> data;
-	vector<unsigned  char> labels; // class label
+	vector<unsigned char> labels;  
 	vector<Mat> masks;
 
-	// record the class name of class label
-	std::map< unsigned char, string>classNames; 
+	// record the class name of each label
+	std::map<unsigned char, string>classNames; 
 
 	vector<Point> *samplePoints;
 	vector<unsigned char> *samplePointClassLabel;
@@ -36,7 +36,7 @@ public:
 	ober(const string& RATfileFolder, const string& labelFolder) {
 
 		samplePoints = new vector<Point>();
-		samplePointClassLabel = new vector<unsigned char>;
+		samplePointClassLabel = new vector<unsigned char>();
 		sampleSize = 0;
 		samplePointNum = 0;
 		filterSize = 0;
@@ -48,13 +48,11 @@ public:
 		ReadClassLabels(labelFolder, labelNames, masks);
 
 		// read the labelNames to dict
-		classNames[unsigned char(0)] = "Unclassified";
+		classNames[signed char(0)] = "Unclassified";
 		for (int i = 0; i < labelNames.size(); i++) {
-			classNames.insert(pair< unsigned char, string>(i + 1, labelNames[i]));
+			classNames.insert(pair<unsigned char, string>(i + 1 , labelNames[i]));
 			labels.push_back(i + 1);
 		}
-
-		
 	}
 
 	~ober() {

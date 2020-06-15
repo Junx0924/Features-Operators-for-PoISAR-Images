@@ -105,7 +105,7 @@ public:
 	// Get PNG files for images and maskes
 	void GeneratePNG(const string& outputpath);
 
-	string GetClassName(unsigned char classValue);
+	string GetClassName(signed char classValue);
 	
 
 private:

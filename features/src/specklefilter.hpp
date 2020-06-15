@@ -47,7 +47,7 @@ public:
 
 	~RefinedLee() {}
 
-	void filterFullPol(  Mat& hh, Mat& vv, Mat & hv);
+	void filterFullPol(Mat& hh, Mat& vv, Mat & hv);
 	//void filterDualPol();
 
 private:
