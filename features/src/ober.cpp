@@ -110,7 +110,7 @@ void ober::GetTextureFeature(vector<Mat>& features, vector<unsigned char>& class
 
 		for (auto it = count.begin(); it != count.end(); ++it)
 		{
-			std::cout << "get "<< it->second  <<" texture samples for class " <<  classNames[it->first] << std::endl;
+			std::cout << "get "<< it->second  <<" texture features for class " <<  classNames[it->first] << std::endl;
 		}
 }
 
@@ -141,7 +141,7 @@ void ober::GetColorFeature(vector<Mat>& features, vector<unsigned char>& classVa
 
 	for (auto it = count.begin(); it != count.end(); ++it)
 	{
-		std::cout << "get " << it->second << " color samples for class " << classNames[it->first] << std::endl;
+		std::cout << "get " << it->second << " color features for class " << classNames[it->first] << std::endl;
 	}
 }
 
@@ -183,19 +183,88 @@ void ober::GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue
 
 	for (auto it = count.begin(); it != count.end(); ++it)
 	{
-		std::cout << "get " << it->second << " mp samples for class " << classNames[it->first] << std::endl;
+		std::cout << "get " << it->second << " mp features for class " << classNames[it->first] << std::endl;
 	}
 }
 
-// default feature mat size 1*72
-void ober::GetAllPolsarFeatures(vector<Mat>& features, vector<unsigned char>& classValue) {
+
+// get polsar features on target decompostion 
+void ober::GetDecompFeatures(vector<Mat>& features, vector<unsigned char>& classValue) {
 	std::map< unsigned char, int> count;
-	cout << "start to draw polsar features ... " << endl;
+	cout << "start to draw target decomposition features of polsar parameters ... " << endl;
 
 	for (int i = 0; i < samplePoints->size(); i++) {
 		Point p = samplePoints->at(i);
 
-		cout << classNames[samplePointClassLabel->at(i)] << " :draw polsar feature at Point (" << p.y << ", " << p.x << ")" << endl;
+		cout << classNames[samplePointClassLabel->at(i)] << " :draw target decomposition feature at Point (" << p.y << ", " << p.x << ")" << endl;
+
+		Mat hh, vv, hv;
+		getSample(p, hh, vv, hv);
+
+		//caculate the decomposition at sample point
+		Mat result;
+		vector<Mat> decomposition;
+		getTargetDecomposition(hh, vv, hv, decomposition);
+
+		for (auto& d : decomposition) {
+			result.push_back(d);
+		}
+
+		features.push_back(result);
+		classValue.push_back(samplePointClassLabel->at(i));
+
+		count[samplePointClassLabel->at(i)]++;
+	}
+
+	for (auto it = count.begin(); it != count.end(); ++it)
+	{
+		std::cout << "get " << it->second << " target decomposition features for class " << classNames[it->first] << std::endl;
+	}
+}
+
+// get polsar features on elements of covariance matrix C and coherency matrix T
+void ober::GetCTFeatures(vector<Mat>& features, vector<unsigned char>& classValue) {
+	std::map< unsigned char, int> count;
+	cout << "start to draw matrix C and T elements ... " << endl;
+
+	for (int i = 0; i < samplePoints->size(); i++) {
+		Point p = samplePoints->at(i);
+
+		cout << classNames[samplePointClassLabel->at(i)] << " :draw matrix C and T elements at Point (" << p.y << ", " << p.x << ")" << endl;
+
+		Mat hh, vv, hv;
+		getSample(p, hh, vv, hv);
+
+		//caculate the decomposition at sample point
+		Mat result;
+		vector<Mat> decomposition;
+		getCTelements(hh, vv, hv, decomposition);
+
+		for (auto& d : decomposition) {
+			result.push_back(d);
+		}
+
+		features.push_back(result);
+		classValue.push_back(samplePointClassLabel->at(i));
+
+		count[samplePointClassLabel->at(i)]++;
+	}
+
+	for (auto it = count.begin(); it != count.end(); ++it)
+	{
+		std::cout << "get " << it->second << " CT elements features for class " << classNames[it->first] << std::endl;
+	}
+}
+
+// get polsar features on statistic of polsar parameters
+void ober::GetPolsarStatistic(vector<Mat>& features, vector<unsigned char>& classValue) {
+	std::map< unsigned char, int> count;
+	cout << "start to draw statistic features of polsar parameters ... " << endl;
+
+	for (int i = 0; i < samplePoints->size(); i++) {
+		Point p = samplePoints->at(i);
+
+		cout << classNames[samplePointClassLabel->at(i)] << " :draw statistic polarimetric feature at Point (" << p.y << ", " << p.x << ")" << endl;
 
 		Mat hh, vv, hv;
 		getSample(p, hh, vv, hv);
@@ -205,19 +274,8 @@ void ober::GetAllPolsarFeatures(vector<Mat>& features, vector<unsigned char>& cl
 		getStatisticFeature(hh, vv, hv, statistic);
 		cv::hconcat(statistic, result1);
 
-		//caculate the decomposition at sample point
-		int winSize = 3;
-		Mat result2;
-		vector<Mat> decomposition;
-		Rect roi = Rect(sampleSize/2 - winSize/2, sampleSize / 2 - winSize/2, winSize, winSize);
-		getTargetDecomposition(hh(roi), vv(roi), hv(roi), decomposition);
-		for (auto& d : decomposition) {
-			result2.push_back(d.at<float>(winSize / 2, winSize / 2));
-		}
-
-		Mat result;
-		cv::hconcat(result1.reshape(1, 1), result2.reshape(1, 1), result);
-		features.push_back(result);
+		 
+		features.push_back(result1);
 		classValue.push_back(samplePointClassLabel->at(i));
 
 		count[samplePointClassLabel->at(i)]++;
@@ -225,7 +283,7 @@ void ober::GetAllPolsarFeatures(vector<Mat>& features, vector<unsigned char>& cl
 
 	for (auto it = count.begin(); it != count.end(); ++it)
 	{
-		std::cout << "get " << it->second << " polsar samples for class " << classNames[it->first] << std::endl;
+		std::cout << "get " << it->second << " statistic polarimetric features for class " << classNames[it->first] << std::endl;
 	}
 }
 
@@ -265,9 +323,9 @@ void ober::getStatisticFeature(const Mat& hh, const Mat& vv, const Mat hv, vecto
 	}
 }
 
-// get upper triangle matrix elements of C, T, and target decompostion features
-// vector<mat>& result - vector length: 37, mat size: (hh.size())
-void ober::getTargetDecomposition(const Mat& hh, const Mat& vv, const Mat hv, vector<Mat> & result) {
+// get upper triangle matrix elements of C, T
+// vector<mat>& result - vector length: 12, mat size: (hh.size())
+void ober::getCTelements(const Mat& hh, const Mat& vv, const Mat hv, vector<Mat> & result) {
 	vector<Mat> pauli;
 	vector<Mat> circ;
 	vector<Mat> lexi;
@@ -279,13 +337,6 @@ void ober::getTargetDecomposition(const Mat& hh, const Mat& vv, const Mat hv, ve
 	polsar::GetCoherencyT(pauli, coherency);
 	polsar::GetCovarianceC(lexi, covariance);
 
-	polsar::GetCloudePottierDecomp(coherency, result); //3  
-	polsar::GetFreemanDurdenDecomp(coherency, result); //3  
-	polsar::GetKrogagerDecomp(circ, result); // 3  
-	polsar::GetPauliDecomp(pauli, result); // 3  
-	polsar::GetHuynenDecomp(covariance, result); // 9  
-	polsar::GetYamaguchi4Decomp(coherency, covariance, result); //4  
-
 	// upper triangle matrix elements of covariance matrix C and coherency matrix T
 	std::array<int, 6> ind = { 0,1,2,4,5,8 };
 	for (auto& i : ind) {
@@ -294,7 +345,27 @@ void ober::getTargetDecomposition(const Mat& hh, const Mat& vv, const Mat hv, ve
 	}
 }
 
+// get target decomposition features
+// vector<mat>& result - vector length: , mat size: (hh.size())
+void ober::getTargetDecomposition(const Mat& hh, const Mat& vv, const Mat hv, vector<Mat>& result) {
+	vector<Mat> pauli;
+	vector<Mat> circ;
+	vector<Mat> lexi;
+	polsar::getPauliBasis(hh, vv, hv, pauli);
+	polsar::getCircBasis(hh, vv, hv, circ);
+	polsar::getLexiBasis(hh, vv, hv, lexi);
+	vector<Mat> covariance;
+	vector<Mat> coherency;
+	polsar::GetCoherencyT(pauli, coherency);
+	polsar::GetCovarianceC(lexi, covariance);
 
+	//polsar::GetCloudePottierDecomp(coherency, result); //3  
+	polsar::GetFreemanDurdenDecomp(coherency, result); //3  
+	//polsar::GetKrogagerDecomp(circ, result); // 3  
+	//polsar::GetPauliDecomp(pauli, result); // 3  
+	//polsar::GetHuynenDecomp(covariance, result); // 9  
+	//polsar::GetYamaguchi4Decomp(coherency, covariance, result); //4  
+}
 
 // set despeckling filter size, choose from ( 5, 7, 9, 11)
 void ober::SetFilterSize(int filter_size) { filterSize = filter_size; }

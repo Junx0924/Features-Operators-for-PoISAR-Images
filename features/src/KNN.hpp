@@ -20,9 +20,9 @@ public:
 private:
 	void KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& trainLabels, const vector<Mat>& testVal, const vector<unsigned char>& testLabels, int k);
 
-	double Euclidean(Mat& testVal, Mat& trainVal);
+	float Euclidean(Mat& testVal, Mat& trainVal);
 
-	unsigned char Classify(vector<pair<double, unsigned char>>& distVec, int k);
+	unsigned char Classify(vector<pair<float, unsigned char>>& distVec, int k);
 };
 
 

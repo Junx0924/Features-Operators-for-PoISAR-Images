@@ -30,7 +30,11 @@ Description: This function is used to calculate the Euclidean distance
 between the training and test samples
 *************************************************************************/
 
-double KNN::Euclidean(Mat& testVal, Mat& trainVal) {
+float KNN::Euclidean(Mat& testVal, Mat& trainVal) {
+
+	testVal.convertTo(testVal, CV_32FC1);
+	trainVal.convertTo(trainVal, CV_32FC1);
+
 	double distance = 0.0;
 	double sum = 0.0;
 	//ensure that the dimensions of testVal and trainVal are same
@@ -44,7 +48,7 @@ double KNN::Euclidean(Mat& testVal, Mat& trainVal) {
 		int col = testVal.cols;
 		for (int i = 0; i < row; i++) {
 			for (int j = 0; j < col; j++) {
-				double diff = testVal.at<float>(i, j) - trainVal.at<float>(i, j);
+				float diff = testVal.at<float>(i, j) - trainVal.at<float>(i, j);
 				sum = sum + pow(diff, 2);
 				distance = sqrt(sum);
 			}
@@ -66,7 +70,7 @@ Modified by: Jun Xiang 15.06.2020
 Description : This function counts the number of classes in k neighborhood
 Based on which class has the highest count, appropriate class label is returned
 *************************************************************************/
-unsigned char KNN::Classify(vector<pair<double, unsigned char>>& distVec, int k) {
+unsigned char KNN::Classify(vector<pair<float, unsigned char>>& distVec, int k) {
 	
 	for (int i = k; i >0; --i) {
 		float max = -1;
@@ -123,9 +127,9 @@ void KNN::KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& trai
 	/*for each sample in the testing data, caculate distance from each training sample */
 	vector<unsigned char> classResult;
 	for (int i = 0; i < testVal.size(); i++) {								//for each test sample
-		vector<pair<double, unsigned char>> distVec;
+		vector<pair<float, unsigned char>> distVec;
 		for (int j = 0; j < trainVal.size(); j++) {							//for every training sample
-			pair<double, unsigned char> dist;
+			pair<float, unsigned char> dist;
 			Mat test = testVal[i];
 			Mat train = trainVal[j];
 			dist.first = this->Euclidean(test,train);			//calculate euclidean distance
@@ -138,7 +142,7 @@ void KNN::KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& trai
 		unsigned char classVal = this->Classify(distVec, k);
 		classResult.push_back(classVal);
 	}	
-	double accuracy = Utils::calculatePredictionAccuracy(classResult, testLabels);
+	float accuracy = Utils::calculatePredictionAccuracy(classResult, testLabels);
 	cout << "Accuracy: " << accuracy << endl;
 }
 

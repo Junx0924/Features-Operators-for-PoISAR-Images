@@ -72,24 +72,32 @@ public:
 	 // get patches of 3 channel (HH,HV,VV) intensity(dB)
 	 void GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue);
 
-	 // get texture features(LBP and GLCM) on HH,VV,VH, default feature mat size 1*64
+	 // get texture features(LBP and GLCM) on HH,VV,VH
 	 void GetTextureFeature(vector<Mat>& features, vector<unsigned char>& classValue);
 
-	 // get color features(MPEG-7 DCD,CSD) on Pauli Color image, default feature mat size 1*44
+	 // get color features(MPEG-7 DCD,CSD) on Pauli Color image
 	 void GetColorFeature(vector<Mat>& features, vector<unsigned char>& classValue);
 
 	 // get MP features on HH,VV,VH, default feature mat size (sampleSize*3,sampleSize)
 	 void GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue);
 	 
-	 // get polsar features on target decompostion, upper triangle matrix elements of C and T , statistic of polsar parameters
-	 // default feature mat size 1*72
-	 void GetAllPolsarFeatures(vector<Mat>& features, vector<unsigned char>& classValue);
+	 // get polsar features on elements of covariance matrix C and coherency matrix T
+	 void GetCTFeatures(vector<Mat>& features, vector<unsigned char>& classValue);
+
+	 // get polsar features on target decompostion 
+	 void GetDecompFeatures(vector<Mat>& features, vector<unsigned char>& classValue);
+
+	 // get polsar features on statistic of polsar parameters
+	 void GetPolsarStatistic(vector<Mat>& features, vector<unsigned char>& classValue);
 
 private:
-	
-	// get upper triangle matrix elements of C, T, and target decompostion features
-	// vector<mat> result, vector length: 37, mat size: (hh.rows,hh.cols)
+	// calculate target decompostion features
+	// vector<mat> result, vector length: , mat size: (hh.rows,hh.cols)
 	void getTargetDecomposition(const Mat & hh, const Mat &vv, const Mat hv, vector<Mat>& result);
+
+	// get upper triangle matrix elements of C, T
+	// vector<mat> result, vector length: 12, mat size: (hh.rows,hh.cols)
+	void getCTelements(const Mat& hh, const Mat& vv, const Mat hv, vector<Mat>& result);
 
 	// get statistical (min,max,mean,median,std) on polsar parameters
 	// vector<mat> result, vector length : 7, mat size: 1*5
