@@ -16,30 +16,47 @@ int main() {
     string labelfolder = "E:\\Oberpfaffenhofen\\label";
 
     ober* ob = new ober(ratfolder, labelfolder);
-     
+    
+    ob->SetFilterSize(5);
+
     // set patch size 20, maximum sample points per class is 100
     ob->LoadSamplePoints(20, 100);
-    ob->SetFilterSize(5);
 
     KNN* knn = new KNN();
     vector<Mat> feature;
     vector<unsigned char> featureLabels;
 
-    //ob->GetTextureFeature(feature, featureLabels);
-    
-    ob->GetColorFeature(feature, featureLabels);
-
-   // ob->GetMPFeature(feature, featureLabels);
-
-    // polsar features
-   // ob->GetDecompFeatures(feature, featureLabels);
-
-   // ob->GetCTFeatures(feature, featureLabels);
-
-   // ob->GetPolsarStatistic(feature, featureLabels);
-
-
+    ob->GetTextureFeature(feature, featureLabels);
     knn->applyKNN(feature, featureLabels, 20, 80);
+
+    feature.clear();
+    featureLabels.clear();
+    ob->GetColorFeature(feature, featureLabels);
+    knn->applyKNN(feature, featureLabels, 20, 80);
+
+    feature.clear();
+    featureLabels.clear();
+   ob->GetMPFeature(feature, featureLabels);
+   knn->applyKNN(feature, featureLabels, 20, 80);
+
+   feature.clear();
+   featureLabels.clear();
+    // polsar features
+   ob->GetDecompFeatures(feature, featureLabels);
+   knn->applyKNN(feature, featureLabels, 20, 80);
+
+   feature.clear();
+   featureLabels.clear();
+   ob->GetCTFeatures(feature, featureLabels);
+   knn->applyKNN(feature, featureLabels, 20, 80);
+
+   feature.clear();
+   featureLabels.clear();
+   ob->GetPolsarStatistic(feature, featureLabels);
+   knn->applyKNN(feature, featureLabels, 20, 80);
+
+   delete knn;
+   delete ob;
 
     return 0; // success
 }
