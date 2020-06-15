@@ -7,54 +7,24 @@ Size:1390x6640
 Tile:           3435973836
 Tile size (cols x rows):        1390x6640
 Tile start (col x row): 0x0
-Get 100 sample points for class city_inter
-Get 100 sample points for class field_inter
-Get 100 sample points for class forest_inter
-Get 100 sample points for class grassland_inter
-Get 100 sample points for class street_inter
+Get 1000 sample points for class city_inter
+Get 1000 sample points for class field_inter
+Get 1000 sample points for class forest_inter
+Get 1000 sample points for class grassland_inter
+Get 1000 sample points for class street_inter
 start to draw texture features ...
-get 100 texture features for class city_inter
-get 100 texture features for class field_inter
-get 100 texture features for class forest_inter
-get 100 texture features for class grassland_inter
-get 100 texture features for class street_inter
-Accuracy: 0.666667
+Accuracy: 0.760199
 start to draw color features ...
-get 100 color features for class city_inter
-get 100 color features for class field_inter
-get 100 color features for class forest_inter
-get 100 color features for class grassland_inter
-get 100 color features for class street_inter
-Accuracy: 0.533333
+Accuracy: 0.632836
 start to draw MP features ...
-get 100 mp features for class city_inter
-get 100 mp features for class field_inter
-get 100 mp features for class forest_inter
-get 100 mp features for class grassland_inter
-get 100 mp features for class street_inter
-Accuracy: 0.209524
-start to draw target decomposition features of polsar parameters ...
-get 100 target decomposition features for class city_inter
-get 100 target decomposition features for class field_inter
-get 100 target decomposition features for class forest_inter
-get 100 target decomposition features for class grassland_inter
-get 100 target decomposition features for class street_inter
-Accuracy: 0.52381
+Accuracy: 0.20199
+start to draw target decomposition features...
+Accuracy: 0.687562
 start to draw matrix C and T elements ...
-get 100 CT elements features for class city_inter
-get 100 CT elements features for class field_inter
-get 100 CT elements features for class forest_inter
-get 100 CT elements features for class grassland_inter
-get 100 CT elements features for class street_inter
-Accuracy: 0.695238
+Accuracy: 0.778109
 start to draw statistic features of polsar parameters ...
-get 100 statistic polarimetric features for class city_inter
-get 100 statistic polarimetric features for class field_inter
-get 100 statistic polarimetric features for class forest_inter
-get 100 statistic polarimetric features for class grassland_inter
-get 100 statistic polarimetric features for class street_inter
-Accuracy: 0.752381
+Accuracy: 0.895522
 
-D:\4th semester\HTCV\project_code\features\build\Debug\main.exe (process 18792) exited with code 0.
+D:\4th semester\HTCV\project_code\features\build\Debug\main.exe (process 13036) exited with code 0.
 To automatically close the console when debugging stops, enable Tools->Options->Debugging->Automatically close the console when debugging stops.
 Press any key to close this window . . .

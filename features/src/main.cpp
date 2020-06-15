@@ -19,8 +19,8 @@ int main() {
     
     ob->SetFilterSize(5);
 
-    // set patch size 20, maximum sample points per class is 100
-    ob->LoadSamplePoints(20, 100);
+    // set patch size 20, maximum sample points per class is 1000
+    ob->LoadSamplePoints(20, 1000);
 
     KNN* knn = new KNN();
     vector<Mat> feature;

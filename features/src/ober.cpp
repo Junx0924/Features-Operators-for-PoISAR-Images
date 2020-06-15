@@ -108,10 +108,10 @@ void ober::GetTextureFeature(vector<Mat>& features, vector<unsigned char>& class
 			count[samplePointClassLabel->at(i)]++;
 		}
 
-		for (auto it = count.begin(); it != count.end(); ++it)
+		/*for (auto it = count.begin(); it != count.end(); ++it)
 		{
 			std::cout << "get "<< it->second  <<" texture features for class " <<  classNames[it->first] << std::endl;
-		}
+		}*/
 }
 
 
@@ -139,10 +139,10 @@ void ober::GetColorFeature(vector<Mat>& features, vector<unsigned char>& classVa
 		count[samplePointClassLabel->at(i)]++;
 	}
 
-	for (auto it = count.begin(); it != count.end(); ++it)
+	/*for (auto it = count.begin(); it != count.end(); ++it)
 	{
 		std::cout << "get " << it->second << " color features for class " << classNames[it->first] << std::endl;
-	}
+	}*/
 }
 
 
@@ -181,17 +181,17 @@ void ober::GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue
 		count[samplePointClassLabel->at(i)]++;
 	}
 
-	for (auto it = count.begin(); it != count.end(); ++it)
+	/*for (auto it = count.begin(); it != count.end(); ++it)
 	{
 		std::cout << "get " << it->second << " mp features for class " << classNames[it->first] << std::endl;
-	}
+	}*/
 }
 
 
 // get polsar features on target decompostion 
 void ober::GetDecompFeatures(vector<Mat>& features, vector<unsigned char>& classValue) {
 	std::map< unsigned char, int> count;
-	cout << "start to draw target decomposition features of polsar parameters ... " << endl;
+	cout << "start to draw target decomposition features... " << endl;
 
 	for (int i = 0; i < samplePoints->size(); i++) {
 		Point p = samplePoints->at(i);
@@ -216,10 +216,10 @@ void ober::GetDecompFeatures(vector<Mat>& features, vector<unsigned char>& class
 		count[samplePointClassLabel->at(i)]++;
 	}
 
-	for (auto it = count.begin(); it != count.end(); ++it)
+	/*for (auto it = count.begin(); it != count.end(); ++it)
 	{
 		std::cout << "get " << it->second << " target decomposition features for class " << classNames[it->first] << std::endl;
-	}
+	}*/
 }
 
 // get polsar features on elements of covariance matrix C and coherency matrix T
@@ -250,10 +250,10 @@ void ober::GetCTFeatures(vector<Mat>& features, vector<unsigned char>& classValu
 		count[samplePointClassLabel->at(i)]++;
 	}
 
-	for (auto it = count.begin(); it != count.end(); ++it)
+	/*for (auto it = count.begin(); it != count.end(); ++it)
 	{
 		std::cout << "get " << it->second << " CT elements features for class " << classNames[it->first] << std::endl;
-	}
+	}*/
 }
 
 // get polsar features on statistic of polsar parameters
@@ -281,10 +281,10 @@ void ober::GetPolsarStatistic(vector<Mat>& features, vector<unsigned char>& clas
 		count[samplePointClassLabel->at(i)]++;
 	}
 
-	for (auto it = count.begin(); it != count.end(); ++it)
+	/*for (auto it = count.begin(); it != count.end(); ++it)
 	{
 		std::cout << "get " << it->second << " statistic polarimetric features for class " << classNames[it->first] << std::endl;
-	}
+	}*/
 }
 
 
