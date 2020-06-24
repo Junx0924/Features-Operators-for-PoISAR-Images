@@ -2,6 +2,12 @@
 #ifndef  SARFEATURES_HPP_
 #define  SARFEATURES_HPP_
 #include <opencv2/opencv.hpp>
+#include <complex>
+#include <algorithm>   
+#include "sarFeatures.hpp"
+#include "cvFeatures.hpp"
+#include <Eigen/Eigenvalues>
+
 using namespace cv;
 using namespace std;
 

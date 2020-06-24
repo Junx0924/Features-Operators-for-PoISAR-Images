@@ -1,9 +1,5 @@
 #include "Utils.h"
-#include <iostream>
-#include <fstream>
-#include <random>
-#include <opencv2/opencv.hpp>
-#include "sarFeatures.hpp"
+
 
 using namespace std;
 using namespace cv;
@@ -278,21 +274,173 @@ void Utils::getSafeSamplePoints(const Mat& img, const int& samplePointNum, const
 	}
 }
 
-// convert img data to png file
-Mat Utils::convertDataToPNG(const Mat& src) {
-	Mat dst;
-	dst = src.clone();
 
-	if (dst.channels() == 2) {
-		dst = polsar::logTransform(dst);
+
+// get features data from hdf5
+// features and featureLabels for train and test
+// labelPoints for the location in image
+void Utils::getFeaturesFromHDF(const String& hdf5_fileName, const String& parent_name, const vector<String>& dataset_name,
+	vector<Mat>& features, vector<unsigned char>& featureLabels, vector<Point>& labelPoints, int filterSize, int patchSize) {
+	vector<Mat> data;
+	if (Utils::checkExistInHDF(hdf5_fileName, parent_name, dataset_name, filterSize, patchSize)) {
+		Utils::readDataFromHDF(hdf5_fileName, parent_name, dataset_name, data, filterSize, patchSize);
+		Mat feature = data[0];
+		Mat pts = data[1]; //labelPoint
+		for (int i = 0; i < feature.rows; i++) {
+			features.push_back(feature.row(i));
+			featureLabels.push_back((unsigned char)(pts.at<int>(i, 0)));
+			Point p;
+			p.y = pts.at<int>(i, 1); //row
+			p.x = pts.at<int>(i, 2); //col
+			labelPoints.push_back(p);
+		}
 	}
-	else if (dst.channels() == 3) {
-		cvtColor(dst, dst, COLOR_BGR2GRAY);
+}
+
+bool Utils::insertDataToHDF(const String& filename, const String& parent_name, const String& dataset_name, const Mat& data) {
+	bool flag = true;
+	if (!data.empty()) {
+		Ptr<hdf::HDF5> h5io = hdf::open(filename);
+
+		if (checkExistInHDF(filename, parent_name, dataset_name)) {
+			string dataset = parent_name + dataset_name;
+			vector<int> data_size = h5io->dsgetsize(dataset);
+			// expand the dataset at row direction
+			int offset[2] = { data_size[0],0 };
+
+			if ((h5io->dsgettype(dataset) == data.type()) && (data_size[1] == data.cols)) {
+				h5io->dsinsert(data, dataset, offset);
+
+				//check if insert success
+				//cout << endl;
+				//cout << "insert " << data.rows << " rows to" << dataset << " success " << endl;
+				//cout << dataset << " rows in total: " << data.rows + offset[0] << endl;
+			}
+
+			else {
+				flag = false;
+				cout << endl;
+				cout << " the new data has different size and type with the existed data" << endl;
+				cout << dataset << " insert failed" << endl;
+			}
+		}
+		else {
+			// first we need to create the parent group
+			if (!h5io->hlexists(parent_name)) h5io->grcreate(parent_name);
+
+			string dataset = parent_name + dataset_name;
+			int chunks[2] = { 1, data.cols };
+			// create Unlimited x data.cols, data.type() space, dataset can be expanded unlimted on the row direction
+			h5io->dscreate(hdf::HDF5::H5_UNLIMITED, data.cols, data.type(), dataset, hdf::HDF5::H5_NONE, chunks);
+			// the first time to write data, offset at row,col direction is 0
+			int offset[2] = { 0, 0 };
+			h5io->dsinsert(data, dataset, offset);
+			cout << endl;
+			//cout << "insert " << data.rows << " rows to" << dataset << " success " << endl;
+			//cout << dataset << " rows in total: " << data.rows + offset[0] << endl;
+		}
 	}
-	cv::normalize(dst, dst, 0, 255, cv::NORM_MINMAX);
-	dst.convertTo(dst, CV_8UC1);
-	cv::equalizeHist(dst, dst);
-	return dst;
+	return flag;
+}
+bool Utils::checkExistInHDF(const String& filename, const String& parent_name, const string& dataset_name) {
+	Ptr<hdf::HDF5> h5io = hdf::open(filename);
+	bool flag = true;
+
+	if (!h5io->hlexists(parent_name)) {
+		flag = false;
+		//cout << parent_name << " is not existed" << endl;
+	}
+	else if (!h5io->hlexists(parent_name + dataset_name)) {
+		flag = false;
+		//cout << parent_name + dataset_name << " is not existed" << endl;
+	}
+	h5io->close();
+	return flag;
+}
+
+
+bool Utils::checkExistInHDF(const String& filename, const String& parent_name, const vector<string>& dataset_name, int filterSize, int patchSize) {
+	bool flag = true;
+	string parent = parent_name;
+	vector<string> dataset = dataset_name;
+	if (filterSize != 0) {
+		parent = parent_name + "_filterSize_" + to_string(filterSize);
+	}
+
+	for (auto& n : dataset) {
+		if (patchSize != 0) {
+			n = n + "_patchSize_" + to_string(patchSize);
+		}
+		bool temp = checkExistInHDF(filename, parent, n);
+		flag = flag && temp;
+	}
+	return	flag;
+}
+
+bool Utils::insertDataToHDF(const String& filename, const String& parent_name, const vector<string>& dataset_name, const vector<Mat>& data, int filterSize, int patchSize) {
+	bool flag = true;
+	string parent = parent_name;
+	if (filterSize != 0) { parent = parent + "_filterSize_" + to_string(filterSize); }
+
+	if (data.size() == dataset_name.size()) {
+		for (int i = 0; i < data.size(); i++) {
+			bool temp;
+			if (patchSize != 0) {
+				temp = insertDataToHDF(filename, parent, dataset_name[i] + "_patchSize_" + to_string(patchSize), data[i]);
+			}
+			else {
+				temp = insertDataToHDF(filename, parent, dataset_name[i], data[i]);
+			}
+			flag = flag && temp;
+		}
+	}
+	else {
+		flag = false;
+		cout << "the size of dataset_name doesn't match that of data" << endl;
+	}
+	return flag;
+}
+void Utils::readDataFromHDF(const String& filename, const String& parent_name, const vector<String>& dataset_name, vector<Mat>& data, int filterSize, int patchSize) {
+	string parent = parent_name;
+	if (!data.empty()) { data.clear(); }
+
+	if (filterSize != 0) { parent = parent + "_filterSize_" + to_string(filterSize); }
+	for (int i = 0; i < dataset_name.size(); i++) {
+		Mat temp;
+		if (patchSize != 0) {
+			readDataFromHDF(filename, parent, dataset_name[i] + "_patchSize_" + to_string(patchSize), temp);
+		}
+		else {
+			readDataFromHDF(filename, parent, dataset_name[i], temp);
+		}
+		if (!temp.empty()) { data.push_back(temp); }
+	}
+}
+
+void Utils::readDataFromHDF(const String& filename, const String& parent_name, const String& dataset_name, Mat& data) {
+
+	Ptr<hdf::HDF5> h5io = hdf::open(filename);
+
+	string datasetName = parent_name + dataset_name;
+
+	if (!h5io->hlexists(parent_name)) {
+		//cout << parent_name << " is not existed" << endl;
+		data = Mat();
+	}
+	else if (!h5io->hlexists(datasetName)) {
+		//cout << datasetName << " is not existed" << endl;  
+		data = Mat();
+	}
+	else {
+		vector<int> data_size = h5io->dsgetsize(datasetName);
+
+		data = Mat(data_size[0], data_size[1], h5io->dsgettype(datasetName));
+
+		h5io->dsread(data, datasetName);
+		//cout << "get " <<  datasetName  << " success" << endl;
+	}
+
+	h5io->close();
 }
 
 /************************************************************

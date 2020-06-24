@@ -1,13 +1,20 @@
 #pragma once
 #ifndef  OBER_HPP_
 #define  OBER_HPP_
-#include <opencv2/opencv.hpp>
-#include "specklefilter.hpp"
-#include "Utils.h"
+
+
 /*defining compiler versions for some
 compiler specific includes*/
 #define VC				//GCC/VC
-
+#include <complex>
+#include <string>
+#include <iostream>
+#include <opencv2/opencv.hpp>
+#include <fstream>
+#include "cvFeatures.hpp"
+#include "sarFeatures.hpp"
+#include "specklefilter.hpp"
+#include "Utils.h"
 using namespace std;
 using namespace cv;
 
@@ -89,6 +96,9 @@ public:
 
 	 // get polsar features on statistic of polsar parameters
 	 void GetPolsarStatistic(vector<Mat>& features, vector<unsigned char>& classValue);
+
+	 void saveFeaturesToHDF(const String& hdf5_fileName, const String& parent_name, const vector<String>& dataset_name, vector<Mat>& features, vector<unsigned char>& featureLabels, int filterSize, int patchSize);
+
 
 private:
 	// calculate target decompostion features

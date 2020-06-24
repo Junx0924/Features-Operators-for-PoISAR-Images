@@ -1,7 +1,5 @@
 #include "ober.hpp" 
-#include "cvFeatures.hpp"
-#include "sarFeatures.hpp"
-#include <opencv2/opencv.hpp>
+
 
 #ifdef VC
 #include <filesystem>
@@ -11,14 +9,31 @@
 #include <dirent.h>
 #endif
 
-#include <complex>
-#include <string>
-#include <iostream>
-#include <fstream>
+
 
 using namespace std;
 using namespace cv;
 namespace fs = std::filesystem;
+
+
+// write calculated features to hdf5 ( sample points, labels, features)
+void ober::saveFeaturesToHDF(const String& hdf5_fileName, const String& parent_name, const vector<String>& dataset_name, vector<Mat>& features, vector<unsigned char>& featureLabels, int filterSize, int patchSize) {
+
+	Mat pts = Mat(this->samplePoints->size(), 3, CV_32SC1);
+	for (size_t i = 0; i < this->samplePoints->size(); i++) {
+		pts.at<int>(i, 0) = (int)(featureLabels[i]);
+		pts.at<int>(i, 1) = this->samplePoints->at(i).y; //row
+		pts.at<int>(i, 2) = this->samplePoints->at(i).x; //col
+	}
+
+	Mat result;
+	for (auto& f : features) {
+		Mat temp = f.clone();
+		result.push_back(temp.reshape(1, 1));
+	}
+	Utils::insertDataToHDF(hdf5_fileName, parent_name, dataset_name, { result,pts }, filterSize, patchSize);
+	cout << "insert " << result.rows << " rows to " << parent_name << " feature with filterSize " << filterSize << " , patchSize " << patchSize << endl;
+}
 
 void ober::LoadSamplePoints(const int &size, const int &num) {
 
