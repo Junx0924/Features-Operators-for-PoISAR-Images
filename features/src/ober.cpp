@@ -15,15 +15,57 @@ using namespace std;
 using namespace cv;
 namespace fs = std::filesystem;
 
+void ober::caculFeatures(string hdf5_file, string feature_name,int filterSize, int patchSize, int numOfSamplePoint) {
+	vector<string> feature_type = { "/texture","/color" ,"/CTelememts" ,"/polStatistic","/decomp" ,"/MP" };
+	vector<string> dataset_name = { "/feature" ,"/patchLabel" };
+	SetFilterSize(filterSize);
+	LoadSamplePoints(patchSize, numOfSamplePoint);
+
+	
+	Mat labelMap = Utils::generateLabelMap(this->masks);
+	// save labelMap to hdf5
+	Utils::writeDataToHDF(hdf5_file, "/masks", "/labelMap", labelMap);
+
+	cout << "start to calculate " << feature_name << " with this->filterSize " << filterSize << " , patchSize " << patchSize << endl;
+	vector<Mat> feature;
+	vector<unsigned char> featureLabels;
+	for (size_t i = 0; i < feature_type.size(); i++) {
+		if (feature_name == feature_type[i]) {
+			switch (i) {
+			case 0:
+				GetTextureFeature(feature, featureLabels);
+				break;
+			case 1:
+				GetColorFeature(feature, featureLabels);
+				break;
+			case 2:
+				GetCTFeatures(feature, featureLabels);
+				break;
+			case 3:
+				GetPolsarStatistic(feature, featureLabels);
+				break;
+			case 4:
+				GetDecompFeatures(feature, featureLabels);
+				break;
+			case 5:
+				GetMPFeature(feature, featureLabels);
+				break;
+			}
+			saveFeaturesToHDF(hdf5_file, feature_name, dataset_name, feature, featureLabels, filterSize, patchSize);
+			feature.clear();
+			featureLabels.clear();
+		}
+	}
+}
 
 // write calculated features to hdf5 ( sample points, labels, features)
 void ober::saveFeaturesToHDF(const String& hdf5_fileName, const String& parent_name, const vector<String>& dataset_name, vector<Mat>& features, vector<unsigned char>& featureLabels, int filterSize, int patchSize) {
 
-	Mat pts = Mat(this->samplePoints->size(), 3, CV_32SC1);
-	for (size_t i = 0; i < this->samplePoints->size(); i++) {
+	Mat pts = Mat(this->samplePoints.size(), 3, CV_32SC1);
+	for (size_t i = 0; i < this->samplePoints.size(); i++) {
 		pts.at<int>(i, 0) = (int)(featureLabels[i]);
-		pts.at<int>(i, 1) = this->samplePoints->at(i).y; //row
-		pts.at<int>(i, 2) = this->samplePoints->at(i).x; //col
+		pts.at<int>(i, 1) = this->samplePoints.at(i).y; //row
+		pts.at<int>(i, 2) = this->samplePoints.at(i).x; //col
 	}
 
 	Mat result;
@@ -32,40 +74,38 @@ void ober::saveFeaturesToHDF(const String& hdf5_fileName, const String& parent_n
 		result.push_back(temp.reshape(1, 1));
 	}
 	Utils::insertDataToHDF(hdf5_fileName, parent_name, dataset_name, { result,pts }, filterSize, patchSize);
-	cout << "insert " << result.rows << " rows to " << parent_name << " feature with filterSize " << filterSize << " , patchSize " << patchSize << endl;
+	cout << "insert " << result.rows << " rows to " << parent_name << " feature with this->filterSize " << filterSize << " , patchSize " << patchSize << endl;
 }
 
 void ober::LoadSamplePoints(const int &size, const int &num) {
 
-	samplePointNum = num;
-	sampleSize = size;
+	this->samplePointNum = num;
+	this->sampleSize = size;
 
-	samplePoints->reserve(static_cast<int>(labels.size()) * samplePointNum); // pre-allocate memory
-	samplePointClassLabel->reserve(static_cast<int>(labels.size()) * samplePointNum); // pre-allocate memory
 
 	// get the sample points in each mask area
 	for (int i = 0; i < masks.size(); i++) {
 		vector<Point> pts;
-		Utils::getSafeSamplePoints(masks[i], samplePointNum, sampleSize, pts);
-		cout << "Get " << pts.size() << " sample points for class " << classNames[labels[i]] << endl;
+		Utils::getSafeSamplePoints(masks[i], this->samplePointNum, this->sampleSize, pts);
+		cout << "Get " << pts.size() << " sample points for class " << classNames[unsigned char(i+1)] << endl;
 		// store the sample points
-		samplePoints->insert(samplePoints->end(), pts.begin(), pts.end());
+		samplePoints.insert(samplePoints.end(), pts.begin(), pts.end());
 		// store the sample points label
-		for (int j = 0; j < pts.size(); j++) { samplePointClassLabel->push_back(labels[i]); }
+		for (int j = 0; j < pts.size(); j++) { samplePointClassLabel.push_back(unsigned char(i + 1)); }
 	}
 }
 
 // get patches of 3 channel (HH+VV,HV,HH-VV) intensity(dB)
 void ober::GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
 	
-	if (!samplePoints->empty()) {
-			for (const auto& p : *samplePoints) {
+	if (!samplePoints.empty()) {
+			for (const auto& p : samplePoints) {
 				Mat hh, vv, hv;
 				getSample(p, hh, vv, hv);
 
 				patches.push_back(polsar::GetPauliColorImg(hh, vv, hv));
 		}
-			classValue = *samplePointClassLabel;
+			classValue = samplePointClassLabel;
 	}
 }
 
@@ -73,14 +113,14 @@ void ober::GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& cla
 // get patches of 3 channel (HH,VV,HV) intensity(dB)
 void ober::GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
 		 
-		if(!samplePoints->empty()){
-				for (const auto& p : *samplePoints) {
+		if(!samplePoints.empty()){
+				for (const auto& p : samplePoints) {
 					Mat hh, vv, hv;
 					getSample(p, hh, vv, hv);
 
 					patches.push_back(polsar::GetFalseColorImg(hh, vv, hv));
 				}
-				classValue = *samplePointClassLabel;
+				classValue = samplePointClassLabel;
 		}
 }
 
@@ -91,10 +131,10 @@ void ober::GetTextureFeature(vector<Mat>& features, vector<unsigned char>& class
 		std::map< unsigned char, int> count;
 		cout << "start to draw texture features ... " <<endl;
 
-		for (int i = 0; i < samplePoints->size();i++) {
-			Point p = samplePoints->at(i);
+		for (int i = 0; i < samplePoints.size();i++) {
+			Point p = samplePoints.at(i);
 
-			//cout << classNames[samplePointClassLabel->at(i)] << " :draw texture feature at Point (" << p.x << ", " << p.y << ")" << endl;
+			//cout << classNames[samplePointClassLabel.at(i)] << " :draw texture feature at Point (" << p.x << ", " << p.y << ")" << endl;
 
 			Mat hh, vv, hv;
 			getSample(p, hh, vv, hv);
@@ -118,9 +158,9 @@ void ober::GetTextureFeature(vector<Mat>& features, vector<unsigned char>& class
 				result.push_back(temp);
 			}
 			features.push_back(result);
-			classValue.push_back(samplePointClassLabel->at(i));
+			classValue.push_back(samplePointClassLabel.at(i));
 
-			count[samplePointClassLabel->at(i)]++;
+			count[samplePointClassLabel.at(i)]++;
 		}
 
 		/*for (auto it = count.begin(); it != count.end(); ++it)
@@ -136,10 +176,10 @@ void ober::GetColorFeature(vector<Mat>& features, vector<unsigned char>& classVa
 	std::map< unsigned char, int> count;
 	cout << "start to draw color features ... " << endl;
 
-	for (int i = 0; i < samplePoints->size(); i++) {
-		Point p = samplePoints->at(i);
+	for (int i = 0; i < samplePoints.size(); i++) {
+		Point p = samplePoints.at(i);
 
-		//cout << classNames[samplePointClassLabel->at(i)] << " :draw color feature at Point (" << p.y << ", " << p.x << ")" << endl;
+		//cout << classNames[samplePointClassLabel.at(i)] << " :draw color feature at Point (" << p.y << ", " << p.x << ")" << endl;
 		
 		Mat hh, vv, hv;
 		getSample(p, hh, vv, hv);
@@ -149,9 +189,9 @@ void ober::GetColorFeature(vector<Mat>& features, vector<unsigned char>& classVa
 		Mat result;
 		cv::hconcat(cvFeatures::GetMPEG7CSD(colorImg, 32), cvFeatures::GetMPEG7DCD(colorImg, 3), result);
 		features.push_back(result);
-		classValue.push_back(samplePointClassLabel->at(i));
+		classValue.push_back(samplePointClassLabel.at(i));
 
-		count[samplePointClassLabel->at(i)]++;
+		count[samplePointClassLabel.at(i)]++;
 	}
 
 	/*for (auto it = count.begin(); it != count.end(); ++it)
@@ -161,15 +201,15 @@ void ober::GetColorFeature(vector<Mat>& features, vector<unsigned char>& classVa
 }
 
 
-// get MP features on HH,VV,VH, default feature mat size (sampleSize*9,sampleSize)
+// get MP features on HH,VV,VH, default feature mat size (this->sampleSize*9,this->sampleSize)
 void ober::GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
 	std::map< unsigned char, int> count;
 	cout << "start to draw MP features ... " << endl;
 
-	for (int i = 0; i < samplePoints->size(); i++) {
-		Point p = samplePoints->at(i);
+	for (int i = 0; i < samplePoints.size(); i++) {
+		Point p = samplePoints.at(i);
 
-		//cout << classNames[samplePointClassLabel->at(i)] << " :draw MP feature at Point (" << p.y << ", " << p.x << ")" << endl;
+		//cout << classNames[samplePointClassLabel.at(i)] << " :draw MP feature at Point (" << p.y << ", " << p.x << ")" << endl;
 
 		Mat hh, vv, hv;
 		getSample(p, hh, vv, hv);
@@ -191,9 +231,9 @@ void ober::GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue
 			result.push_back(cvFeatures::GetMP(t, { 1,2,3 }));
 		}
 		features.push_back(result);
-		classValue.push_back(samplePointClassLabel->at(i));
+		classValue.push_back(samplePointClassLabel.at(i));
 
-		count[samplePointClassLabel->at(i)]++;
+		count[samplePointClassLabel.at(i)]++;
 	}
 
 	/*for (auto it = count.begin(); it != count.end(); ++it)
@@ -208,10 +248,10 @@ void ober::GetDecompFeatures(vector<Mat>& features, vector<unsigned char>& class
 	std::map< unsigned char, int> count;
 	cout << "start to draw target decomposition features... " << endl;
 
-	for (int i = 0; i < samplePoints->size(); i++) {
-		Point p = samplePoints->at(i);
+	for (int i = 0; i < samplePoints.size(); i++) {
+		Point p = samplePoints.at(i);
 
-		//cout << classNames[samplePointClassLabel->at(i)] << " :draw target decomposition feature at Point (" << p.y << ", " << p.x << ")" << endl;
+		//cout << classNames[samplePointClassLabel.at(i)] << " :draw target decomposition feature at Point (" << p.y << ", " << p.x << ")" << endl;
 
 		Mat hh, vv, hv;
 		getSample(p, hh, vv, hv);
@@ -226,9 +266,9 @@ void ober::GetDecompFeatures(vector<Mat>& features, vector<unsigned char>& class
 		}
 
 		features.push_back(result);
-		classValue.push_back(samplePointClassLabel->at(i));
+		classValue.push_back(samplePointClassLabel.at(i));
 
-		count[samplePointClassLabel->at(i)]++;
+		count[samplePointClassLabel.at(i)]++;
 	}
 
 	/*for (auto it = count.begin(); it != count.end(); ++it)
@@ -242,10 +282,10 @@ void ober::GetCTFeatures(vector<Mat>& features, vector<unsigned char>& classValu
 	std::map< unsigned char, int> count;
 	cout << "start to draw matrix C and T elements ... " << endl;
 
-	for (int i = 0; i < samplePoints->size(); i++) {
-		Point p = samplePoints->at(i);
+	for (int i = 0; i < samplePoints.size(); i++) {
+		Point p = samplePoints.at(i);
 
-		//cout << classNames[samplePointClassLabel->at(i)] << " :draw matrix C and T elements at Point (" << p.y << ", " << p.x << ")" << endl;
+		//cout << classNames[samplePointClassLabel.at(i)] << " :draw matrix C and T elements at Point (" << p.y << ", " << p.x << ")" << endl;
 
 		Mat hh, vv, hv;
 		getSample(p, hh, vv, hv);
@@ -260,9 +300,9 @@ void ober::GetCTFeatures(vector<Mat>& features, vector<unsigned char>& classValu
 		}
 
 		features.push_back(result);
-		classValue.push_back(samplePointClassLabel->at(i));
+		classValue.push_back(samplePointClassLabel.at(i));
 
-		count[samplePointClassLabel->at(i)]++;
+		count[samplePointClassLabel.at(i)]++;
 	}
 
 	/*for (auto it = count.begin(); it != count.end(); ++it)
@@ -276,10 +316,10 @@ void ober::GetPolsarStatistic(vector<Mat>& features, vector<unsigned char>& clas
 	std::map< unsigned char, int> count;
 	cout << "start to draw statistic features of polsar parameters ... " << endl;
 
-	for (int i = 0; i < samplePoints->size(); i++) {
-		Point p = samplePoints->at(i);
+	for (int i = 0; i < samplePoints.size(); i++) {
+		Point p = samplePoints.at(i);
 
-		//cout << classNames[samplePointClassLabel->at(i)] << " :draw statistic polarimetric feature at Point (" << p.y << ", " << p.x << ")" << endl;
+		//cout << classNames[samplePointClassLabel.at(i)] << " :draw statistic polarimetric feature at Point (" << p.y << ", " << p.x << ")" << endl;
 
 		Mat hh, vv, hv;
 		getSample(p, hh, vv, hv);
@@ -291,9 +331,9 @@ void ober::GetPolsarStatistic(vector<Mat>& features, vector<unsigned char>& clas
 
 		 
 		features.push_back(result1);
-		classValue.push_back(samplePointClassLabel->at(i));
+		classValue.push_back(samplePointClassLabel.at(i));
 
-		count[samplePointClassLabel->at(i)]++;
+		count[samplePointClassLabel.at(i)]++;
 	}
 
 	/*for (auto it = count.begin(); it != count.end(); ++it)
@@ -383,19 +423,19 @@ void ober::getTargetDecomposition(const Mat& hh, const Mat& vv, const Mat hv, ve
 }
 
 // set despeckling filter size, choose from ( 5, 7, 9, 11)
-void ober::SetFilterSize(int filter_size) { filterSize = filter_size; }
+void ober::SetFilterSize(int filterSize) { this->filter_Size = filterSize; }
 
 // get data at sample point
 void ober::getSample(const Point& sample_point, Mat& hh, Mat& vv, Mat& hv) {
-	int start_x = int(sample_point.x) - sampleSize / 2;
-	int start_y = int(sample_point.y) - sampleSize / 2;
-	Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
+	int start_x = int(sample_point.x) - this->sampleSize / 2;
+	int start_y = int(sample_point.y) - this->sampleSize / 2;
+	Rect roi = Rect(start_x, start_y, this->sampleSize, this->sampleSize);
 
-	if (filterSize ==5 || filterSize ==7 || filterSize ==9 || filterSize ==11) {
+	if (this->filter_Size ==5 || this->filter_Size ==7 || this->filter_Size ==9 || this->filter_Size ==11) {
 		hh = data[0](roi).clone();
 		vv = data[1](roi).clone();
 		hv = data[2](roi).clone();
-		RefinedLee* filter = new RefinedLee(filterSize, 1);
+		RefinedLee* filter = new RefinedLee(this->filter_Size, 1);
 		filter->filterFullPol(hh, vv, hv);
 		delete filter;
 	}
@@ -404,6 +444,7 @@ void ober::getSample(const Point& sample_point, Mat& hh, Mat& vv, Mat& hv) {
 		vv = data[1](roi);
 		hv = data[2](roi);
 	}
+	cout << "hh scattering value: " << hh.at<Vec2f>(10, 10)[0] << endl;
 }
 
 

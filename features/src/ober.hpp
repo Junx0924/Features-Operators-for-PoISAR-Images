@@ -23,30 +23,29 @@ class ober{
 
 private:
 	unsigned border = 3;
-	int filterSize;
+	int filter_Size;
+	vector<Point> samplePoints;
+	vector<unsigned char> samplePointClassLabel;
+	int sampleSize;
+	int samplePointNum;
+
 public:
 	// data = complex mat with values [HH, VV, HV]
 	vector<Mat> data;
-	vector<unsigned char> labels;  
 	vector<Mat> masks;
-
-	// record the class name of each label
+	
+	// record the class name
 	std::map<unsigned char, string>classNames; 
-
-	vector<Point> *samplePoints;
-	vector<unsigned char> *samplePointClassLabel;
-	int sampleSize;
-	int samplePointNum;
 
 	// constructor
 	// input: rat file folder, label file folder 
 	ober(const string& RATfileFolder, const string& labelFolder) {
 
-		samplePoints = new vector<Point>();
-		samplePointClassLabel = new vector<unsigned char>();
+		samplePoints = vector<Point>();
+		samplePointClassLabel =  vector<unsigned char>();
 		sampleSize = 0;
 		samplePointNum = 0;
-		filterSize = 0;
+		filter_Size = 0;
 
 		// read rat data
 		loadData(RATfileFolder);
@@ -58,49 +57,48 @@ public:
 		classNames[signed char(0)] = "Unclassified";
 		for (int i = 0; i < labelNames.size(); i++) {
 			classNames.insert(pair<unsigned char, string>(i + 1 , labelNames[i]));
-			labels.push_back(i + 1);
+			cv::threshold(masks[i], masks[i], 0, (i + 1), THRESH_BINARY);
 		}
+		cout << "hh scattering value: " << data[0].at<Vec2f>(10, 10)[0] << endl;
 	}
 
 	~ober() {
-		if (samplePoints) { delete samplePoints; }
-		if (samplePointClassLabel) { delete samplePointClassLabel; }
 	}
 
-	// set despeckling filter size, choose from ( 5, 7, 9, 11)
-	 void SetFilterSize(int filter_size);
-
-	// input sample size and the maximum number of sample points 
-	 void LoadSamplePoints(const int& sampleSize, const int& samplePointNum);
-
-	 // get patches of 3 channel (HH+VV,HV,HH-VV) intensity(dB)
-	 void GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& classValue);
-
-	 // get patches of 3 channel (HH,HV,VV) intensity(dB)
-	 void GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue);
-
-	 // get texture features(LBP and GLCM) on HH,VV,VH
-	 void GetTextureFeature(vector<Mat>& features, vector<unsigned char>& classValue);
-
-	 // get color features(MPEG-7 DCD,CSD) on Pauli Color image
-	 void GetColorFeature(vector<Mat>& features, vector<unsigned char>& classValue);
-
-	 // get MP features on HH,VV,VH, default feature mat size (sampleSize*3,sampleSize)
-	 void GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue);
-	 
-	 // get polsar features on elements of covariance matrix C and coherency matrix T
-	 void GetCTFeatures(vector<Mat>& features, vector<unsigned char>& classValue);
-
-	 // get polsar features on target decompostion 
-	 void GetDecompFeatures(vector<Mat>& features, vector<unsigned char>& classValue);
-
-	 // get polsar features on statistic of polsar parameters
-	 void GetPolsarStatistic(vector<Mat>& features, vector<unsigned char>& classValue);
-
-	 void saveFeaturesToHDF(const String& hdf5_fileName, const String& parent_name, const vector<String>& dataset_name, vector<Mat>& features, vector<unsigned char>& featureLabels, int filterSize, int patchSize);
-
+	 void caculFeatures(string hdf5_file, string feature_name,int filterSize, int patchSize, int numOfSamplePoint );
 
 private:
+	// set despeckling filter size, choose from ( 5, 7, 9, 11)
+	void SetFilterSize(int filter_size);
+
+	// input sample size and the maximum number of sample points 
+	void LoadSamplePoints(const int& sampleSize, const int& samplePointNum);
+
+	// get patches of 3 channel (HH+VV,HV,HH-VV) intensity(dB)
+	void GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& classValue);
+
+	// get patches of 3 channel (HH,HV,VV) intensity(dB)
+	void GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue);
+
+	// get texture features(LBP and GLCM) on HH,VV,VH
+	void GetTextureFeature(vector<Mat>& features, vector<unsigned char>& classValue);
+
+	// get color features(MPEG-7 DCD,CSD) on Pauli Color image
+	void GetColorFeature(vector<Mat>& features, vector<unsigned char>& classValue);
+
+	// get MP features on HH,VV,VH, default feature mat size (sampleSize*3,sampleSize)
+	void GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue);
+
+	// get polsar features on elements of covariance matrix C and coherency matrix T
+	void GetCTFeatures(vector<Mat>& features, vector<unsigned char>& classValue);
+
+	// get polsar features on target decompostion 
+	void GetDecompFeatures(vector<Mat>& features, vector<unsigned char>& classValue);
+
+	// get polsar features on statistic of polsar parameters
+	void GetPolsarStatistic(vector<Mat>& features, vector<unsigned char>& classValue);
+
+	void saveFeaturesToHDF(const String& hdf5_fileName, const String& parent_name, const vector<String>& dataset_name, vector<Mat>& features, vector<unsigned char>& featureLabels, int filterSize, int patchSize);
 	// calculate target decompostion features
 	// vector<mat> result, vector length: , mat size: (hh.rows,hh.cols)
 	void getTargetDecomposition(const Mat & hh, const Mat &vv, const Mat hv, vector<Mat>& result);

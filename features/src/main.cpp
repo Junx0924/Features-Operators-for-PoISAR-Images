@@ -9,61 +9,33 @@
 using namespace std;
 using namespace cv;
 
+string ctElements = "/CTelememts";
+string MP = "/MP";
+string decomp = "/decomp";
+string color = "/color";
+string texture = "/texture";
+string polStatistic = "/polStatistic";
+string knn_result = { "/knn" };
+vector<string> dataset_name = { "/feature" ,"/patchLabel" };
 
 int main() {
 
     string ratfolder = "E:\\Oberpfaffenhofen\\sar-data";
     string labelfolder = "E:\\Oberpfaffenhofen\\label";
+    string oberfile = "E:\\ober.h5";
+   
+    int filterSize = 0;
+    int patchSize = 20;
+    int numOfPoints = 1000;
+    string feature_name = polStatistic;
+
 
     ober* ob = new ober(ratfolder, labelfolder);
-    
-    ob->SetFilterSize(0);
+    ob->caculFeatures(oberfile, feature_name,filterSize, patchSize, numOfPoints );
 
-    // set patch size 20, maximum sample points per class is 1000
-    ob->LoadSamplePoints(20, 1000);
+    Utils::classifyFeaturesKNN(oberfile, feature_name, 20, 80, filterSize, patchSize);
+    Utils::generateColorMap(oberfile, feature_name, knn_result, filterSize, patchSize);
 
-    KNN* knn = new KNN();
-    vector<Mat> feature;
-    vector<unsigned char> featureLabels;
-
-   // ob->GetTextureFeature(feature, featureLabels);
-   // knn->applyKNN(feature, featureLabels, 20, 80);
-
-   // feature.clear();
-   // featureLabels.clear();
-   // ob->GetColorFeature(feature, featureLabels);
-   // knn->applyKNN(feature, featureLabels, 20, 80);
-
-   // feature.clear();
-   // featureLabels.clear();
-   //ob->GetMPFeature(feature, featureLabels);
-   //knn->applyKNN(feature, featureLabels, 20, 80);
-
-   //feature.clear();
-   //featureLabels.clear();
-   // // polsar features
-   //ob->GetDecompFeatures(feature, featureLabels);
-   //knn->applyKNN(feature, featureLabels, 20, 80);
-
-   //feature.clear();
-   //featureLabels.clear();
-   //ob->GetCTFeatures(feature, featureLabels);
-   //knn->applyKNN(feature, featureLabels, 20, 80);
-
-  
-   ob->GetPolsarStatistic(feature, featureLabels);
-   knn->applyKNN(feature, featureLabels, 20, 80);
-
-   //save the features to hdf5, then read to knn for classify
-   ob->saveFeaturesToHDF("E:\\testhdf.h5", "/polStatistic", { "/feature","/labelPoints" }, feature, featureLabels, 5, 20);
-   feature.clear();
-   featureLabels.clear();
-   vector<Point> pts;
-   Utils::getFeaturesFromHDF("E:\\testhdf.h5", "/polStatistic", { "/feature","/labelPoints" }, feature, featureLabels, pts, 5, 20);
-   knn->applyKNN(feature, featureLabels, 20, 80);
-
-
-   delete knn;
    delete ob;
 
     return 0; // success
