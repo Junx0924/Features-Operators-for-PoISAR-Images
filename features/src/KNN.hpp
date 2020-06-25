@@ -14,11 +14,11 @@ public:
 	}
 	~KNN() {
 	}
-
-	void applyKNN(vector<Mat> data, vector<unsigned char> data_labels, int k, int trainPercent);
+	void applyKNN(const vector<Mat>& data, const vector<unsigned char> & data_labels, int k, int trainPercent, vector<unsigned char>& class_result);
 
 private:
-	void KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& trainLabels, const vector<Mat>& testVal, const vector<unsigned char>& testLabels, int k);
+	// return the classify result for the test data
+	float KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& trainLabels, const vector<Mat>& testVal, const vector<unsigned char>& testLabels, int k, vector<unsigned char>& test_result);
 
 	float Euclidean(Mat& testVal, Mat& trainVal);
 

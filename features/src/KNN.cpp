@@ -11,14 +11,48 @@
 using namespace std;
 using namespace cv;
 
-void KNN::applyKNN(vector<Mat> data, vector<unsigned char> data_labels, int k, int trainPercent) {
-	Utils::shuffleDataSet(data, data_labels);
+void KNN::applyKNN(const vector<Mat>& data, const vector<unsigned char> &data_labels, int k, int trainPercent, vector<unsigned char> &class_result) {
+	
+	cout << "start to classify data with KNN k = " << k<< endl;
+	cout << "train data size: " << data.size() * trainPercent / 100 << endl;
+	cout << "test data size: " << data.size()* (100 - trainPercent)/100 << endl;
+	cout << "cross validation folds: " << 100 / (100 - trainPercent) << endl;
+
+	// classify result
+	vector<unsigned char> results(data_labels.size());
+	
+	//copy the original data
+	vector<Mat> temp(data.begin(),data.end());
+	vector<unsigned char> temp_labels(data_labels.begin(), data_labels.end());
+
+	// record the original index of data before shuffle
+	//vector<int> original_ind = Utils::shuffleDataSet(temp, temp_labels);
+
+	class_result= vector<unsigned char>(data_labels.size());
+
 	vector<Mat> train;
 	vector<unsigned char> train_labels;
 	vector<Mat> test;
 	vector<unsigned char> test_labels;
-	Utils::DivideTrainTestData(data, data_labels, trainPercent, train, train_labels, test, test_labels);
-	KNNTest(train, train_labels, test, test_labels, k);
+
+	int total_folds = 100 / (100 - trainPercent);
+	float accuracy =0.0;
+	for( int fold =1; fold < total_folds+1; ++fold){
+		vector<int> test_ind = Utils::DivideTrainTestData(temp, temp_labels, trainPercent, train, train_labels, test, test_labels, fold);
+		vector<unsigned char> test_result;
+		float acc = KNNTest(train, train_labels, test, test_labels, k, test_result);
+		accuracy = accuracy + acc;
+
+		for (size_t i = 0; i < test_ind.size(); i++) {
+			results[test_ind[i]] = test_result[i];
+		}
+		train.clear();
+		train_labels.clear();
+		test.clear();
+		test_labels.clear();
+	}
+	accuracy = accuracy / total_folds;
+	cout << "cross validation accuracy: " << accuracy << endl;
 }
 
 
@@ -123,9 +157,8 @@ Author : Anupama Rajkumar
 Date : 12.06.2020
 Description: Classify test points using KNN Classifier
 *************************************************************************/
-void KNN::KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& trainLabels, const vector<Mat>& testVal, const vector<unsigned char>& testLabels, int k) {
+float KNN::KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& trainLabels, const vector<Mat>& testVal, const vector<unsigned char>& testLabels, int k, vector<unsigned char>& classResult) {
 	/*for each sample in the testing data, caculate distance from each training sample */
-	vector<unsigned char> classResult;
 	for (int i = 0; i < testVal.size(); i++) {								//for each test sample
 		vector<pair<float, unsigned char>> distVec;
 		for (int j = 0; j < trainVal.size(); j++) {							//for every training sample
@@ -143,7 +176,7 @@ void KNN::KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& trai
 		classResult.push_back(classVal);
 	}	
 	float accuracy = Utils::calculatePredictionAccuracy(classResult, testLabels);
-	cout << "Accuracy: " << accuracy << endl;
+	return accuracy;
 }
 
 
