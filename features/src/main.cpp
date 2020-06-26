@@ -20,22 +20,21 @@ int main() {
 
     string ratfolder = "E:\\Oberpfaffenhofen\\sar-data";
     string labelfolder = "E:\\Oberpfaffenhofen\\label";
-    string oberfile = "E:\\ober2.h5";
+    string oberfile = "E:\\ober.h5";
 
     ober* ob = new ober(ratfolder, labelfolder, oberfile);
 
     // test PolStatistic features
     int patchSize = 20;
-    int numOfSamplePoints = 100;
+    int numOfSamplePoints = 0;
     int filterSize = 0;
-    string feature_name = all;
-    ob->caculFeatures(filterSize, patchSize, numOfSamplePoints, feature_name);
+    unsigned char classlabel = 1;
+    string feature_name = polStatistic;
+    ob->caculFeatures(filterSize, patchSize, numOfSamplePoints, classlabel, feature_name);
     delete ob;
 
-    for(const auto & name: feature_type){
-    Utils::classifyFeaturesKNN(oberfile, name, 20, 80, filterSize, patchSize);
-    Utils::generateColorMap(oberfile, name, knn_result, filterSize, patchSize);
-    }
+    Utils::classifyFeaturesKNN(oberfile, feature_name, 20, 80, filterSize, patchSize);
+    Utils::generateColorMap(oberfile, feature_name, knn_result, filterSize, patchSize);
 
     return 0;
 }

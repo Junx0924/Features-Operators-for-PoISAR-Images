@@ -39,8 +39,8 @@ namespace Utils {
 
 		// generate all the possible sample points
 		vector<Point>  generateSamplePoints(const Mat& labelMap, const int& sampleSize, const int & stride );
-		// get random samples of homogeneous area for each class, numOfSamplePointPerClass =0 means to return all the possible sample points
-		void getRandomSamplePoint(const Mat& labelMap, vector<Point>& samplePoints, vector<unsigned char>& sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass);
+		// get random samples of homogeneous area for one type of class, numOfSamplePointPerClass =0 means to return all the possible sample points
+		void getRandomSamplePoint(const Mat& labelMap, vector<Point>& samplePoints, const unsigned char& sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass);
 
 
 		//************* HDF5 file read/write/insert/delete *****************//
