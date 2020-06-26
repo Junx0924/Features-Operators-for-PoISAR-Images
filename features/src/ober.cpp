@@ -19,11 +19,17 @@ using namespace cv;
 namespace fs = std::filesystem;
  
 
-void ober::caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, string feature_name) {
+// calulate features and save them to hdf5 file
+// filterSize: apply refined Lee despeckling filter, choose from (0, 5, 7, 9, 11)
+// patchSize: to draw samples
+// classlabel: choose which class to load, 255 means to load all the classes
+// numOfSamplePoint, the number of samples for one type of class, 0 means load all the possible sample points
+// feature_name: choose from { texture, color, ctElements,polStatistic,decomp, MP}
+void ober::caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, unsigned char classlabel, string feature_name) {
 	vector<string> feature_type = { "/texture","/color" ,"/CTelememts" ,"/polStatistic","/decomp" ,"/MP" };
 	vector<string> dataset_name = { "/feature" ,"/patchLabel" };
 
-	LoadSamplePoints(patchSize, numOfSamplePoint, 1);
+	LoadSamplePoints(patchSize, numOfSamplePoint, classlabel, 1);
 	
 
 	cout << "start to calculate " << feature_name << " with filterSize " << filterSize << " , patchSize " << patchSize << endl;
@@ -43,7 +49,8 @@ void ober::caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, st
 		for (size_t i = 0; i < feature_type.size(); i++) {
 			int j = 0;
 			if (feature_name == "all") { j = i; }
-			else if (feature_name == feature_type[i]) { j = i; } else { j = 255; }
+			else if (feature_name == feature_type[i]) { j = i; }
+			else { j = 255; }
 			
 			Mat feature;
 			switch (j) {
@@ -78,9 +85,9 @@ void ober::caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, st
 
 
 
-
-//numOfSamplePoint =0 means load all the possible sample points
-void ober::LoadSamplePoints(const int& patchSize, const int& numOfSamplePoint, int stride) {
+// classlabel: choose which class to load, 255 means to load all the classes
+//numOfSamplePoint, the number of samples for one type of class, 0 means load all the possible sample points
+void ober::LoadSamplePoints(const int& patchSize, const int& numOfSamplePoint, const unsigned char& classlabel, int stride) {
 
 	if (!this->samplePoints.empty()) {
 		this->samplePoints.clear();
@@ -90,16 +97,31 @@ void ober::LoadSamplePoints(const int& patchSize, const int& numOfSamplePoint, i
 		this->sampleLabel.clear();
 	}
 
-    Utils::getRandomSamplePoint(this->LabelMap, this->samplePoints, this->sampleLabel, patchSize, stride, numOfSamplePoint);
+	cout << "start to generate sample points with patchSize " << patchSize << ", stride " << stride << "..." << endl;
 
-	map<unsigned char, int> count;
-	for (size_t i = 0; i < this->samplePoints.size(); i++) {
-		unsigned char label = this->sampleLabel[i];
-		count[label] ++;
-	}
+	for (const auto& classname : this->classNames) {
+		unsigned char label = unsigned char(0);
+		string name = classname.second;
+		vector<Point> pts;
+		if (classlabel == unsigned char(255)) {
+			label = classname.first;
+		}
+		else if( classlabel == classname.first){
+			label = classlabel;
+		}
+		else {
+			continue;
+		}
 
-	for (auto& c : count) {
-		cout << "Get " << c.second << " sample points for class " << classNames[c.first] << endl;
+		if (label != unsigned char(0)) {
+			Utils::getRandomSamplePoint(this->LabelMap, pts, label, patchSize, stride, numOfSamplePoint);
+			cout << "Get " << pts.size() << " sample points for class " << name << endl;
+			for (size_t i = 0; i < pts.size(); i++) {
+				this->sampleLabel.push_back(label);
+			}
+			copy(pts.begin(), pts.end(), back_inserter(this->samplePoints));
+			pts.clear();
+		}
 	}
 }
 
@@ -219,6 +241,13 @@ Mat ober::caculPolStatistic(const Mat& hh, const Mat& vv, const Mat& hv) {
 	// polarized ratio HV-VV
 	Mat otherPolarize = hv_log - vv_log;
 
+	//Copolarization ratio
+	Mat copolarizationRatio = polsar::getCoPolarizationRatio(hh, vv, 3);
+	//deCopolarization ratio
+	Mat deCopolarizationRatio = polsar::getDePolarizationRatio(hh, vv, hv, 3);
+
+	// amplitude of HH-VV correlation
+	Mat amplitudeCorrelation = polsar::logTransform(polsar::calcuCoherenceOfPol(hh, vv, 3)) - hh_log - vv_log;
 
 	temp.push_back(hh_log);
 	temp.push_back(vv_log);
@@ -227,6 +256,9 @@ Mat ober::caculPolStatistic(const Mat& hh, const Mat& vv, const Mat& hv) {
 	temp.push_back(coPolarize);
 	temp.push_back(crossPolarize);
 	temp.push_back(otherPolarize);
+	temp.push_back(copolarizationRatio);
+	temp.push_back(deCopolarizationRatio);
+	temp.push_back(amplitudeCorrelation);
 
 	vector<Mat> statistic;
 	for (const auto& t : temp) {

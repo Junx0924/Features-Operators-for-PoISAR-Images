@@ -216,7 +216,7 @@ void Utils::classifyFeaturesKNN(const String& hdf5_fileName,  const string& feat
 	
 	vector<string> feature_type = { "/texture","/color" ,"/CTelememts" ,"/polStatistic","/decomp" ,"/MP" };
 	vector<string> dataset_name = { "/feature" ,"/patchLabel" };
-
+	cout << endl;
 	for (size_t i = 0; i < feature_type.size(); i++) {
 		if( feature_name == feature_type[i]){
 			vector<Mat> features;
@@ -225,7 +225,7 @@ void Utils::classifyFeaturesKNN(const String& hdf5_fileName,  const string& feat
 			vector<unsigned char> class_results;
 			Utils::getFeaturesFromHDF(hdf5_fileName, feature_type[i], dataset_name, features, labels, labelPoints, filterSize, patchSize);
 			if(!features.empty()){
-				cout << "get " << feature_type[i] << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << endl;
+				cout << "get " << features.size()<<" rows for "<< feature_type[i] << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << endl;
 			    knn->applyKNN(features, labels, k, 80, class_results);
 			    Utils::saveClassResultToHDF(hdf5_fileName, feature_type[i], "/knn", class_results, labelPoints,filterSize,patchSize);
 				features.clear();
@@ -654,8 +654,6 @@ bool Utils::insertDataToHDF(const String& filename, const String& parent_name, c
 
 vector<Point> Utils::generateSamplePoints(const Mat& labelMap, const int& patchSize, const int& stride) {
 
-	cout << "start to generate sample points with patchSize " << patchSize << ", stride " << stride << "..." << endl;
-
 	vector<Point> samplePoints;
 	for (int row = 0; row < labelMap.rows - patchSize; row += stride) {
 		for (int col = 0; col < labelMap.cols - patchSize; col += stride) {
@@ -670,54 +668,46 @@ vector<Point> Utils::generateSamplePoints(const Mat& labelMap, const int& patchS
 	return samplePoints;
 }
 
-void Utils::getRandomSamplePoint(const Mat& labelMap, vector<Point>& samplePoints, vector<unsigned char> & sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass) {
+void Utils::getRandomSamplePoint(const Mat& labelMap, vector<Point>& samplePoints, const unsigned char &sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass) {
 	 
 	vector<Point> temp = generateSamplePoints(labelMap, sampleSize, stride);
-	if (numOfSamplePointPerClass > 0) {
-		map<unsigned char, vector<Point>> count;
-		for (auto& p : temp) {
-			unsigned char label = labelMap.at<unsigned char>(p.y, p.x);
-			count[label].push_back(p);
-		}
-	
-		for (auto const& c : count)
-		{
-			unsigned char label = c.first;
-			if(label !=unsigned char(0)){
-				vector<Point> rows = c.second;
-				std::random_device random_device;
-				std::mt19937 engine{ random_device() };
-				std::uniform_int_distribution<int> pt(0, rows.size() - 1);
-				size_t num = 0;
-				size_t iter = 0;
-
-				while (num < numOfSamplePointPerClass) {
-					Point p = rows[pt(engine)];
-
-					// get samples in homogeneous areas 
-					// this is only for checking the accuracy of features
-					unsigned char label = labelMap.at<unsigned char>(p.y, p.x);
-					unsigned char sample_upcorner = labelMap.at<unsigned char>(p.y - sampleSize / 2, p.x - sampleSize / 2);
-					unsigned char sample_downcorner = labelMap.at<unsigned char>(p.y + sampleSize / 2, p.x + sampleSize / 2);
-					unsigned char sample_leftcorner = labelMap.at<unsigned char>(p.y + sampleSize / 2, p.x - sampleSize / 2);
-					unsigned char sample_rightcorner = labelMap.at<unsigned char>(p.y - sampleSize / 2, p.x + sampleSize / 2);
-					if ((label == sample_upcorner) && (label == sample_downcorner) &&
-						(label == sample_leftcorner) && (label == sample_rightcorner) ) {
-						samplePoints.push_back(p);
-						sampleLabel.push_back(label);
-						num++;
-					}
-					iter++;
-					if (iter > rows.size()) { break; }
-				}
-		    }
+	map<unsigned char, vector<Point>> count;
+	for (auto& p : temp) {
+		unsigned char label = labelMap.at<unsigned char>(p.y, p.x);
+		if (label == sampleLabel) {
+			count[sampleLabel].push_back(p);
 		}
 	}
+	vector<Point> pts = count[sampleLabel];
+
+	if (numOfSamplePointPerClass > 0) {
+		std::random_device random_device;
+		std::mt19937 engine{ random_device() };
+		std::uniform_int_distribution<int> pt(0, pts.size() - 1);
+		size_t num = 0;
+		size_t iter = 0;
+
+		while (num < numOfSamplePointPerClass) {
+			Point p = pts[pt(engine)];
+
+			// get samples in homogeneous areas 
+			// this is only for checking the accuracy of features
+			unsigned char label = labelMap.at<unsigned char>(p.y, p.x);
+			unsigned char sample_upcorner = labelMap.at<unsigned char>(p.y - sampleSize / 2, p.x - sampleSize / 2);
+			unsigned char sample_downcorner = labelMap.at<unsigned char>(p.y + sampleSize / 2, p.x + sampleSize / 2);
+			unsigned char sample_leftcorner = labelMap.at<unsigned char>(p.y + sampleSize / 2, p.x - sampleSize / 2);
+			unsigned char sample_rightcorner = labelMap.at<unsigned char>(p.y - sampleSize / 2, p.x + sampleSize / 2);
+			if ((label == sample_upcorner) && (label == sample_downcorner) &&
+				(label == sample_leftcorner) && (label == sample_rightcorner)) {
+				samplePoints.push_back(p);
+				num++;
+			}
+			iter++;
+			if (iter > pts.size()) { break; }
+		}
+	 }
 	 else {
 		 cout << "load all the sample points" << endl;
-		 copy(temp.begin(), temp.end(), back_inserter(samplePoints));
-		 for (auto& p : samplePoints) {
-			 sampleLabel.push_back(labelMap.at<unsigned char>(p.y, p.x));
-		 }
+		 copy(pts.begin(), pts.end(), back_inserter(samplePoints));
 	 }
 }

@@ -74,13 +74,15 @@ public:
 	// calulate features and save them to hdf5 file
 	// filterSize: apply refined Lee despeckling filter, choose from (0, 5, 7, 9, 11)
 	// patchSize: to draw samples
+    // classlabel: choose which class to load, 255 means to load all the classes
+    // numOfSamplePoint, the number of samples for one type of class, 0 means load all the possible sample points
 	// feature_name: choose from { texture, color, ctElements,polStatistic,decomp, MP}
-	 void caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, string feature_name);
+	 void caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, unsigned char classlabel, string feature_name);
 
 private:
 	// input sample size and the maximum number of samples per class 
 	//numOfSamplePoint =0 means load all the possible sample points
-	void LoadSamplePoints(const int& sampleSize, const int& numOfSamplePoint, int stride = 1);
+	void LoadSamplePoints(const int& sampleSize, const int& numOfSamplePoint, const unsigned char& classlabel, int stride = 1);
 	void getSample(const Point& p, int patchSize, int filtersize, Mat& hh, Mat& vv, Mat& hv);
 	void generateSamplePoints(const string& hdf5_fileName, const Mat& labelmap, int patchSize);
 	void getSampleInfo(const string& hdf5_fileName, const Mat& pts, int patchSize);
