@@ -69,7 +69,8 @@ Vec3b Utils::getLabelColor(unsigned char ground_truth, unsigned char class_resul
 		labelColor = right_color[int(ground_truth)];
 	}
 	else {
-		labelColor = wrong_color[int(ground_truth)];
+	  //labelColor = wrong_color[int(ground_truth)];
+		labelColor = black;
 	}
 	
 	return labelColor;
@@ -192,12 +193,12 @@ void Utils::generateColorMap(const String& hdf5_fileName, const string& feature_
 			unsigned char label = unsigned char(pts.at<int>(i, 0));
 			unsigned char ground_truth = labelMap.at<unsigned char>(row, col);
 			colormap.at<Vec3b>(row, col) = getLabelColor(ground_truth, label);
-			if (patchSize > 0) {
-				for (int r = row - patchSize / 2; r < row + patchSize / 2; r++) {
-					for (int c = col - patchSize / 2; c < col + patchSize / 2; c++)
-						colormap.at<Vec3b>(r, c) = getLabelColor(ground_truth, label);
-				}
-			}
+			//if (patchSize > 0) {
+			//	for (int r = row - patchSize / 2; r < row + patchSize / 2; r++) {
+			//		for (int c = col - patchSize / 2; c < col + patchSize / 2; c++)
+			//			colormap.at<Vec3b>(r, c) = getLabelColor(ground_truth, label);
+			//	}
+			//}
 		}
 		//cout << "generate colormap for " << feature_name.substr(1) << endl;
 		cv::imwrite(feature_name.substr(1)+"_colormap.png", colormap);
@@ -227,7 +228,12 @@ void Utils::classifyFeaturesKNN(const String& hdf5_fileName,  const string& feat
 			if(!features.empty()){
 				cout << "get " << features.size()<<" rows for "<< feature_type[i] << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << endl;
 			    knn->applyKNN(features, labels, k, 80, class_results);
-			    Utils::saveClassResultToHDF(hdf5_fileName, feature_type[i], "/knn", class_results, labelPoints,filterSize,patchSize);
+
+				if (Utils::checkExistInHDF(hdf5_fileName, feature_type[i], { "/knn" }, filterSize, patchSize)){
+					Utils::deleteDataFromHDF(hdf5_fileName, feature_type[i], { "/knn" },filterSize, patchSize);
+				}
+
+				Utils::saveClassResultToHDF(hdf5_fileName, feature_type[i], "/knn", class_results, labelPoints, filterSize, patchSize);
 				features.clear();
 				labelPoints.clear();
 				labels.clear();
