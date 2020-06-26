@@ -34,7 +34,7 @@ src/elbp.hpp
 src/elbp.cpp
 #src/sen12ms.cpp
 #src/sen12ms.hpp
-src/Geotiff.cpp
+src/Geotiff.hpp
 src/cvFeatures.cpp
 src/cvFeatures.hpp
 src/ober.hpp

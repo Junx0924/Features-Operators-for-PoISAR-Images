@@ -199,13 +199,15 @@ void Utils::generateColorMap(const String& hdf5_fileName, const string& feature_
 				}
 			}
 		}
-		cv::imwrite("colormap.png", colormap);
+		//cout << "generate colormap for " << feature_name.substr(1) << endl;
+		cv::imwrite(feature_name.substr(1)+"_colormap.png", colormap);
+		//cv::imshow("colormap of " + feature_name.substr(1), colormap);
+	    //cv::waitKey(0);
 	}
 	else {
 		cout << "can't find " << parent + dataset << " in " << hdf5_fileName << endl;
 	}
-	//cv::imshow("colormap of " + feature_name, colormap);
-	//cv::waitKey(0);
+	
 
 }
 
@@ -221,16 +223,19 @@ void Utils::classifyFeaturesKNN(const String& hdf5_fileName,  const string& feat
 			vector<Point> labelPoints;
 			vector<unsigned char> labels;
 			vector<unsigned char> class_results;
-			cout << "get " << feature_type[i] << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << endl;
-
 			Utils::getFeaturesFromHDF(hdf5_fileName, feature_type[i], dataset_name, features, labels, labelPoints, filterSize, patchSize);
-			knn->applyKNN(features, labels, k, 80, class_results);
-			Utils::saveClassResultToHDF(hdf5_fileName, feature_type[i], "/knn", class_results, labelPoints,filterSize,patchSize);
-
-			features.clear();
-			labelPoints.clear();
-			labels.clear();
-			class_results.clear();
+			if(!features.empty()){
+				cout << "get " << feature_type[i] << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << endl;
+			    knn->applyKNN(features, labels, k, 80, class_results);
+			    Utils::saveClassResultToHDF(hdf5_fileName, feature_type[i], "/knn", class_results, labelPoints,filterSize,patchSize);
+				features.clear();
+				labelPoints.clear();
+				labels.clear();
+				class_results.clear();
+			}
+			else {
+				cout << feature_type[i] << " with filterSize " << filterSize << " , patchSize " << patchSize << " is not existed in hdf5 file " << endl;
+			}
 		}
 	}
 	delete knn;
@@ -297,16 +302,16 @@ vector<int> Utils::shuffleDataSet(vector<Mat>& data, vector<unsigned char>& data
 	return ind;
 }
 
-double Utils::calculatePredictionAccuracy(const vector<unsigned char>& classResult, const vector<unsigned char>& testLabels)
+float Utils::calculatePredictionAccuracy(const vector<unsigned char>& classResult, const vector<unsigned char>& testLabels)
 {
-	double accuracy = 0.0;
+	float accuracy = 0.0;
 	if (classResult.size() != testLabels.size()) {
 		cerr << "Predicted and actual label vectors differ in length. Somethig doesn't seem right." << endl;
 		exit(-1);
 	}
 	else {
 		int dim = classResult.size();
-		double hit, miss;
+		float hit, miss;
 		hit = 0;
 		miss = 0;
 		for (int i = 0; i < dim; i++) {
@@ -317,7 +322,7 @@ double Utils::calculatePredictionAccuracy(const vector<unsigned char>& classResu
 				miss++;
 			}
 		}
-		accuracy = double(hit / dim);
+		accuracy = float(hit / dim);
 	}
 	return accuracy;
 }
@@ -427,7 +432,7 @@ void Utils::writeDataToHDF(const String& filename, const String& parent_name, co
 			// check if the data are correctly write to hdf file
 			Mat expected = Mat(Size(data.size()), data.type());
 			h5io->dsread(expected, datasetName);
-			double diff = norm(data - expected);
+			float diff = norm(data - expected);
 			CV_Assert(abs(diff) < 1e-10);
 
 			if (h5io->hlexists(datasetName))
@@ -592,7 +597,7 @@ bool Utils::insertDataToHDF(const String& filename, const String& parent_name, c
 
 				//check if insert success
 				//cout << endl;
-				//cout << "insert " << data.rows << " rows to" << dataset << " success " << endl;
+				//cout << "insert " << data.rows << " rows to " << dataset << " success " << endl;
 				//cout << dataset << " rows in total: " << data.rows + offset[0] << endl;
 			}
 
@@ -715,75 +720,4 @@ void Utils::getRandomSamplePoint(const Mat& labelMap, vector<Point>& samplePoint
 			 sampleLabel.push_back(labelMap.at<unsigned char>(p.y, p.x));
 		 }
 	 }
-}
-
-/*===================================================================
- * Function: getSafeSamplePoints
- * Author: Jun Xiang
- *
- * Summary:
- *   Extract sample points from mask area or any img
- *
- * Arguments:
- *   Mat& mask  -- binarized image mask, zeros are background
- *   const int& samplePointNum -- maximum number of sample points for mask area
- *   const int& sampleSize  -- patch size at the sample point
- *	 vector<Point>& pts  --- to record the index of the sample points
- *
- * Returns:
- *   void
-=====================================================================
-*/
-void Utils::getSafeSamplePoints(const Mat& img, const int& samplePointNum, const int& sampleSize, vector<Point>& pts) {
-
-	// to draw samples from mask area
-	if (img.channels() == 1) {
-		Mat mask = img;
-		vector<Point> ind;
-		cv::findNonZero(img, ind);
-		int nonZeros = static_cast<int>(ind.size());
-
-		if (nonZeros > 0) {
-			std::random_device random_device;
-			std::mt19937 engine{ random_device() };
-			std::uniform_int_distribution<int> dist(0, nonZeros - 1);
-
-			int count = 0; // to record how many right sample points are found
-			int iter = 0; // to record how many random points are tried out
-
-			int N = nonZeros;
-			if (nonZeros > samplePointNum) { N = samplePointNum; }
-
-			std::set<pair<int, int>> new_ind;
-
-			while (count < N) {
-				Point  p = ind[dist(engine)];
-				//check if the sample corners are on the border
-				int x_min = p.x - int(sampleSize / 2); // (x,y) -> (col,row)
-				int x_max = p.x + int(sampleSize / 2);
-				int y_min = p.y - int(sampleSize / 2);
-				int y_max = p.y + int(sampleSize / 2);
-				// get rid of the points on the borders
-				if (x_max < mask.cols && y_max < mask.rows && y_min >= 0 && x_min >= 0) {
-					// get rid of points which are half patch size away from the mask zero area
-					// (row,col) ->(y,x)
-					if (mask.at<unsigned char>(y_min, x_min) != unsigned char(0) &&
-						mask.at<unsigned char>(y_min, x_max) != unsigned char(0) &&
-						mask.at<unsigned char>(y_max, x_min) != unsigned char(0) &&
-						mask.at<unsigned char>(y_max, x_max) != unsigned char(0)) {
-						//pts.push_back(p);
-						new_ind.insert(pair<int, int>(p.x, p.y));
-						count = new_ind.size();
-					}
-				}
-				iter = iter + 1;
-				if (iter > nonZeros) { break; }
-			}
-
-			for (auto it = new_ind.begin(); it != new_ind.end(); ++it)
-			{
-				pts.push_back(Point(it->first, it->second));
-			}
-		}
-	} 
 }

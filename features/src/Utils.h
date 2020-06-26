@@ -17,7 +17,7 @@ using namespace cv;
 namespace Utils {
 	    // by Anupama Rajkumar
 		void GetPatchIndex(int sizeOfPatch, Point2i& samplePoint, const Mat& LabelMap, int& min_col, int& min_row, int& max_col, int& max_row);
-		double calculatePredictionAccuracy(const vector<unsigned char>& classResult, const vector<unsigned char>& testLabels);
+		float calculatePredictionAccuracy(const vector<unsigned char>& classResult, const vector<unsigned char>& testLabels);
 		Mat generateLabelMap(const vector<Mat>& masks);
 
 
@@ -41,7 +41,7 @@ namespace Utils {
 		vector<Point>  generateSamplePoints(const Mat& labelMap, const int& sampleSize, const int & stride );
 		// get random samples of homogeneous area for each class, numOfSamplePointPerClass =0 means to return all the possible sample points
 		void getRandomSamplePoint(const Mat& labelMap, vector<Point>& samplePoints, vector<unsigned char>& sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass);
-		void getSafeSamplePoints(const Mat& img, const int& samplePointNum, const int& sampleSize, vector<Point>& pts);
+
 
 		//************* HDF5 file read/write/insert/delete *****************//
 		bool checkExistInHDF(const String& filename, const String& parent_name, const vector<string>& dataset_name,int filterSize,int patchSize);

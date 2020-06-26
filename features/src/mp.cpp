@@ -58,5 +58,5 @@ Mat mp::CaculateMP(const Mat& src, int morph_size) {
     dst3 = 255 - dst3;
    // imshow("opening-closing by reconstruction: ", dst3);
     //waitKey(0);
-    return dst3;
+   return dst3;
 }

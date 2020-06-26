@@ -9,7 +9,7 @@ class RefinedLee {
 private:
 	float NonValidPixelValue = -1.0;
 
-	int filterSize;
+	int filterSize = 9;
 	int stride;
 	int subWindowSize;
 	float sigmaVSqr;
@@ -17,7 +17,7 @@ private:
 public:
 	// Constructor
 	// filter size choose from (5, 7, 9, 11)
-	RefinedLee(int filter_size, int numLooks) {
+	RefinedLee(int filter_size, int numLooks = 1) {
 		filterSize = filter_size;
 		switch (filterSize) {
 		case 5:
@@ -47,7 +47,10 @@ public:
 
 	~RefinedLee() {}
 
-	void filterFullPol(Mat& hh, Mat& vv, Mat & hv);
+	void filterFullPol(Mat& hh, Mat& vv, Mat& hv);
+	void filterFullPol(Mat& hh, Mat& vv, Mat& hv, Mat& span);
+
+	
 	//void filterDualPol();
 
 private:
@@ -61,8 +64,7 @@ private:
 
 	float getLocalVarianceValue(const Mat& neighborValues, int numSamples, float mean);
 
-	// Compute the span image from the trace of the covariance or coherence matrix for the pixel
-	void createSpanImage(const vector<Mat>& covariance, Mat& span);
+	
 
 	// Compute mean values for the 3x3 sub-areas in the sliding window 
 	void computeSubAreaMeans(const Mat& neighborPixelValues, Mat& subAreaMeans);

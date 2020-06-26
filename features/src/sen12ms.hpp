@@ -2,7 +2,7 @@
 #define SEN12MS_HPP_
 
 #include <opencv2/opencv.hpp>
-#include "Geotiff.cpp"
+#include "Geotiff.hpp"
 #include "Utils.h"
 #include <string>
 #include <iostream>
@@ -121,9 +121,6 @@ private:
 
 	// Create Masks for each patch
 	void getMask(const Mat& labelMap, vector<Mat>& list_masks, vector<unsigned char>& list_classValue);
-
-	//read tiff file
-	Mat readTiff(string filepath);
 
 	// Generate false color image from SAR data
 	// R: VV, G:VH, B: VV/VH

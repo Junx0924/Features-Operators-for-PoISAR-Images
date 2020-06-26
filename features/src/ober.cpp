@@ -1,6 +1,9 @@
-#include "ober.hpp" 
-
-
+#include <opencv2/opencv.hpp>
+#include <complex>
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <random>
 #ifdef VC
 #include <filesystem>
 #endif // VC
@@ -8,349 +11,201 @@
 #ifdef GCC
 #include <dirent.h>
 #endif
-
+#include "ober.hpp" 
 
 
 using namespace std;
 using namespace cv;
 namespace fs = std::filesystem;
+ 
 
-void ober::caculFeatures(string hdf5_file, string feature_name,int filterSize, int patchSize, int numOfSamplePoint) {
+void ober::caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, string feature_name) {
 	vector<string> feature_type = { "/texture","/color" ,"/CTelememts" ,"/polStatistic","/decomp" ,"/MP" };
 	vector<string> dataset_name = { "/feature" ,"/patchLabel" };
-	SetFilterSize(filterSize);
-	LoadSamplePoints(patchSize, numOfSamplePoint);
 
+	LoadSamplePoints(patchSize, numOfSamplePoint, 1);
 	
-	Mat labelMap = Utils::generateLabelMap(this->masks);
-	// save labelMap to hdf5
-	Utils::writeDataToHDF(hdf5_file, "/masks", "/labelMap", labelMap);
 
-	cout << "start to calculate " << feature_name << " with this->filterSize " << filterSize << " , patchSize " << patchSize << endl;
-	vector<Mat> feature;
-	vector<unsigned char> featureLabels;
-	for (size_t i = 0; i < feature_type.size(); i++) {
-		if (feature_name == feature_type[i]) {
-			switch (i) {
+	cout << "start to calculate " << feature_name << " with filterSize " << filterSize << " , patchSize " << patchSize << endl;
+	for(size_t j =0; j< this->samplePoints.size(); j++){
+		Point p = this->samplePoints[j];
+		int patchLabel = this->sampleLabel[j];
+
+		Mat pts = Mat(1, 3, CV_32SC1);
+		pts.at<int>(0, 0) = patchLabel;
+		pts.at<int>(0, 1) = p.y; //row
+		pts.at<int>(0, 2) = p.x; //col
+
+		Mat hh, vv, hv;
+		getSample(p, patchSize, filterSize, hh, vv, hv);
+		
+
+		for (size_t i = 0; i < feature_type.size(); i++) {
+			int j = 0;
+			if (feature_name == "all") { j = i; }
+			else if (feature_name == feature_type[i]) { j = i; } else { j = 255; }
+			
+			Mat feature;
+			switch (j) {
 			case 0:
-				GetTextureFeature(feature, featureLabels);
+				feature = caculTexture(hh, vv, hv);
 				break;
 			case 1:
-				GetColorFeature(feature, featureLabels);
+				feature = caculColor(hh, vv, hv);
 				break;
 			case 2:
-				GetCTFeatures(feature, featureLabels);
+				feature = caculCTelements(hh, vv, hv);
 				break;
 			case 3:
-				GetPolsarStatistic(feature, featureLabels);
+				feature = caculPolStatistic(hh, vv, hv);
 				break;
 			case 4:
-				GetDecompFeatures(feature, featureLabels);
+				feature = caculDecomp(hh, vv, hv);
 				break;
 			case 5:
-				GetMPFeature(feature, featureLabels);
+				feature = caculMP(hh, vv, hv);
+				break;
+			default:
 				break;
 			}
-			saveFeaturesToHDF(hdf5_file, feature_name, dataset_name, feature, featureLabels, filterSize, patchSize);
-			feature.clear();
-			featureLabels.clear();
+			if(!feature.empty()){
+				Utils::insertDataToHDF(this->hdf5_file, feature_type[i], dataset_name, { feature.reshape(1,1), pts }, filterSize, patchSize);
+			}
 		}
 	}
 }
 
-// write calculated features to hdf5 ( sample points, labels, features)
-void ober::saveFeaturesToHDF(const String& hdf5_fileName, const String& parent_name, const vector<String>& dataset_name, vector<Mat>& features, vector<unsigned char>& featureLabels, int filterSize, int patchSize) {
 
-	Mat pts = Mat(this->samplePoints.size(), 3, CV_32SC1);
+
+
+
+//numOfSamplePoint =0 means load all the possible sample points
+void ober::LoadSamplePoints(const int& patchSize, const int& numOfSamplePoint, int stride) {
+
+	if (!this->samplePoints.empty()) {
+		this->samplePoints.clear();
+	}
+
+	if (!this->sampleLabel.empty()) {
+		this->sampleLabel.clear();
+	}
+
+    Utils::getRandomSamplePoint(this->LabelMap, this->samplePoints, this->sampleLabel, patchSize, stride, numOfSamplePoint);
+
+	map<unsigned char, int> count;
 	for (size_t i = 0; i < this->samplePoints.size(); i++) {
-		pts.at<int>(i, 0) = (int)(featureLabels[i]);
-		pts.at<int>(i, 1) = this->samplePoints.at(i).y; //row
-		pts.at<int>(i, 2) = this->samplePoints.at(i).x; //col
+		unsigned char label = this->sampleLabel[i];
+		count[label] ++;
+	}
+
+	for (auto& c : count) {
+		cout << "Get " << c.second << " sample points for class " << classNames[c.first] << endl;
+	}
+}
+
+// get texture features(LBP,GLCM) on three channels, default feature mat size 1*64
+Mat ober::caculTexture(const Mat& hh, const Mat& vv, const Mat& hv) {
+	vector<Mat> temp(3);
+	// intensity of HH channel
+	temp[0] = polsar::logTransform(polsar::getComplexAmpl(hh));
+	// intensity of VV channel
+	temp[1] = polsar::logTransform(polsar::getComplexAmpl(vv));
+	// intensity of HV channel
+	temp[2] = polsar::logTransform(polsar::getComplexAmpl(hv));
+
+	 
+
+	vector<Mat> output;
+	for (const auto& t : temp) {
+		Mat result;
+		hconcat(cvFeatures::GetGLCM(t, 8, GrayLevel::GRAY_8, 32), cvFeatures::GetLBP(t, 1, 8, 32), result);
+		output.push_back(result);
 	}
 
 	Mat result;
-	for (auto& f : features) {
-		Mat temp = f.clone();
-		result.push_back(temp.reshape(1, 1));
-	}
-	Utils::insertDataToHDF(hdf5_fileName, parent_name, dataset_name, { result,pts }, filterSize, patchSize);
-	cout << "insert " << result.rows << " rows to " << parent_name << " feature with this->filterSize " << filterSize << " , patchSize " << patchSize << endl;
+	vconcat(output, result);
+	return result;
 }
-
-void ober::LoadSamplePoints(const int &size, const int &num) {
-
-	this->samplePointNum = num;
-	this->sampleSize = size;
-
-
-	// get the sample points in each mask area
-	for (int i = 0; i < masks.size(); i++) {
-		vector<Point> pts;
-		Utils::getSafeSamplePoints(masks[i], this->samplePointNum, this->sampleSize, pts);
-		cout << "Get " << pts.size() << " sample points for class " << classNames[unsigned char(i+1)] << endl;
-		// store the sample points
-		samplePoints.insert(samplePoints.end(), pts.begin(), pts.end());
-		// store the sample points label
-		for (int j = 0; j < pts.size(); j++) { samplePointClassLabel.push_back(unsigned char(i + 1)); }
-	}
-}
-
-// get patches of 3 channel (HH+VV,HV,HH-VV) intensity(dB)
-void ober::GetPauliColorPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
-	
-	if (!samplePoints.empty()) {
-			for (const auto& p : samplePoints) {
-				Mat hh, vv, hv;
-				getSample(p, hh, vv, hv);
-
-				patches.push_back(polsar::GetPauliColorImg(hh, vv, hv));
-		}
-			classValue = samplePointClassLabel;
-	}
-}
-
-
-// get patches of 3 channel (HH,VV,HV) intensity(dB)
-void ober::GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
-		 
-		if(!samplePoints.empty()){
-				for (const auto& p : samplePoints) {
-					Mat hh, vv, hv;
-					getSample(p, hh, vv, hv);
-
-					patches.push_back(polsar::GetFalseColorImg(hh, vv, hv));
-				}
-				classValue = samplePointClassLabel;
-		}
-}
-
-
-// get texture features(LBP and GLCM) on HH,VV,VH, default feature mat size 3*64
-void ober::GetTextureFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
-
-		std::map< unsigned char, int> count;
-		cout << "start to draw texture features ... " <<endl;
-
-		for (int i = 0; i < samplePoints.size();i++) {
-			Point p = samplePoints.at(i);
-
-			//cout << classNames[samplePointClassLabel.at(i)] << " :draw texture feature at Point (" << p.x << ", " << p.y << ")" << endl;
-
-			Mat hh, vv, hv;
-			getSample(p, hh, vv, hv);
-
-			vector<Mat> temp;
-			// intensity of HH channel
-			  hh = polsar::logTransform(polsar::getComplexAmpl(hh));
-			// intensity of VV channel
-			  vv = polsar::logTransform(polsar::getComplexAmpl(vv));
-			// intensity of HV channel
-			  hv = polsar::logTransform(polsar::getComplexAmpl(hv));
-
-			temp.push_back(hh);
-			temp.push_back(vv);
-			temp.push_back(hv);
-
-			Mat result;
-			for (const auto& t : temp) {
-				Mat temp;
-				cv::hconcat(cvFeatures::GetGLCM(t, 8, GrayLevel::GRAY_8, 32), cvFeatures::GetLBP(t, 1, 8, 32), temp);
-				result.push_back(temp);
-			}
-			features.push_back(result);
-			classValue.push_back(samplePointClassLabel.at(i));
-
-			count[samplePointClassLabel.at(i)]++;
-		}
-
-		/*for (auto it = count.begin(); it != count.end(); ++it)
-		{
-			std::cout << "get "<< it->second  <<" texture features for class " <<  classNames[it->first] << std::endl;
-		}*/
-}
-
-
 
 // get color features(MPEG-7 DCD,CSD) on Pauli Color image, default feature mat size 1*44
-void ober::GetColorFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
-	std::map< unsigned char, int> count;
-	cout << "start to draw color features ... " << endl;
+Mat ober::caculColor(const Mat& hh, const Mat& vv, const Mat& hv) {
+	Mat colorImg = polsar::GetPauliColorImg(hh, vv, hv);
 
-	for (int i = 0; i < samplePoints.size(); i++) {
-		Point p = samplePoints.at(i);
+	Mat result;
+	cv::hconcat(cvFeatures::GetMPEG7CSD(colorImg, 32), cvFeatures::GetMPEG7DCD(colorImg, 3), result);
+	return result;
+}
 
-		//cout << classNames[samplePointClassLabel.at(i)] << " :draw color feature at Point (" << p.y << ", " << p.x << ")" << endl;
-		
-		Mat hh, vv, hv;
-		getSample(p, hh, vv, hv);
+// get MP features on HH,VV,VH, default feature mat size (sampleSize*9,sampleSize)
+Mat ober::caculMP(const Mat& hh, const Mat& vv, const Mat& hv) {
+	vector<Mat> temp(3);
+	// intensity of HH channel
+	temp[0] = polsar::logTransform(polsar::getComplexAmpl(hh));
+	// intensity of VV channel
+	temp[1] = polsar::logTransform(polsar::getComplexAmpl(vv));
+	// intensity of HV channel
+	temp[2] = polsar::logTransform(polsar::getComplexAmpl(hv));
 
-		Mat colorImg = polsar::GetPauliColorImg(hh, vv, hv);
-
-		Mat result;
-		cv::hconcat(cvFeatures::GetMPEG7CSD(colorImg, 32), cvFeatures::GetMPEG7DCD(colorImg, 3), result);
-		features.push_back(result);
-		classValue.push_back(samplePointClassLabel.at(i));
-
-		count[samplePointClassLabel.at(i)]++;
+	Mat result;
+	for (const auto& t : temp) {
+		result.push_back(cvFeatures::GetMP(t, { 1,3,5 }));
 	}
-
-	/*for (auto it = count.begin(); it != count.end(); ++it)
-	{
-		std::cout << "get " << it->second << " color features for class " << classNames[it->first] << std::endl;
-	}*/
+	return result;
 }
 
 
-// get MP features on HH,VV,VH, default feature mat size (this->sampleSize*9,this->sampleSize)
-void ober::GetMPFeature(vector<Mat>& features, vector<unsigned char>& classValue) {
-	std::map< unsigned char, int> count;
-	cout << "start to draw MP features ... " << endl;
-
-	for (int i = 0; i < samplePoints.size(); i++) {
-		Point p = samplePoints.at(i);
-
-		//cout << classNames[samplePointClassLabel.at(i)] << " :draw MP feature at Point (" << p.y << ", " << p.x << ")" << endl;
-
-		Mat hh, vv, hv;
-		getSample(p, hh, vv, hv);
-
-		vector<Mat> temp;
-		// intensity of HH channel
-		hh = polsar::logTransform(polsar::getComplexAmpl(hh));
-		// intensity of VV channel
-		vv = polsar::logTransform(polsar::getComplexAmpl(vv));
-		// intensity of HV channel
-		hv = polsar::logTransform(polsar::getComplexAmpl(hv));
-
-		temp.push_back(hh);
-		temp.push_back(vv);
-		temp.push_back(hv);
-
-		Mat result;
-		for (const auto& t : temp) {
-			result.push_back(cvFeatures::GetMP(t, { 1,2,3 }));
-		}
-		features.push_back(result);
-		classValue.push_back(samplePointClassLabel.at(i));
-
-		count[samplePointClassLabel.at(i)]++;
-	}
-
-	/*for (auto it = count.begin(); it != count.end(); ++it)
-	{
-		std::cout << "get " << it->second << " mp features for class " << classNames[it->first] << std::endl;
-	}*/
-}
 
 
 // get polsar features on target decompostion 
-void ober::GetDecompFeatures(vector<Mat>& features, vector<unsigned char>& classValue) {
-	std::map< unsigned char, int> count;
-	cout << "start to draw target decomposition features... " << endl;
+Mat ober::caculDecomp(const Mat& hh, const Mat& vv, const Mat& hv) {
+	Mat result;
 
-	for (int i = 0; i < samplePoints.size(); i++) {
-		Point p = samplePoints.at(i);
+	vector<Mat> pauli;
+	vector<Mat> circ;
+	vector<Mat> lexi;
+	polsar::getPauliBasis(hh, vv, hv, pauli);
+	polsar::getCircBasis(hh, vv, hv, circ);
+	polsar::getLexiBasis(hh, vv, hv, lexi);
+	vector<Mat> covariance;
+	vector<Mat> coherency;
+	polsar::GetCoherencyT(pauli, coherency);
+	polsar::GetCovarianceC(lexi, covariance);
 
-		//cout << classNames[samplePointClassLabel.at(i)] << " :draw target decomposition feature at Point (" << p.y << ", " << p.x << ")" << endl;
+	vector<Mat> decomposition;
+	//polsar::GetCloudePottierDecomp(coherency, decomposition); //3  
+	polsar::GetFreemanDurdenDecomp(coherency, decomposition); //3  
+	//polsar::GetKrogagerDecomp(circ, decomposition); // 3  
+	//polsar::GetPauliDecomp(pauli, decomposition); // 3  
+	//polsar::GetHuynenDecomp(covariance, decomposition); // 9  
+	//polsar::GetYamaguchi4Decomp(coherency, covariance, decomposition); //4 
 
-		Mat hh, vv, hv;
-		getSample(p, hh, vv, hv);
-
-		//caculate the decomposition at sample point
-		Mat result;
-		vector<Mat> decomposition;
-		getTargetDecomposition(hh, vv, hv, decomposition);
-
-		for (auto& d : decomposition) {
-			result.push_back(d);
-		}
-
-		features.push_back(result);
-		classValue.push_back(samplePointClassLabel.at(i));
-
-		count[samplePointClassLabel.at(i)]++;
-	}
-
-	/*for (auto it = count.begin(); it != count.end(); ++it)
-	{
-		std::cout << "get " << it->second << " target decomposition features for class " << classNames[it->first] << std::endl;
-	}*/
+	vconcat(decomposition, result);
+	return result;
 }
+
 
 // get polsar features on elements of covariance matrix C and coherency matrix T
-void ober::GetCTFeatures(vector<Mat>& features, vector<unsigned char>& classValue) {
-	std::map< unsigned char, int> count;
-	cout << "start to draw matrix C and T elements ... " << endl;
+Mat ober::caculCTelements(const Mat& hh, const Mat& vv, const Mat& hv) {
+	Mat result;
+	vector<Mat> temp;
+	polsar::GetCTelements(hh, vv, hv, temp);
 
-	for (int i = 0; i < samplePoints.size(); i++) {
-		Point p = samplePoints.at(i);
-
-		//cout << classNames[samplePointClassLabel.at(i)] << " :draw matrix C and T elements at Point (" << p.y << ", " << p.x << ")" << endl;
-
-		Mat hh, vv, hv;
-		getSample(p, hh, vv, hv);
-
-		//caculate the decomposition at sample point
-		Mat result;
-		vector<Mat> decomposition;
-		getCTelements(hh, vv, hv, decomposition);
-
-		for (auto& d : decomposition) {
-			result.push_back(d);
-		}
-
-		features.push_back(result);
-		classValue.push_back(samplePointClassLabel.at(i));
-
-		count[samplePointClassLabel.at(i)]++;
+	for (auto& d : temp) {
+		result.push_back(d);
 	}
 
-	/*for (auto it = count.begin(); it != count.end(); ++it)
-	{
-		std::cout << "get " << it->second << " CT elements features for class " << classNames[it->first] << std::endl;
-	}*/
+	return result;
+
 }
+
 
 // get polsar features on statistic of polsar parameters
-void ober::GetPolsarStatistic(vector<Mat>& features, vector<unsigned char>& classValue) {
-	std::map< unsigned char, int> count;
-	cout << "start to draw statistic features of polsar parameters ... " << endl;
-
-	for (int i = 0; i < samplePoints.size(); i++) {
-		Point p = samplePoints.at(i);
-
-		//cout << classNames[samplePointClassLabel.at(i)] << " :draw statistic polarimetric feature at Point (" << p.y << ", " << p.x << ")" << endl;
-
-		Mat hh, vv, hv;
-		getSample(p, hh, vv, hv);
-
-		Mat result1;
-		vector<Mat> statistic;
-		getStatisticFeature(hh, vv, hv, statistic);
-		cv::hconcat(statistic, result1);
-
-		 
-		features.push_back(result1);
-		classValue.push_back(samplePointClassLabel.at(i));
-
-		count[samplePointClassLabel.at(i)]++;
-	}
-
-	/*for (auto it = count.begin(); it != count.end(); ++it)
-	{
-		std::cout << "get " << it->second << " statistic polarimetric features for class " << classNames[it->first] << std::endl;
-	}*/
-}
-
-
-
-// get statistical (min,max,mean,median,std) on polsar parameters
-// vector<mat>& result - vector length : 7, mat size: 1*5
-void ober::getStatisticFeature(const Mat& hh, const Mat& vv, const Mat hv, vector<Mat>& result) {
+Mat ober::caculPolStatistic(const Mat& hh, const Mat& vv, const Mat& hv) {
 
 	vector<Mat> temp;
 	// intensity of HH channel
 	Mat hh_log = polsar::logTransform(polsar::getComplexAmpl(hh));
+	
 	// intensity of VV channel
 	Mat vv_log = polsar::logTransform(polsar::getComplexAmpl(vv));
 	// intensity of HV channel
@@ -373,92 +228,158 @@ void ober::getStatisticFeature(const Mat& hh, const Mat& vv, const Mat hv, vecto
 	temp.push_back(crossPolarize);
 	temp.push_back(otherPolarize);
 
+	vector<Mat> statistic;
 	for (const auto& t : temp) {
-		result.push_back(cvFeatures::GetStatistic(t));
+		statistic.push_back(cvFeatures::GetStatistic(t));
 	}
+
+	Mat output;
+	cv::hconcat(statistic, output);
+	return output;
 }
 
-// get upper triangle matrix elements of C, T
-// vector<mat>& result - vector length: 12, mat size: (hh.size())
-void ober::getCTelements(const Mat& hh, const Mat& vv, const Mat hv, vector<Mat> & result) {
-	vector<Mat> pauli;
-	vector<Mat> circ;
-	vector<Mat> lexi;
-	polsar::getPauliBasis(hh, vv, hv, pauli);
-	polsar::getCircBasis(hh, vv, hv, circ);
-	polsar::getLexiBasis(hh, vv, hv, lexi);
-	vector<Mat> covariance;
-	vector<Mat> coherency;
-	polsar::GetCoherencyT(pauli, coherency);
-	polsar::GetCovarianceC(lexi, covariance);
-
-	// upper triangle matrix elements of covariance matrix C and coherency matrix T
-	std::array<int, 6> ind = { 0,1,2,4,5,8 };
-	for (auto& i : ind) {
-		result.push_back(polsar::logTransform(covariance[i]));  // 6
-		result.push_back(polsar::logTransform(coherency[i]));   // 6
-	}
-}
-
-// get target decomposition features
-// vector<mat>& result - vector length: , mat size: (hh.size())
-void ober::getTargetDecomposition(const Mat& hh, const Mat& vv, const Mat hv, vector<Mat>& result) {
-	vector<Mat> pauli;
-	vector<Mat> circ;
-	vector<Mat> lexi;
-	polsar::getPauliBasis(hh, vv, hv, pauli);
-	polsar::getCircBasis(hh, vv, hv, circ);
-	polsar::getLexiBasis(hh, vv, hv, lexi);
-	vector<Mat> covariance;
-	vector<Mat> coherency;
-	polsar::GetCoherencyT(pauli, coherency);
-	polsar::GetCovarianceC(lexi, covariance);
-
-	//polsar::GetCloudePottierDecomp(coherency, result); //3  
-	polsar::GetFreemanDurdenDecomp(coherency, result); //3  
-	//polsar::GetKrogagerDecomp(circ, result); // 3  
-	//polsar::GetPauliDecomp(pauli, result); // 3  
-	//polsar::GetHuynenDecomp(covariance, result); // 9  
-	//polsar::GetYamaguchi4Decomp(coherency, covariance, result); //4  
-}
-
-// set despeckling filter size, choose from ( 5, 7, 9, 11)
-void ober::SetFilterSize(int filterSize) { this->filter_Size = filterSize; }
 
 // get data at sample point
-void ober::getSample(const Point& sample_point, Mat& hh, Mat& vv, Mat& hv) {
-	int start_x = int(sample_point.x) - this->sampleSize / 2;
-	int start_y = int(sample_point.y) - this->sampleSize / 2;
-	Rect roi = Rect(start_x, start_y, this->sampleSize, this->sampleSize);
+void ober::getSample(const Point& p,int patchSize, int filtersize,Mat& hh, Mat& vv, Mat& hv) {
+	int size = patchSize;
+	int start_x = int(p.x) - patchSize / 2;
+	int start_y = int(p.y) - patchSize / 2;
+	Rect roi = Rect(start_x, start_y, size, size);
+	
+	//boundary check
+	//check if the sample corners are on the border
+	int x_min = p.x - int(patchSize / 2); // (x,y) -> (col,row)
+	int x_max = p.x + int(patchSize / 2);
+	int y_min = p.y - int(patchSize / 2);
+	int y_max = p.y + int(patchSize / 2);
+	if (x_max < data[0].cols && y_max < data[0].rows && y_min >= 0 && x_min >= 0){
+		if (this->data.size() == 3) {
+			if (filtersize == 5 || filtersize == 7 || filtersize == 9 || filtersize == 11) {
+				hh = this->data[0](roi).clone();
+				vv = this->data[1](roi).clone();
+				hv = this->data[2](roi).clone();
 
-	if (this->filter_Size ==5 || this->filter_Size ==7 || this->filter_Size ==9 || this->filter_Size ==11) {
-		hh = data[0](roi).clone();
-		vv = data[1](roi).clone();
-		hv = data[2](roi).clone();
-		RefinedLee* filter = new RefinedLee(this->filter_Size, 1);
-		filter->filterFullPol(hh, vv, hv);
-		delete filter;
+				RefinedLee* filter = new RefinedLee(filtersize, 1);
+				filter->filterFullPol(hh, vv, hv);
+				delete filter;
+			}
+			else {
+				hh = data[0](roi);
+				vv = data[1](roi);
+				hv = data[2](roi);
+			}
+		}
+		else if(data.size() ==2) {
+			vv = this->data[0](roi);
+			hv = this->data[1](roi);
+		}
 	}
 	else {
-		hh = data[0](roi);
-		vv = data[1](roi);
-		hv = data[2](roi);
+		cout << "out of boundary, get sample at point (" << p.x << "," << p.y << "with patchSize "<< patchSize <<" failed " << endl;
+		hh = Mat();
+		vv = Mat();
+		hv = Mat();
 	}
-	cout << "hh scattering value: " << hh.at<Vec2f>(10, 10)[0] << endl;
+	
+
+}
+
+void ober::writeLabelMapToHDF(const string& hdf5_fileName, const vector<Mat>&masks, Mat& labelMap) {
+
+	string parent_name = "/masks";
+	
+	if(!Utils::checkExistInHDF(hdf5_fileName,parent_name, "/labelMap")){
+		labelMap = Utils::generateLabelMap(masks);
+		// save labelMap to hdf5
+		Utils::writeDataToHDF(hdf5_fileName, parent_name, "/labelMap", labelMap);
+		cout << " write labelMap to hdf5 success " << endl;
+
+		// save the class name to hdf5
+		for (auto& name : this->classNames) {
+			Utils::writeAttrToHDF(hdf5_fileName, "label_" + to_string(name.first), name.second);
+			cout <<name.second<< " label : "<<to_string(name.first) << endl;
+		}
+	}
+	else {
+		cout << "load labelMap to memory" << endl;
+		Utils::readDataFromHDF(hdf5_fileName, parent_name, "/labelMap", labelMap);
+		for (size_t i = 0; i < masks.size()+1; i++) {
+			string class_name;
+			Utils::readAttrFromHDF(hdf5_fileName, "label_" + to_string(i), class_name);
+			cout << class_name << " label : " << to_string(i) << endl;
+
+		}
+	}
+}
+
+// generate sample points with stride 1 and save to hdf5
+void ober::generateSamplePoints(const string& hdf5_fileName, const Mat & labelmap, int patchSize) {
+	
+	int stride = 1;
+	string parent_name = "/samplePoints";
+	string data_name = "/patchSize_" + to_string(patchSize);
+	bool flag = Utils::checkExistInHDF(hdf5_fileName, parent_name, data_name);
+
+	Mat samplePoints;
+	if (!flag) {
+			vector<Point> pts = Utils::generateSamplePoints(labelmap, patchSize, 1);
+			for (auto& p : pts) {
+				Mat temp;
+				unsigned char patch_label = labelmap.at<unsigned char>(p.y, p.x);
+				// get patch class label
+				unsigned char patch_upcorner = labelmap.at<unsigned char>(p.y - patchSize / 2, p.x - patchSize / 2);
+				unsigned char patch_downcorner = labelmap.at<unsigned char>(p.y + patchSize / 2, p.x + patchSize / 2);
+				if ((patch_label != patch_upcorner) && (patch_label != patch_downcorner))
+				{
+					patch_label = unsigned char(0);
+				}
+				temp.push_back((int)patch_label);
+				temp.push_back(p.y); //row
+				temp.push_back(p.x); //col
+				samplePoints.push_back(temp);
+			}
+	
+		   Utils::writeDataToHDF(hdf5_fileName, parent_name, data_name, samplePoints);
+		   cout << "get " << samplePoints.rows << " samples with patch size " << patchSize << endl;
+		   getSampleInfo(hdf5_fileName, samplePoints, patchSize);
+	}
+	else {
+		cout << "" << endl;
+		Utils::readDataFromHDF(hdf5_fileName, parent_name, data_name, samplePoints);
+		getSampleInfo( hdf5_fileName,samplePoints, patchSize);
+	}
+}
+
+void ober::getSampleInfo(const string& hdf5_fileName,const Mat& pts, int patchSize) {
+	cout << "it has " << pts.rows << " samples with patchSize " << patchSize << endl;
+	map<int, int> count;
+	for (int row = 0; row < pts.rows; row++) {
+		int label = pts.at<int>(row, 0);
+		count[label]++;
+	}
+	cout << "class name (unknown, 0) means this patch cross class boarder or unclassified" << endl;
+	for (auto const& c : count)
+	{
+		int label = c.first;
+		int sampleNum = c.second;
+		string class_name;
+		Utils::readAttrFromHDF(hdf5_fileName, "label_" + to_string(label), class_name);
+		cout << class_name <<" : "<< to_string(label) <<" : number of samples: " << sampleNum << endl;
+	}
 }
 
 
 
 #ifdef VC
 void ober::loadData(string RATfolderPath) {
-    vector<string> fnames;
-    fnames.reserve(5);
+	vector<string> fnames;
+	fnames.reserve(5);
 
-    fs::recursive_directory_iterator iter(RATfolderPath);
-    fs::recursive_directory_iterator end;
+	fs::recursive_directory_iterator iter(RATfolderPath);
+	fs::recursive_directory_iterator end;
 	while (iter != end) {
 		string tmp = iter->path().string();
-		
+
 
 		fnames.push_back(tmp);
 		error_code ec;
@@ -468,7 +389,7 @@ void ober::loadData(string RATfolderPath) {
 		}
 	}
 
-    switch (fnames.size()) {
+	switch (fnames.size()) {
 	case 1: {        // one rat file with scattering vector or matrix
 		loadRAT(fnames[0], this->data);
 		break;
@@ -502,11 +423,12 @@ void ober::loadData(string RATfolderPath) {
 		this->data.push_back(0.5 * (hv[0] + vh[0]));
 		break;
 	}
-    }
+	}
 }
 
 
 #endif
+
 
 /**************************************************************
 Function to load Oberpfaffenhofen PolSAR data file (RAT format)
@@ -871,9 +793,10 @@ Size ober::loadRAT(string fname, vector<Mat>& data, bool metaOnly) {
 
 	//check if it is rat file
 	size_t pos = 0;
-	if (fname.find("rat", pos) == std::string::npos) { 
+	if (fname.find("rat", pos) == std::string::npos) {
 		cout << " this is not rat file" << endl;
-		exit(-1); }
+		exit(-1);
+	}
 
 	// open file
 	fstream file(fname.c_str(), ios::in | ios::binary);
@@ -1194,7 +1117,6 @@ Size ober::loadRAT(string fname, vector<Mat>& data, bool metaOnly) {
 	}
 	return Size(imgSize[dim - 2], imgSize[dim - 1]);
 }
-
 /**************************************************************
 Function to read labels from label directory
 Author: Anupama Rajkumar

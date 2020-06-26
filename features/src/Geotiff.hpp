@@ -1,3 +1,6 @@
+#pragma once
+#ifndef GEOTIFF_HPP_
+#define GEOTIFF_HPP_
 #include <iostream>
 #include <string>
 #include <stdlib.h>
@@ -91,7 +94,7 @@ public:
         return dimensions;
     }
 
-// use this functin to get complex HH,HV,VH,VV tiff, z =1
+// use this functin to get complex HH,HV,VH,VV tiff, z starts from 1
   Mat GetRasterBand(int z) {
 
         /*
@@ -224,15 +227,22 @@ public:
         /*
          * function  Mat GetMat():
          * This function returns a matrix generated from tiff file
-         * each channel responses to each sample in tiff file if there is no complex values.
+         * each channel responses to each band in tiff file if there is no complex values.
          */
         Mat tiff;
+        
         if (NLEVELS >1){
-        vector<Mat> temp;
-        for(int z = 1; z <= NLEVELS; z++) {
-          temp.push_back(GetRasterBand(z));
-        }
-        merge(temp, tiff);
+            vector<Mat> temp;
+            for(int z = 1; z <= NLEVELS; z++) {
+                int data_type = GDALGetRasterDataType(geotiffDataset->GetRasterBand(z));
+                if (data_type > 7) {
+                    cout << "band " << z << " contains complex value" << endl;
+                    cout << "please use GetRasterBand(int z) to read mat" << endl;
+                    break;
+                }
+                temp.push_back(GetRasterBand(z));
+            }
+            merge(temp, tiff);
         }
         else if (NLEVELS ==1) { 
            tiff= GetRasterBand(NLEVELS);
@@ -244,3 +254,5 @@ public:
         return tiff;
     }
 };
+
+#endif

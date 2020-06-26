@@ -210,7 +210,7 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
                  size_t position = base_filename.find(".");
                  string fileName = (string::npos == position) ? base_filename : base_filename.substr(0, position);
 
-                 Mat patch =  readTiff(tp);
+                 Mat patch =  Utils::readTiff(tp);
                  Mat colorImg =  getFalseColorImage(patch, true);
                  string outputpng = outputpath + "\\" + fileName + ".png";
                  imwrite(outputpng, colorImg);
@@ -236,7 +236,7 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
                      pos += replace.length();
                  }
 
-                 Mat lc_mat =  readTiff(fileName);
+                 Mat lc_mat =  Utils::readTiff(fileName);
 
                  vector<Mat> list_mask;
                  vector<unsigned char> list_classValue; //store the class value
@@ -301,10 +301,10 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
          }
 
          for (int i = start; i < end; i++) {
-             Mat s1_mat = readTiff(s1FileList[i]);
+             Mat s1_mat = Utils::readTiff(s1FileList[i]);
              Mat unnomarlizedImg = getFalseColorImage(s1_mat, false);
              list_images->at(i) = unnomarlizedImg;
-             Mat lc_mat = readTiff(lcFileList[i]);
+             Mat lc_mat = Utils::readTiff(lcFileList[i]);
              Mat labelMap = Mat(Size(lc_mat.size()), CV_8UC1);
              getLabelMap(lc_mat, labelMap);
              list_labelMaps->at(i) = labelMap;
@@ -320,10 +320,10 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
 
  void sen12ms::LoadAllToMemory() {
      for (int i = 0; i < s1FileList.size(); i++) {
-         Mat s1_mat = readTiff(s1FileList[i]);
+         Mat s1_mat = Utils::readTiff(s1FileList[i]);
          Mat unnomarlizedImg = getFalseColorImage(s1_mat, true);
          list_images->at(i) = unnomarlizedImg;
-         Mat lc_mat = readTiff(lcFileList[i]);
+         Mat lc_mat = Utils::readTiff(lcFileList[i]);
          Mat labelMap = Mat(Size(lc_mat.size()), CV_8UC1);
          getLabelMap(lc_mat, labelMap);
          list_labelMaps->at(i) = labelMap;
@@ -494,13 +494,7 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
      return class_name;
  }
 
- Mat sen12ms::readTiff(string filepath) {
-     const char* file = filepath.c_str();
-     GeoTiff* tiff = new GeoTiff(file);
-     Mat tiff_mat = tiff->GetMat().clone();
-     delete tiff;
-     return tiff_mat;
- }
+  
 
 
 

@@ -2,19 +2,30 @@
 #include "sarFeatures.hpp"
 #include<vector>
 #include<iostream>
+#include "Utils.h"
 
 //reference:
 // https://github.com/senbox-org/s1tbx/blob/c55496848885e4ef04fde5fb7d8152466d36d410/rstb/rstb-op-polarimetric-tools/src/main/java/org/csa/rstb/polarimetric/gpf/specklefilters/RefinedLee.java#L440
 // Refined filtering of image nosie using local statistic by Lee 1979
 // https://apps.dtic.mil/dtic/tr/fulltext/u2/a080530.pdf
 
-void RefinedLee::filterFullPol( Mat& hh,  Mat& vv,  Mat& hv ) {
+
+void RefinedLee::filterFullPol(Mat& hh,  Mat& vv,  Mat& hv) {
     vector<Mat> lexi;
     polsar::getLexiBasis(hh, vv, hv, lexi);
-    vector<Mat> covariance;
-    polsar::GetCovarianceC(lexi, covariance);
+    vector<Mat> upcorner_covariance;
+    polsar::GetCovarianceC(lexi, upcorner_covariance);
     Mat span = Mat(Size(hh.size()), CV_32FC1);
-    createSpanImage(covariance, span);
+    Mat m00 = upcorner_covariance[0];
+    Mat m11 = upcorner_covariance[3];
+    Mat m22 = upcorner_covariance[5];
+
+    polsar::createSpanImage(m00,m11,m22, span);
+    filterFullPol(hh, vv, hv, span);
+}
+
+//override
+void RefinedLee::filterFullPol(Mat& hh, Mat& vv, Mat& hv, Mat&span) {
 
     Mat neighborPixelValues = Mat(filterSize, filterSize, CV_32FC1);
     Mat neighborSpanValues = Mat(filterSize, filterSize, CV_32FC1);
@@ -33,7 +44,7 @@ void RefinedLee::filterFullPol( Mat& hh,  Mat& vv,  Mat& hv ) {
             for (int y = 0; y < hh.cols; y++) {
                 int n = getLocalData(x, y, t, span, neighborPixelValues, neighborSpanValues);
                 if (n < filterSize * filterSize) {
-                    temp_output.at<float>(x,y)= computePixelValueUsingLocalStatistics(neighborPixelValues,n);
+                    temp_output.at<float>(x, y) = computePixelValueUsingLocalStatistics(neighborPixelValues, n);
                 }
                 else {
                     temp_output.at<float>(x, y) = computePixelValueUsingEdgeDetection(neighborPixelValues, neighborSpanValues);
@@ -56,6 +67,9 @@ void RefinedLee::filterFullPol( Mat& hh,  Mat& vv,  Mat& hv ) {
     cv::merge(output, hv);
 
 }
+
+
+
 
 /**
      * Compute filtered pixel value using Local Statistics filter.
@@ -211,30 +225,14 @@ float RefinedLee::getLocalMeanValue(const Mat & neighborValues, int numSamples) 
                      var += diff * diff;
                  }
              }
-             var /= (numSamples - 1);
+             var /= (numSamples - 1.0);
          }
      }
 
         return var;
     }
 
-/**
-* Create Span image.
-*
-* @param sourceBands         the input bands
-* @param sourceTileRectangle The source tile rectangle.
-* @param span                The span image.
-*/
-// The pixel value of the span image is given by the trace of the covariance or coherence matrix for the pixel.
- void RefinedLee::createSpanImage(const vector<Mat> & covariance, Mat & span) {
-     Mat m00 = covariance[0];
-     Mat m11 = covariance[4];
-     Mat m22 = covariance[8];
 
-     span = Mat(Size(m00.size()), m00.type());
-
-     span = (m00 + m11 + m22)/4.0;
-}
 
 
 
@@ -289,9 +287,9 @@ float RefinedLee::getLocalMeanValue(const Mat & neighborValues, int numSamples) 
         subAreaMeans.at<float>(1,2) - subAreaMeans.at<float>(2,1) - subAreaMeans.at<float>(2,2);
 
     int direction = 0;
-    double maxGradient = -1.0;
+    float maxGradient = -1.0;
     for (int i = 0; i < 4; i++) {
-        double absGrad = std::abs(gradient[i]);
+        float absGrad = std::abs(gradient[i]);
         if (maxGradient < absGrad) {
             maxGradient = absGrad;
             direction = i;
