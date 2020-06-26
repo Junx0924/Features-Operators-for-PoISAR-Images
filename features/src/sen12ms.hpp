@@ -24,73 +24,61 @@ enum class MaskType
 // to load sen12ms dataset
 class sen12ms {
 public:
+	 vector<Mat>  list_images;  // false color images(unnormalized)
+	 vector<Mat>  list_labelMaps; // label map
+	 std::map<unsigned char, string> ClassName;
+
+private:
 	 vector<std::string>  s1FileList;
 	 vector<std::string>  lcFileList;
 	
-
-private:
-	 vector<Mat>* list_images;  // false color images(unnormalized)
-	 vector<Mat>* list_labelMaps; // label map
-	 
 	 int batchSize;
-	 MaskType mask_type;
-
+	 MaskType mask_type= MaskType::IGBP;
 	 // draw samples from each image of mask area
-	 int sampleSize = 10; 
+	 int sampleSize = 10;
 	 // Maximum sample points of each mask area
 	 int samplePointNum = 100;
-
 public:
 	// Constructor
 	sen12ms(const string& s1FileListPath, const string & lcFileListPath) {
 		loadFileList(s1FileListPath, lcFileListPath);
-		list_images = new vector<Mat>();
-		list_labelMaps = new vector<Mat>();
-		batchSize = 0;
-		mask_type = MaskType::IGBP;
+		list_images =  vector<Mat>();
+		list_labelMaps =   vector<Mat>();
 	}
 
 	sen12ms(vector<std::string>  &s1List, vector<std::string> & lcList) {
 		s1FileList = s1List;
 		lcFileList = lcList;
-		list_images = new vector<Mat>();
-		list_labelMaps = new vector<Mat>();
-		batchSize = 0;
-		mask_type = MaskType::IGBP;
+		list_images = vector<Mat>();
+		list_labelMaps =  vector<Mat>();
+		 
 	}
 
 	~sen12ms()
 	{
-		if(list_images){ delete list_images; }
-		if(list_labelMaps) { delete list_labelMaps; }
 		 
 	}
 
 	
 	void SetMaskType(MaskType maskType) {
-		mask_type = maskType;
+		this->mask_type = maskType;
+		this->ClassName = GetClassName(maskType);
 	}
 
 	void SetBatchSize(int size) {
 		batchSize = size;
 
-		if (!list_images) free(list_images); 
-		if (!list_labelMaps) free(list_labelMaps);
-		 
+		if (!list_images.empty())  list_images.clear(); 
+		if (!list_labelMaps.empty())  list_labelMaps.clear();
 
-		list_images = new vector<Mat>(batchSize);
-		list_labelMaps = new vector<Mat>(batchSize);
+		list_images =  vector<Mat>(batchSize);
+		list_labelMaps =  vector<Mat>(batchSize);
 	}
 
 	// set the sample size and Maximum sample points of each mask area
 	void SetSample(const int &size,const int & num) {
 		sampleSize = size;
 		samplePointNum = num;
-	}
-
-	void GetData(vector<Mat>& images, vector<Mat>& labelMaps) {
-		images = *list_images;
-		labelMaps = *list_labelMaps;
 	}
 
 	// load current batch to memory 
@@ -105,7 +93,6 @@ public:
 	// Get PNG files for images and maskes
 	void GeneratePNG(const string& outputpath);
 
-	string GetClassName(signed char classValue);
 	
 
 private:
@@ -128,6 +115,8 @@ private:
 
 	// Generate samples from each img
 	void getSamples(const Mat& img, const Mat& mask, const unsigned char& mask_label, vector<Mat>& samples, vector<unsigned char>& sample_labels);
+
+	std::map<unsigned char, string> GetClassName(MaskType maskType);
 };
 
 #endif

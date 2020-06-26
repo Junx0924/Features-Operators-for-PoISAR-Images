@@ -303,11 +303,11 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
          for (int i = start; i < end; i++) {
              Mat s1_mat = Utils::readTiff(s1FileList[i]);
              Mat unnomarlizedImg = getFalseColorImage(s1_mat, false);
-             list_images->at(i) = unnomarlizedImg;
+             list_images.at(i) = unnomarlizedImg;
              Mat lc_mat = Utils::readTiff(lcFileList[i]);
              Mat labelMap = Mat(Size(lc_mat.size()), CV_8UC1);
              getLabelMap(lc_mat, labelMap);
-             list_labelMaps->at(i) = labelMap;
+             list_labelMaps.at(i) = labelMap;
          }
  
          cout << "Load " << batchSize << " images and its masks to memory" << endl;
@@ -322,11 +322,11 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
      for (int i = 0; i < s1FileList.size(); i++) {
          Mat s1_mat = Utils::readTiff(s1FileList[i]);
          Mat unnomarlizedImg = getFalseColorImage(s1_mat, true);
-         list_images->at(i) = unnomarlizedImg;
+         list_images.at(i) = unnomarlizedImg;
          Mat lc_mat = Utils::readTiff(lcFileList[i]);
          Mat labelMap = Mat(Size(lc_mat.size()), CV_8UC1);
          getLabelMap(lc_mat, labelMap);
-         list_labelMaps->at(i) = labelMap;
+         list_labelMaps.at(i) = labelMap;
      }
      cout << "Load " << s1FileList.size() << " images and its masks to memory" << endl;
  }
@@ -346,10 +346,10 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
 =====================================================================
 */
  void sen12ms::GetPatches(vector<Mat>& patches, vector<unsigned char>& classValue) {
-     if (list_images->empty()) { cout << "Please load data to memory first! " << endl;  exit(-1); }
-     for (int i = 0; i < list_images->size(); i++) {
-         Mat img = list_images->at(i);
-         Mat label_map = list_labelMaps->at(i);
+     if (list_images.empty()) { cout << "Please load data to memory first! " << endl;  exit(-1); }
+     for (int i = 0; i < list_images.size(); i++) {
+         Mat img = list_images.at(i);
+         Mat label_map = list_labelMaps.at(i);
 
          vector<Mat> masks;
          vector<unsigned char> mask_labels;
@@ -421,18 +421,16 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
  * Function: GetClassName
  *
  * Summary:
- *  get the class name from class value
+ *  get the class names of all the labels
  *
  * Arguments:
- *   int classValue 
  *   MaskType mask_type: choose in IGBP or LCCS
  *
  * Returns:
- *  string - class name
+ *  std::map<unsigned char, string> 
 =====================================================================
 */
- string sen12ms::GetClassName(signed char classValue){
-     string class_name;
+ std::map<unsigned char, string> sen12ms::GetClassName(MaskType maskType){
      std::map<unsigned char, string> IGBP = {
        {0,"Unclassified"},
        {1,"Evergreen Needleleaf Forests"},
@@ -486,12 +484,11 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
      };
  
      if (mask_type == MaskType::IGBP) {
-         class_name = IGBP[classValue];
+         return IGBP;
      }
      else {
-         class_name = LCCS[classValue];
+         return LCCS;
      }
-     return class_name;
  }
 
   
@@ -504,20 +501,20 @@ void sen12ms::getMask(const Mat& labelMap, vector<Mat>& list_masks,  vector<unsi
      int cnt = 0;
      // get the masks and labels for the image
      vector<Point> samplePoints;
-     Utils::getSafeSamplePoints(mask, samplePointNum, sampleSize, samplePoints);
+     Utils::getRandomSamplePoint(mask, samplePoints, mask_label, this->sampleSize, 1, this->samplePointNum);
      if(!samplePoints.empty()){
          //draw patches centered at each sample point
          for (const auto& p : samplePoints)
          {
-             int start_x = int(p.x) - sampleSize / 2;
-             int start_y = int(p.y) - sampleSize / 2;
-             Rect roi = Rect(start_x, start_y, sampleSize, sampleSize);
+             int start_x = int(p.x) - this->sampleSize / 2;
+             int start_y = int(p.y) - this->sampleSize / 2;
+             Rect roi = Rect(start_x, start_y, this->sampleSize, this->sampleSize);
              Mat tmp = img(roi).clone();
              samples.push_back(tmp);
              sample_labels.push_back(mask_label);
              cnt++;
          }
-         cout << cnt <<" samples drawed for class " << int(mask_label) << ": " << GetClassName(mask_label) << endl;
+         cout << cnt <<" samples drawed for class " << int(mask_label) << ": " << this->ClassName(mask_label) << endl;
      }
  }
 
