@@ -147,8 +147,20 @@ Mat polsar::calcuCoherenceOfPol(const Mat& band1, const Mat& band2, int winSize)
 
 // get the relative phases
 Mat polsar::getPhaseDiff(const Mat& hh, const Mat& vv) {
-	Mat temp = getMul(hh, getConj(vv));
-	return getComplexAngle(temp);
+	//Mat temp = getMul(hh, getConj(vv));
+	//return getComplexAngle(temp);
+	Mat hh_real, hh_imag, vv_real, vv_imag;
+	extractChannel( hh, hh_real, 0);
+	extractChannel( hh, hh_imag, 1);
+	extractChannel( vv, vv_real, 0);
+	extractChannel(vv, vv_imag, 1);
+	Mat output= Mat(Size(hh.size()), CV_32FC1);
+	for (int i = 0; i < hh.rows; i++) {
+		for (int j = 0; j < hh.cols; j++) {
+			output.at<float>(i, j) = atan(hh_imag.at<float>(i, j) / hh_real.at<float>(i, j)) - atan(vv_imag.at<float>(i, j) / vv_real.at<float>(i, j));
+		}
+	}
+	return output;
 }
 
 void polsar::vec2mat(const vector<Mat>& basis, vector<Mat>& mat, int winSize) {
