@@ -10,22 +10,31 @@
 *
 * Arguments:
 *   const Mat &src - grayscale image
-*   const array<int,3> & morph_size - the diameter of circular structureing element,default {1,2,3} 
+*   const array<int,3> & morph_size - the diameter of circular structureing element,default {1,3,5} 
 *
 * Returns:
-*   Matrix of Size(src.rows*3, src.cols) - 3 stacked mp profiles
+*   3 stacked mp profiles(opening, opening by reconstruction, closing, closing by reconstruction)
 =====================================================================
 */
 Mat cvFeatures::GetMP(const Mat &src, const array<int,3> & morph_size) {
-    Mat output;
-    Mat dst = src.clone();
-    normalize(dst, dst, 0, 255, NORM_MINMAX);
-    dst.convertTo(dst, CV_8UC1);
 
-    for (int i = 0; i < morph_size.size(); i++) {
-        Mat result = mp::CaculateMP(dst, morph_size[i]);
-        output.push_back(result);
+    Mat dst = src.clone();
+    if(src.channels() != 1){
+        cvtColor(dst, dst, COLOR_BGR2GRAY);
+        normalize(dst, dst, 0, 255, NORM_MINMAX);
     }
+
+    
+    Mat result1 = mp::CaculateMP(dst, morph_size[0]);
+    Mat result2 = mp::CaculateMP(dst, morph_size[1]);
+    Mat result3 = mp::CaculateMP(dst, morph_size[2]);
+   
+    
+    Mat output;
+    output.push_back(result1);
+    output.push_back(result2);
+    output.push_back(result3);
+
     return output;
 }
 
@@ -179,7 +188,7 @@ Mat cvFeatures::GetMPEG7CSD(const Mat& src, int Size) {
     XM::ColorStructureDescriptor* csd = Feature::getColorStructureD(frame, Size);
 
     Mat output = Mat(1, Size, CV_8UC1);
-    for (unsigned int i = 0; i < csd->GetSize(); i++) {
+    for (unsigned int i = 0; i < csd->GetSize(); ++i) {
         output.at<unsigned char>(0, i) = static_cast<unsigned char>(csd->GetElement(i));
     }
     delete csd;

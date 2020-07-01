@@ -24,7 +24,7 @@ namespace cvFeatures {
 	Mat GetMPEG7CSD(const Mat& src, int size =32);
 	Mat GetHSV(const Mat& src, int size= 32);
 
-	// get opening-closing by reconstruction profile for grayscale img
+	// get the convex/concave/flat area of grayscale img by the derivative of opening-by reconstruction and closing-by reconstruction from original image
 	Mat GetMP(const Mat& src, const array<int, 3>& morph_size = { 1,3,5 });
 
 	// Compute median, min, max, mean, std for single channel mat

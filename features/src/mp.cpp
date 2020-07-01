@@ -34,42 +34,69 @@ Mat mp::CaculateMP(const Mat& src, int morph_size) {
     }
     else {
         src.copyTo(dst);
+        dst.convertTo(dst, CV_8UC1);
     }
-    equalizeHist(dst, dst);
-    //imshow("image", dst);
-    // waitKey(0);
 
-   // Mat element = getStructuringElement(MORPH_ELLIPSE, cv::Size(2 * morph_size + 1, 2 * morph_size + 1), cv::Point(morph_size, morph_size));
-    Mat element = getStructuringElement(MORPH_RECT, cv::Size(1, morph_size));
+    Mat element = getStructuringElement(MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1));
+
+    //openning
+    Mat open;
+    cv::morphologyEx(dst, open, cv::MORPH_OPEN, element);
 
     //erode and reconstruct ( opening-by-reconstruction )
-    Mat Iobr = Mat(Size(dst.size()), dst.type());
-    erode(dst, Iobr, element);
-    auto* ptr = matToArray(Iobr);
-    mp::Reconstruct(ptr, matToArray(dst), dst.cols, dst.rows);
-   
-    //restore cv Mat
-    Mat dst2 = Mat(dst.rows, dst.cols, dst.type(), ptr);
-   // imshow("openning by reconstruction: ", dst2);
-   // waitKey(0);
+    Mat erosion = Mat(Size(dst.size()), dst.type());
+    erode(dst, erosion, element);
+    Mat  Iobr = imReconstruct(erosion, dst);
+     
+    //closing
+    Mat close;
+    cv::morphologyEx(dst, close, cv::MORPH_CLOSE, element);
 
-     //dilate and reconstruct (closing-by-Reconstruction)
-    Mat Icbr = Mat(Size(dst2.size()), dst2.type());
-    dilate(dst2, Icbr, element);
-   
-    // imcomplement
-    dst2 = 255 - dst2;
+     //closing-by-Reconstruction
+    Mat dilation = Mat(Size(dst.size()), dst.type());
+    dilate(dst, dilation,element);
+    Mat Icbr = imReconstruct(255-dilation, 255-dst);
     Icbr = 255 - Icbr;
-    auto* ptr2 = matToArray(Icbr);
-    mp::Reconstruct(ptr2, matToArray(dst2), dst2.cols, dst2.rows);
-  
-    //restore cv Mat
-    Mat dst3 = Mat(dst.rows, dst.cols, dst.type(), ptr2);
-    
-    // imcomplement
-    dst3 = 255 - dst3;
-   // imshow("opening-closing by reconstruction: ", dst3);
-    // waitKey(0);
-    
-    return dst3;
+   
+    Mat output;
+    output.push_back(open);
+    output.push_back(Iobr);
+    output.push_back(close);
+    output.push_back(Icbr);
+
+    if (!output.isContinuous()) {
+        output = output.clone();
+    }
+    return output;
 }
+
+cv::Mat mp::imReconstruct(const cv::Mat& marker, const cv::Mat& mask) {
+    
+    Mat output;
+    if(marker.size() == mask.size()){
+        auto* ptr_marker = matToArray(marker);
+        auto* ptr_mask = matToArray(mask);
+        Reconstruct(ptr_marker, ptr_mask, mask.cols, mask.rows);
+        //restore cv Mat
+        output = Mat(mask.rows, mask.cols, mask.type(), ptr_marker);
+    }
+    return output;
+}
+
+cv::Mat mp::imRegionalMax(const cv::Mat& src) {
+    Mat temp,output;
+    if (src.channels() != 1) {
+        cvtColor(src, temp, COLOR_BGR2GRAY);
+    }
+    else {
+        src.copyTo(temp);
+        temp.convertTo(temp, CV_8UC1);
+    }
+    bool* ptr_output = new bool[temp.total()];
+    auto* ptr_src = matToArray(temp);
+    int mean = cv::mean(temp)[0];
+    Regmax(ptr_src,ptr_output,src.cols,src.rows);
+    output = Mat(src.rows, src.cols, CV_8UC1, ptr_output);
+    return output;
+}
+

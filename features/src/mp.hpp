@@ -313,6 +313,9 @@ namespace mp {
 
     // data type requried by imreconstruct.cpp
     auto* matToArray(const cv::Mat& image);
+
+    cv::Mat imReconstruct(const cv::Mat& marker, const cv::Mat& mask);
+    cv::Mat imRegionalMax(const cv::Mat& src);
 }
 
 
