@@ -270,9 +270,23 @@ Mat polsar::GetFalseColorImg(const Mat& hh, const Mat& vv, const Mat& hv, const 
 //R: |HH+VV|, G:|HV|, B: |HH-VV|
 Mat polsar::GetPauliColorImg(const Mat& hh, const Mat& vv, const Mat& hv) {
 
-	Mat R = logTransform(getComplexAmpl(hh + vv));
-	Mat G = logTransform(getComplexAmpl(hv));
-	Mat B = logTransform(getComplexAmpl(hh - vv));
+	vector<Mat> pauli;
+	getPauliBasis(hh, vv, hv, pauli);
+	Mat R = logTransform(getComplexAmpl(pauli[0]));
+	Mat G = logTransform(getComplexAmpl(pauli[2]));
+	Mat B = logTransform(getComplexAmpl(pauli[1]));
+
+	//Mat R = logTransform(getComplexAmpl(hh+vv));
+	//Mat G = logTransform(getComplexAmpl(hv));
+	//Mat B = logTransform(getComplexAmpl(hh-vv));
+
+	//cut everything over 2.5x the mean value
+	float R_mean = cv::mean(R)[0];
+	float G_mean = cv::mean(G)[0];
+	float B_mean = cv::mean(B)[0];
+	threshold(R, R, 2.5 * R_mean, 2.5 * R_mean, THRESH_TRUNC);
+	threshold(G, G, 2.5 * G_mean, 2.5 * G_mean, THRESH_TRUNC);
+	threshold(B, B, 2.5 * B_mean, 2.5 * B_mean, THRESH_TRUNC);
 	return GetColorImg(R, G, B, true);
 }
 

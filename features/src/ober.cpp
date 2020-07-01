@@ -29,7 +29,7 @@ void ober::caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, un
 	vector<string> feature_type = { "/texture","/color" ,"/CTelememts" ,"/polStatistic","/decomp" ,"/MP" };
 	vector<string> dataset_name = { "/feature" ,"/patchLabel" };
 
-	LoadSamplePoints(patchSize, numOfSamplePoint, classlabel, 1);
+	LoadSamplePoints(patchSize, numOfSamplePoint, classlabel, patchSize);
 	
 
 	cout << "start to calculate " << feature_name << " with filterSize " << filterSize << " , patchSize " << patchSize << endl;
@@ -158,20 +158,12 @@ Mat ober::caculColor(const Mat& hh, const Mat& vv, const Mat& hv) {
 	return result;
 }
 
-// get MP features on HH,VV,VH, default feature mat size (sampleSize*9,sampleSize)
+// get MP features on grayscaled Pauli Color image, default feature mat size
 Mat ober::caculMP(const Mat& hh, const Mat& vv, const Mat& hv) {
-	vector<Mat> temp(3);
-	// intensity of HH channel
-	temp[0] = polsar::logTransform(polsar::getComplexAmpl(hh));
-	// intensity of VV channel
-	temp[1] = polsar::logTransform(polsar::getComplexAmpl(vv));
-	// intensity of HV channel
-	temp[2] = polsar::logTransform(polsar::getComplexAmpl(hv));
+	Mat colorImg = polsar::GetPauliColorImg(hh, vv, hv);
 
-	Mat result;
-	for (const auto& t : temp) {
-		result.push_back(cvFeatures::GetMP(t, { 1,3,5 }));
-	}
+	Mat result = cvFeatures::GetMP(colorImg, { 1,3,5 });
+	 
 	return result;
 }
 
