@@ -26,6 +26,7 @@ namespace Utils {
 
 
 		// by Jun Xiang
+		// classifier_type: choose from {KNN, RF}
 		void classifyFeaturesML(const String& hdf5_fileName, const string& feature_name, const string classifier_type, int trainPercent, int filterSize, int patchSize);
 		void applyML(const vector<Mat>& data, const vector<unsigned char>& data_labels, int trainPercent, const string& classifier_type, vector<unsigned char>& class_result);
 		
