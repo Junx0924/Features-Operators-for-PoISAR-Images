@@ -2,7 +2,10 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include<opencv2/core/cvdef.h>
 #include<opencv2/opencv.hpp>
+#include  <opencv2/ml.hpp>
+#include  <opencv2/highgui/highgui.hpp>
 #include <iostream>
 #include <fstream>
 #include <random>
@@ -10,6 +13,7 @@
 #include "cv_hdf5.hpp"
 #include "Geotiff.hpp"
 #include "KNN.hpp"
+
 
 using namespace std;
 using namespace cv;
@@ -22,9 +26,12 @@ namespace Utils {
 
 
 		// by Jun Xiang
+		void classifyFeaturesML(const String& hdf5_fileName, const string& feature_name, const string classifier_type, int trainPercent, int filterSize, int patchSize);
+		void applyML(const vector<Mat>& data, const vector<unsigned char>& data_labels, int trainPercent, const string& classifier_type, vector<unsigned char>& class_result);
+		
 		// input: the ground_truth label and the test label
 		// return: the color
-		Vec3b getLabelColor(unsigned char ground_truth, unsigned char class_result);
+		Vec3b getLabelColor( unsigned char class_result);
 	    // feature_name: choose from { texture, color, ctElements,polStatistic,decomp, MP}
 		void generateColorMap(const String& hdf5_fileName, const string& feature_name, const string& class_result, int filterSize,int patchSize);
 		
