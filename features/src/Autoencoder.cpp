@@ -18,58 +18,46 @@ Autoencoder::Autoencoder(int inputDim, int hiddenDim, double learningRate, doubl
 	m_momentum = momentum;
 
 	m_inputValues.reserve(m_dataDimension);
-
-	m_encoderWt = new float*[m_hiddenDimension];
-	for (int cnt = 0; cnt < m_hiddenDimension; cnt++) {
-		m_encoderWt[cnt] = this->random(m_dataDimension);
+	m_inputBias.reserve(m_hiddenDimension);
+	m_deltas.reserve(m_dataDimension);
+	m_encoderWt.reserve(m_dataDimension * m_hiddenDimension);
+	m_decoderWt.reserve(m_dataDimension * m_hiddenDimension);
+	m_decoderWtChanges.reserve(m_dataDimension * m_hiddenDimension);
+	m_updatedWt.reserve(m_dataDimension * m_hiddenDimension);
+	m_updatedWt.reserve(m_dataDimension * m_hiddenDimension);
+	m_encoderWtChanges.reserve(m_dataDimension * m_hiddenDimension);
+	
+	/*assign random initial values to encoder wt, decoder wt and bias */
+	
+	for (int cnt = 0; cnt < m_hiddenDimension; cnt++) {	
+		vector<float> val = this->random(m_dataDimension);
+		m_encoderWt.push_back(val);				
 	}
 
-	m_decoderWt = new float*[m_dataDimension];	
 	for (int cnt = 0; cnt < m_dataDimension; cnt++) {
-		m_decoderWt[cnt] = this->random(m_hiddenDimension);
+		vector<float> val = this->random(m_hiddenDimension);
+		m_decoderWt.push_back(val);
 	}
 
-	m_decoderWtChanges = new float*[m_hiddenDimension];
-	for (int cnt = 0; cnt < m_dataDimension; cnt++) {
-		m_decoderWtChanges[cnt] = new float[m_dataDimension]();
-	}
-	m_updatedWt = new float*[m_hiddenDimension];
-	for (int cnt = 0; cnt < m_dataDimension; cnt++) {
-		m_updatedWt[cnt] = new float[m_dataDimension]();
-	}
-
-	m_encoderWtChanges = new float*[m_dataDimension];
-	for (int cnt = 0; cnt < m_hiddenDimension; cnt++) {
-		m_encoderWtChanges[cnt] = new float[m_hiddenDimension]();
-	}
-
-
-	m_inputBias = new float[m_hiddenDimension];			/*think of the dimension of the bias*/
-	m_deltas = new float[m_dataDimension]();
+	m_inputBias = this->random(m_hiddenDimension);
 }
 
-float* Autoencoder::random(size_t elementSize) {
-	float *result = new float[elementSize];
+vector<float> Autoencoder::random(size_t elementSize) {
+	vector<float> result;
 	for (size_t i = 0; i < elementSize; i++) {
-		result[i] = ((float)rand() / (RAND_MAX));
+		float val;
+		val = ((float)rand() / (RAND_MAX));
+		result.push_back(val);
 	}
 	return result;
 }
 
 Autoencoder::~Autoencoder() {
 
-	for (auto i = 0; i < m_hiddenDimension; i++)
-	{
-		delete[] m_encoderWt[i];
-		delete[] m_encoderWtChanges[i];
-	}
-
-	for (auto i = 0; i < m_dataDimension; i++)
-	{
-		delete[] m_decoderWt[i];
-		delete[] m_decoderWtChanges[i];
-	}
-	delete[] m_deltas;
+	m_encoderWt.clear();
+	m_decoderWt.clear();
+	m_encoderWtChanges.clear();
+	m_decoderWtChanges.clear();
 }
 
 /*
@@ -106,10 +94,9 @@ void Autoencoder::feedforward(vector<float>& m_hiddenValues, vector<float>& m_ou
 	}
 
 	/*printing encoder wt vector*/
-	for (int x = 0; x < m_hiddenDimension; x++) {
-		for (int y = 0; y < m_dataDimension; y++) {
-			cout << m_encoderWt[x][y] << "\t";
-		}
+
+	for (int cnt = 0; cnt < m_encoderWt.size(); cnt++) {
+		this->PrintVector(m_encoderWt[cnt]);
 		cout << endl;
 	}
 }
@@ -121,41 +108,71 @@ Date : 25.06.2020
 void Autoencoder::backpropagate(vector<float>& m_hiddenValues, vector<float>& m_outputValues) {
 	/*for each output value - from outputlayer to hiddenlayer*/
 	for (auto i = 0; i < m_dataDimension; i++) {
-		m_deltas[i] = (m_outputValues[i] - m_inputValues[i])*this->sigmoidDerivation(m_outputValues[i]);
+		vector<float> wtChanges;
+		float delta = (m_outputValues[i] - m_inputValues[i])*this->sigmoidDerivation(m_outputValues[i]);
+		m_deltas.push_back(delta);
 		for (auto j = 0; j < m_hiddenDimension; j++) {
-			/*adjusting weights vector from the hidden layer to output*/
-			m_decoderWtChanges[i][j] = m_deltas[i]*m_hiddenValues[j] ;
+			/*adjusting weights vector from the hidden layer to output*/			
+			float changes = m_deltas[i] * m_hiddenValues[j];
+			wtChanges.push_back(changes);
 		}
+		m_decoderWtChanges.push_back(wtChanges);
 	}
 	
 	/*from hidden layer to inputlayer*/
 	for (auto i = 0; i < m_dataDimension; i++) {
+		vector<float> wtUpdate;
 		for (auto j = 0; j < m_hiddenDimension; j++) {
-			m_updatedWt[i][j] = m_decoderWt[i][j] * m_deltas[i];
+			 float changes = m_decoderWt[i][j] * m_deltas[i];
+			 wtUpdate.push_back(changes);
 		}
+		m_updatedWt.push_back(wtUpdate);
 	}
 
 	for (auto i = 0; i < m_hiddenDimension; i++) {
+		vector<float> wtChanges;
 		for (auto j = 0; j < m_dataDimension; j++) {
 			float dActivation = this->sigmoidDerivation(m_hiddenValues[i]);
-			m_encoderWtChanges[i][j] = m_updatedWt[j][i] * dActivation * m_inputValues[j];
+			float changes = m_updatedWt[j][i] * dActivation * m_inputValues[j];
+			wtChanges.push_back(changes);
 		}
+		m_encoderWtChanges.push_back(wtChanges);
 	}
 
-	/*Adjusting the weights - encoder*/
+	/*Adjusting the weights by SGD - encoder*/
 	for (auto i = 0; i < m_hiddenDimension; i++) {
+		vector<float> wtChange;
 		for (auto j = 0; j < m_dataDimension; j++) {
 			float weightChange = -(m_learningRate * m_momentum * m_encoderWtChanges[i][j]);
-			m_encoderWt[i][j] += weightChange;
+			float changes = m_encoderWt[i][j] + weightChange;
+			wtChange.push_back(changes);	
 		}
+		m_encoderWt.at(i) = wtChange;
 	}
 
-	/*Adjusting the weights - decoder*/
+	/*Adjusting the weights by SGD - decoder*/
 	for (auto i = 0; i < m_dataDimension; i++) {
+		vector<float> wtChange;
 		for (auto j = 0; j < m_hiddenDimension; j++) {
 			float weightChange = -(m_learningRate * m_momentum * m_decoderWtChanges[i][j]);
-			m_decoderWt[i][j] += weightChange;
+			float changes = m_decoderWt[i][j] + weightChange;
+			wtChange.push_back(changes);
 		}
+		m_decoderWt.at(i) = wtChange;
+	}
+
+	/*printing encoder wt vector*/
+
+	for (int cnt = 0; cnt < m_encoderWt.size(); cnt++) {
+		this->PrintVector(m_encoderWt[cnt]);
+		cout << endl;
+	}
+
+	/*printing decoder wt vector*/
+
+	for (int cnt = 0; cnt < m_decoderWt.size(); cnt++) {
+		this->PrintVector(m_decoderWt[cnt]);
+		cout << endl;
 	}
 }
 
@@ -185,4 +202,13 @@ void Autoencoder::test(vector<float>& data) {
 	vector<float> m_hiddenValues;
 	vector<float> m_outputValues;
 	this->feedforward(m_hiddenValues, m_outputValues);
+
+	/*writing the output value to a map*/
+	m_OutputValuesF.push_back(m_outputValues);
+}
+
+void Autoencoder::PrintVector(vector<float>& data) {
+	for (int cnt = 0; cnt < data.size(); cnt++) {
+		cout << data[cnt] << " ";
+	}
 }
