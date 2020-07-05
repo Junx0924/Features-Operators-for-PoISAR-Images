@@ -2,9 +2,6 @@ PROJECT(features)
 
 FIND_PACKAGE( OpenCV REQUIRED )
 
-#add_subdirectory(AddressLib)
-#add_subdirectory(Descriptors)
-#add_subdirectory(Extraction)
 
 add_library(MPEG-7 
  Convert.cpp

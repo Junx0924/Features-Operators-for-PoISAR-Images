@@ -215,7 +215,7 @@ XM::EdgeHistogramDescriptor* Feature::getEdgeHistogramD( Frame* f )
 ///				Homogeneous Texture Descriptor
 //============================================================================
 // This function uses a single-band grayscale image, ( f->gray ), image size must be > 128x128
-// Use f->setGray( Mat& gray ); to set the grayscale image before calling this function
+// Use f->setGray( cv::Mat& gray ); to set the grayscale image before calling this function
 // layerFlag: 0:base-layer 32-components  1:full-layer 62 components (both energy and deviation)
 XM::HomogeneousTextureDescriptor* Feature::getHomogeneousTextureD( Frame* f, bool layerFlag )
 {
@@ -269,7 +269,7 @@ XM::RegionShapeDescriptor* Feature::getRegionShapeD( Frame* f )
 
 	//Set shape (alpha channel) if arbitrary shape
 	// foreground pixels > 0 => 0:bcgk, 255:foreground
-	//Frame :: setMask( Mat& mask, int rid, int fg, int bg )
+	//Frame :: setMask( cv::Mat& mask, int rid, int fg, int bg )
 	//if(mask)
 	//	f->setMask(mask, rid, 255, 0);
 
@@ -393,7 +393,7 @@ void GoF::start( int aggregationType )
 
 }
 
-void GoF::addFrame1( Mat& img )
+void GoF::addFrame1( cv::Mat& img )
 {
 	if(this->type != 1 ){
 		std::cerr<<"GoF::addFrame1 - This function is for whole frames!" << std::endl;

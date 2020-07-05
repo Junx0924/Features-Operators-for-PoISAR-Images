@@ -1,3 +1,6 @@
+#pragma once
+#ifndef TORCHDATASET_HPP_
+#define TORCHDATASET_HPP_
 #include <ATen/ATen.h>
 #include <torch/torch.h>
 #include <iostream>
@@ -6,17 +9,16 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 
-using namespace cv;
-using namespace std;
+
 
 class torchDataset : public torch::data::datasets::Dataset<torchDataset> {
 private:
-    // Declare 2 vectors of tensors for images and labels
-    std::vector<torch::Tensor> images, labels;
+    // Declare 2 std::vectors of tensors for images and labels
+   std::vector<torch::Tensor> images, labels;
 public:
 
     // Constructor
-    torchDataset(vector<Mat>& list_images, vector<unsigned char>& classValues) {
+    torchDataset(std::vector<cv::Mat>& list_images, std::vector<unsigned char>& classValues) {
         // process_data will write to images, labels
         process_data(list_images, classValues);
     };
@@ -35,7 +37,7 @@ public:
 
 private:
     /* Convert and Load image to tensor from location argument */
-    torch::Tensor read_img_data(Mat &img) {
+    torch::Tensor read_img_data(cv::Mat &img) {
          
        // Return tensor form of the image
        // cv::resize(img, img, cv::Size(1920, 1080), cv::INTER_CUBIC);
@@ -56,7 +58,7 @@ private:
     }
 
     /* Loads images to tensor type in the string argument */
-    void  process_data(vector<Mat> &list_images, vector<unsigned char> &classValues) {
+    void  process_data(std::vector<cv::Mat> &list_images, std::vector<unsigned char> &classValues) {
         
         for ( auto& c : list_images) {
             images.push_back(read_img_data(c));
@@ -67,3 +69,5 @@ private:
     }
  
 };
+
+#endif

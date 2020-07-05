@@ -17,8 +17,8 @@
 					---------------------
 1. include this header:		#include "Feature.h"
 2. intantiate a Frame object: Frame* frame = new Frame( width, height, true, false, false );			// width-height of the input image/frame
-   set the image			  frame->setImage( img );								// Mat& img // input image
-					or use this: Frame* frame = new Frame( img );					// Mat& img // input image
+   set the image			  frame->setImage( img );								// cv::Mat& img // input image
+					or use this: Frame* frame = new Frame( img );					// cv::Mat& img // input image
 
 3.a) Extract feature from the whole frame:
 		XM::ColorStructureDescriptor* csd = Feature::getColorStructureD(frame);
@@ -29,7 +29,7 @@ NOTE: use the namespace XM to refer to the descriptors rather than declaring "us
 
 	 bug: Set mask doesn't work with get DCD features, the percentage is not based the region area but the whole image
 3.b) Extract features from an arbitrary region - need to set the region mask
-		set the mask for the region: frame->setMaskAll( Mat& mask, int regionID, 255, 0 );	// regionID: ID/value of the region in the mask image (1,2,3,..)
+		set the mask for the region: frame->setMaskAll( cv::Mat& mask, int regionID, 255, 0 );	// regionID: ID/value of the region in the mask image (1,2,3,..)
 		compute the feature:
 		XM::ColorStructureDescriptor* csd = Feature::getColorStructureD(frame);
 
@@ -98,7 +98,7 @@ public:
 
 	// GoFGoP color descriptor (for a group of frames, such as shots) (GoFGoP)
 	// instead of this function use the GoF class defined below!
-	static XM::ScalableColorDescriptor* getGoFColorD( std::vector<Mat> frames, int numCoeff = 256, int bitPlanesDiscarded = 0 );
+	static XM::ScalableColorDescriptor* getGoFColorD( std::vector<cv::Mat> frames, int numCoeff = 256, int bitPlanesDiscarded = 0 );
 
 	// Dominant Color Descriptor (DCD)
 	// not suitable to use mask
@@ -203,7 +203,7 @@ public:
 	void start( int aggregation );
 
 	// for type 1 (whole frame)
-	void addFrame1( Mat& img );
+	void addFrame1( cv::Mat& img );
 
 	// for type 2 (arbitrary region), mask should be set before calling this function
 	void addFrame2( Frame* f );
