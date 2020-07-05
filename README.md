@@ -1,6 +1,7 @@
 Done:
-* generate colormap
-* use HDF5 to store features and classifier results
+* use t-NSE to reduce feature dimensions
+* generate colormap of KNN class results
+* use HDF5 to store features and class results
 * Despeckling filter ( Refined Lee)
 * Target decomposition (Krogager, Pauli, Huynen, Freeman-Durden, Yamaguchi4, Cloude-Pottier)
 * MP ( opening-closing by reconstruction)
