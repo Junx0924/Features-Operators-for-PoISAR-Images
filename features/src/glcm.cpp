@@ -23,6 +23,7 @@
 
 
 using namespace cv;
+using namespace std;
 /*===================================================================
  * Function: getOneChannel
  *

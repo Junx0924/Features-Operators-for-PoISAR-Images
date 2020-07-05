@@ -1,5 +1,5 @@
 /*=================================================================
- * Calculate GLCM(Gray-level Co-occurrence Matrix) By OpenCV.
+ * Calculate GLCM(Gray-level Co-occurrence cv::Matrix) By OpenCV.
  *
  * Copyright (C) 2017 Chandler Geng. All rights reserved.
  *
@@ -28,8 +28,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <Math.h>
 
-using namespace std;
-using namespace cv;
+
 
 // Gray Level (Choose in 4/8/16)
 enum class GrayLevel
@@ -77,29 +76,29 @@ namespace GLCM
 {
    
     // Extract a channel from RGB Image
-    void getOneChannel(Mat src, Mat& dstChannel, RGBChannel channel = RGBChannel::CHANNEL_R);
+    void getOneChannel(cv::Mat src, cv::Mat& dstChannel, RGBChannel channel = RGBChannel::CHANNEL_R);
 
    
     // Magnitude all pixels of Gray Image, and Magnitude Level can be chosen in 4/8/16;
-    void GrayMagnitude(Mat src, Mat& dst, GrayLevel level = GrayLevel::GRAY_8);
+    void GrayMagnitude(cv::Mat src, cv::Mat& dst, GrayLevel level = GrayLevel::GRAY_8);
 
    
-    // Calculate the GLCM of one Mat Window according to one Statistical Direction.
-    void CalcuOneGLCM(Mat src, Mat &dst, int src_i, int src_j, int size, GrayLevel level = GrayLevel::GRAY_8, GrayDirection direct = GrayDirection::DIR_0);
+    // Calculate the GLCM of one cv::Mat Window according to one Statistical Direction.
+    void CalcuOneGLCM(cv::Mat src, cv::Mat &dst, int src_i, int src_j, int size, GrayLevel level = GrayLevel::GRAY_8, GrayDirection direct = GrayDirection::DIR_0);
 
     
-    //   Normalize the Martix, make all pixels of Mat divided by the sum of all pixels of Mat, then get Probability Matrix.
-    void NormalizeMat(Mat src, Mat& dst);
+    //   Normalize the Martix, make all pixels of cv::Mat divided by the sum of all pixels of  Mat, then get Probability  Matrix.
+    void NormalizeMat(cv::Mat src, cv::Mat& dst);
 
    
-    // Calculate Texture Eigenvalues of One Window Mat, which is including Energy, Contrast, Homogenity, Entropy.
-    void CalcuEValue(Mat src, TextureEValues& EValue, bool ToCheckMat = false);
+    // Calculate Texture Eigenvalues of One Window cv::Mat, which is including Energy, Contrast, Homogenity, Entropy.
+    void CalcuEValue(cv::Mat src, TextureEValues& EValue, bool ToCheckMat = false);
 
     //Calculate the averaged Texture Eigenvalues of the whole image, which is including Energy, Contrast, Homogenity, Entropy
-    void CalcuTextureEValue(Mat src, TextureEValues& EValue, int size, GrayLevel level);
+    void CalcuTextureEValue(cv::Mat src, TextureEValues& EValue, int size, GrayLevel level);
 
     //Caculate Texture Eigenvalues of the whole image
-    void CalcuTextureImages(Mat src, Mat& imgEnergy, Mat& imgContrast, Mat& imgHomogenity, Mat& imgEntropy,
+    void CalcuTextureImages(cv::Mat src, cv::Mat& imgEnergy, cv::Mat& imgContrast, cv::Mat& imgHomogenity, cv::Mat& imgEntropy,
                             int size = 5, GrayLevel level = GrayLevel::GRAY_8, bool ToAdjustImg = false);
 }
 

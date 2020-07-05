@@ -24,60 +24,62 @@ namespace fs = std::filesystem;
 // patchSize: to draw samples
 // classlabel: choose which class to load, 255 means to load all the classes
 // numOfSamplePoint, the number of samples for one type of class, 0 means load all the possible sample points
-// feature_name: choose from { texture, color, ctElements,polStatistic,decomp, MP}
+// feature_name: choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
 void ober::caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, unsigned char classlabel, string feature_name) {
-	vector<string> feature_type = { "/texture","/color" ,"/CTelememts" ,"/polStatistic","/decomp" ,"/MP" };
+	
+	std::map<string, int> feature_type = { {"/texture",0},{"/color",1},{"/CTelememts",2},{"/polStatistic",3},{"/decomp",4},{"/MP",5} };
 	vector<string> dataset_name = { "/feature" ,"/patchLabel" };
 
-	LoadSamplePoints(patchSize, numOfSamplePoint, classlabel, patchSize);
-	
+	LoadSamplePoints(patchSize, numOfSamplePoint, classlabel, 1);
 
 	cout << "start to calculate " << feature_name << " with filterSize " << filterSize << " , patchSize " << patchSize << endl;
-	for(size_t j =0; j< this->samplePoints.size(); j++){
+	size_t N = this->samplePoints.size();
+	vector<Mat> feature;
+	vector<Mat> pts;
+	for(size_t j =0; j< N; ++j){
 		Point p = this->samplePoints[j];
 		int patchLabel = this->sampleLabel[j];
 
-		Mat pts = Mat(1, 3, CV_32SC1);
-		pts.at<int>(0, 0) = patchLabel;
-		pts.at<int>(0, 1) = p.y; //row
-		pts.at<int>(0, 2) = p.x; //col
+		cv::Mat temp = Mat(1, 3, CV_32SC1);
+		temp.at<int>(0, 0) = patchLabel;
+		temp.at<int>(0, 1) = p.y; //row
+		temp.at<int>(0, 2) = p.x; //col
+		pts.push_back(temp);
 
 		Mat hh, vv, hv;
 		getSample(p, patchSize, filterSize, hh, vv, hv);
-		
 
-		for (size_t i = 0; i < feature_type.size(); i++) {
-			int j = 0;
-			if (feature_name == "all") { j = i; }
-			else if (feature_name == feature_type[i]) { j = i; }
-			else { j = 255; }
-			
-			Mat feature;
-			switch (j) {
-			case 0:
-				feature = caculTexture(hh, vv, hv);
-				break;
-			case 1:
-				feature = caculColor(hh, vv, hv);
-				break;
-			case 2:
-				feature = caculCTelements(hh, vv, hv);
-				break;
-			case 3:
-				feature = caculPolStatistic(hh, vv, hv);
-				break;
-			case 4:
-				feature = caculDecomp(hh, vv, hv);
-				break;
-			case 5:
-				feature = caculMP(hh, vv, hv);
-				break;
-			default:
-				break;
-			}
-			if(!feature.empty()){
-				Utils::insertDataToHDF(this->hdf5_file, feature_type[i], dataset_name, { feature.reshape(1,1), pts }, filterSize, patchSize);
-			}
+		
+		switch (feature_type[feature_name]) {
+		case 0:
+			feature.push_back(caculTexture(hh, vv, hv));
+			break;
+		case 1:
+			feature.push_back(caculColor(hh, vv, hv));
+			break;
+		case 2:
+			feature.push_back(caculCTelements(hh, vv, hv));
+			break;
+		case 3:
+			feature.push_back(caculPolStatistic(hh, vv, hv));
+			break;
+		case 4:
+			feature.push_back(caculDecomp(hh, vv, hv));
+			break;
+		case 5:
+			feature.push_back(caculMP(hh, vv, hv));
+			break;
+		default:
+			break;
+		}
+		if ((feature.size() == 2000) ||(j== N-1)) {
+			cv::Mat temp_feature,temp_pts;
+			cv::vconcat(feature, temp_feature);
+			cv::vconcat(pts, temp_pts);
+			cv::Mat newFeature = Utils::featureDimReduction(temp_feature, 3);
+			Utils::insertDataToHDF(this->hdf5_file, feature_name, dataset_name, { newFeature, temp_pts }, filterSize, patchSize);
+			feature.clear();
+			pts.clear();
 		}
 	}
 }
@@ -146,7 +148,7 @@ Mat ober::caculTexture(const Mat& hh, const Mat& vv, const Mat& hv) {
 
 	Mat result;
 	vconcat(output, result);
-	return result;
+	return result.reshape(1,1);
 }
 
 // get color features(MPEG-7 DCD,CSD) on Pauli Color image, default feature mat size 1*44
@@ -160,11 +162,15 @@ Mat ober::caculColor(const Mat& hh, const Mat& vv, const Mat& hv) {
 
 // get MP features on grayscaled Pauli Color image, default feature mat size
 Mat ober::caculMP(const Mat& hh, const Mat& vv, const Mat& hv) {
-	Mat colorImg = polsar::GetPauliColorImg(hh, vv, hv);
+	 Mat hh_log = polsar::logTransform(polsar::getComplexAmpl(hh));
+	 Mat vv_log = polsar::logTransform(polsar::getComplexAmpl(vv));
+	  Mat hv_log = polsar::logTransform(polsar::getComplexAmpl(hv));
+	 Mat result;
+	 result.push_back(cvFeatures::GetMP(hh_log, { 1,3,5 }));
+	 result.push_back(cvFeatures::GetMP(vv_log, { 1,3,5 }));
+	  result.push_back(cvFeatures::GetMP(hv_log, { 1,3,5 }));
 
-	Mat result = cvFeatures::GetMP(colorImg, { 1,3,5 });
-	 
-	return result;
+	 return result.reshape(1,1);
 }
 
 
@@ -186,15 +192,14 @@ Mat ober::caculDecomp(const Mat& hh, const Mat& vv, const Mat& hv) {
 	polsar::GetCovarianceC(lexi, covariance);
 
 	vector<Mat> decomposition;
-	//polsar::GetCloudePottierDecomp(coherency, decomposition); //3  
-	polsar::GetFreemanDurdenDecomp(coherency, decomposition); //3  
-	//polsar::GetKrogagerDecomp(circ, decomposition); // 3  
-	//polsar::GetPauliDecomp(pauli, decomposition); // 3  
-	//polsar::GetHuynenDecomp(covariance, decomposition); // 9  
-	//polsar::GetYamaguchi4Decomp(coherency, covariance, decomposition); //4 
+	  polsar::GetCloudePottierDecomp(coherency, decomposition); //8  
+	  polsar::GetFreemanDurdenDecomp(coherency, decomposition); //3  
+	  polsar::GetKrogagerDecomp(circ, decomposition); // 3  
+	  polsar::GetPauliDecomp(pauli, decomposition); // 3  
+	  polsar::GetYamaguchi4Decomp(coherency, covariance, decomposition); //4 
 
 	vconcat(decomposition, result);
-	return result;
+	return result.reshape(1, 1);
 }
 
 
@@ -208,7 +213,7 @@ Mat ober::caculCTelements(const Mat& hh, const Mat& vv, const Mat& hv) {
 		result.push_back(d);
 	}
 
-	return result;
+	return result.reshape(1, 1);
 
 }
 
@@ -259,7 +264,7 @@ Mat ober::caculPolStatistic(const Mat& hh, const Mat& vv, const Mat& hv) {
 
 	Mat output;
 	cv::hconcat(statistic, output);
-	return output;
+	return output.reshape(1, 1);
 }
 
 

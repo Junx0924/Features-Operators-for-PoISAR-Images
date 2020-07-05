@@ -37,7 +37,7 @@ Mat mp::CaculateMP(const Mat& src, int morph_size) {
         dst.convertTo(dst, CV_8UC1);
     }
 
-    Mat element = getStructuringElement(MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1));
+    Mat element = getStructuringElement(MORPH_RECT, cv::Size(morph_size ,morph_size ));
 
     //openning
     Mat open;

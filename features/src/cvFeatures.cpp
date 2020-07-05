@@ -1,6 +1,7 @@
 #include "cvFeatures.hpp"
 
-
+using namespace cv;
+using namespace std;
 
 /*===================================================================
 * Function: GetMP

@@ -5,8 +5,6 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
-using namespace std;
-using namespace cv;
 
 class KNN {
 public:
@@ -14,15 +12,17 @@ public:
 	}
 	~KNN() {
 	}
-	void applyKNN(const vector<Mat>& data, const vector<unsigned char> & data_labels, int k, int trainPercent, vector<unsigned char>& class_result);
+	void applyKNN(const std::vector<cv::Mat>& data, const std::vector<unsigned char> & data_labels, int k, int trainPercent, std::vector<unsigned char>& class_result);
 
-private:
+//private:
 	// return the classify result for the test data
-	float KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& trainLabels, const vector<Mat>& testVal, const vector<unsigned char>& testLabels, int k, vector<unsigned char>& test_result);
+	float KNNTest(const std::vector<cv::Mat>& trainVal, const std::vector<unsigned char>& trainLabels, const std::vector<cv::Mat>& testVal, const std::vector<unsigned char>& testLabels, int k, std::vector<unsigned char>& test_result);
 
-	float Euclidean(Mat& testVal, Mat& trainVal);
+	float Euclidean(cv::Mat& testVal, cv::Mat& trainVal);
 
-	unsigned char Classify(vector<pair<float, unsigned char>>& distVec, int k);
+	unsigned char Classify(std::vector<std::pair<float, unsigned char>>& distVec, int k);
+
+
 };
 
 

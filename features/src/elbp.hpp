@@ -5,8 +5,7 @@
 #include  <opencv2/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-using namespace cv;
-using namespace std;
+
 
 // caculate elbp features
 namespace elbp{
@@ -14,11 +13,11 @@ namespace elbp{
     std::string type2str(int type);
 
     template <typename _Tp>
-    void ELBP(const Mat& src, Mat& dst, int radius, int neighbors);
+    void ELBP(const cv::Mat& src, cv::Mat& dst, int radius, int neighbors);
 
-    void ElbpWrapper(const Mat& src, Mat& dst, int radius, int neighbors);
+    void ElbpWrapper(const cv::Mat& src, cv::Mat& dst, int radius, int neighbors);
 
-    Mat CaculateElbp(const Mat& src, int radius, int neighbors, bool normed);
+    cv::Mat CaculateElbp(const cv::Mat& src, int radius, int neighbors, bool normed);
 
 }
 #endif

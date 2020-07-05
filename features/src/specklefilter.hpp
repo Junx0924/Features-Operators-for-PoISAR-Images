@@ -2,8 +2,7 @@
 #ifndef  SPECKLEFILTER_HPP_
 #define  SPECKLEFILTER_HPP_
 #include <opencv2/opencv.hpp>
-using namespace cv;
-using namespace std;
+
 
 class RefinedLee {
 private:
@@ -37,43 +36,43 @@ public:
 			stride = 3;
 			break;
 		default:
-			cout << "Unknown filter size: " << filterSize << endl;
+			std::cout << "Unknown filter size: " << filterSize << std::endl;
 			exit(-1);
 		}
 
-		float sigmaV = 1.0 / std::sqrt(numLooks);
+		float sigmaV = 1.0f / std::sqrt(numLooks);
 		sigmaVSqr = sigmaV * sigmaV;
 	}
 
 	~RefinedLee() {}
 
-	void filterFullPol(Mat& hh, Mat& vv, Mat& hv);
-	void filterFullPol(Mat& hh, Mat& vv, Mat& hv, Mat& span);
+	void filterFullPol(cv::Mat& hh, cv::Mat& vv, cv::Mat& hv);
+	void filterFullPol(cv::Mat& hh, cv::Mat& vv, cv::Mat& hv, cv::Mat& span);
 
 	
 	//void filterDualPol();
 
 private:
-	float computePixelValueUsingLocalStatistics(const Mat& neighborPixelValues, int numSamples);
+	float computePixelValueUsingLocalStatistics(const cv::Mat& neighborPixelValues, int numSamples);
 
-	float computePixelValueUsingEdgeDetection(const Mat& neighborPixelValues, const Mat& neighborSpanValues);
+	float computePixelValueUsingEdgeDetection(const cv::Mat& neighborPixelValues, const cv::Mat& neighborSpanValues);
 
-	int getLocalData(int x, int y, const Mat& src, const Mat& span, Mat& neighborPixelValues, Mat& neighborSpanValues);
+	int getLocalData(int x, int y, const cv::Mat& src, const cv::Mat& span, cv::Mat& neighborPixelValues, cv::Mat& neighborSpanValues);
 
-	float getLocalMeanValue(const Mat& neighborValues, int numSamples);
+	float getLocalMeanValue(const cv::Mat& neighborValues, int numSamples);
 
-	float getLocalVarianceValue(const Mat& neighborValues, int numSamples, float mean);
+	float getLocalVarianceValue(const cv::Mat& neighborValues, int numSamples, float mean);
 
 	
 
 	// Compute mean values for the 3x3 sub-areas in the sliding window 
-	void computeSubAreaMeans(const Mat& neighborPixelValues, Mat& subAreaMeans);
+	void computeSubAreaMeans(const cv::Mat& neighborPixelValues, cv::Mat& subAreaMeans);
 
 	// Compute the gradient in 3x3 subAreaMeans 
-	int getDirection(const Mat& subAreaMeans);
+	int getDirection(const cv::Mat& subAreaMeans);
 
 	// Get pixel values from the non-edge area indicated by the given direction
-	int getNonEdgeAreaPixelValues(const Mat& neighborPixelValues, int d, Mat& pixels);
+	int getNonEdgeAreaPixelValues(const cv::Mat& neighborPixelValues, int d, cv::Mat& pixels);
 };
 
 

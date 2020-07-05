@@ -104,16 +104,16 @@ Modified by: Jun Xiang 15.06.2020
 Description : This function counts the number of classes in k neighborhood
 Based on which class has the highest count, appropriate class label is returned
 *************************************************************************/
-unsigned char KNN::Classify(vector<pair<float, unsigned char>>& distVec, int k) {
+unsigned char KNN::Classify(std::vector<std::pair<float, unsigned char>>& distVec, int k) {
 	
 	for (int i = k; i >0; --i) {
 		float max = -1;
 		unsigned char max_label = static_cast<unsigned char>(0);
-		map<unsigned char, int> count;
+		std::map<unsigned char, int> count;
 
 		//In case max index cannot be found in K elements, then check K-1 elements
 		for(int j=0; j< i; ++j){
-			unsigned char c = distVec[i].second;
+			unsigned char c = distVec[j].second;
 			count[c]++;
 		}
 
@@ -175,7 +175,7 @@ float KNN::KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& tra
 		unsigned char classVal = this->Classify(distVec, k);
 		classResult.push_back(classVal);
 	}	
-	float accuracy = Utils::calculatePredictionAccuracy(classResult, testLabels);
+	float accuracy = Utils::calculatePredictionAccuracy("feature",classResult, testLabels);
 	return accuracy;
 }
 

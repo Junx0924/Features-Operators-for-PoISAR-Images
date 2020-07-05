@@ -37,12 +37,12 @@
 
 #include <vector>
 #include <opencv2/core.hpp>
-using namespace cv;
+
  
 namespace hdf
 {
 using namespace std;
-
+using namespace cv;
 //! @addtogroup hdf5
 //! @{
 
@@ -801,7 +801,7 @@ public:
   }
   @endcode
    */
-  CV_EXPORTS_W Ptr<HDF5> open( const String& HDF5Filename );
+CV_EXPORTS_W cv::Ptr<HDF5> open(const String& HDF5Filename);
 
 //! @}
 

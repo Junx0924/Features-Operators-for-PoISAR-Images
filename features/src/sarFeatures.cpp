@@ -1,15 +1,9 @@
 #include "sarFeatures.hpp"
-#include "cvFeatures.hpp"
-#include <complex>
-#include <Eigen/Eigenvalues>
-#include <algorithm>    
- 
-
 
 using namespace cv;
 using namespace std;
 
-static constexpr float m_Epsilon = 1e-20f;
+static constexpr float m_Epsilon = 1e-13f;
 const float PI_F = 3.14159265358979f;
 const float CONST_180_PI = 180.0f / PI_F;
 
@@ -18,11 +12,6 @@ Mat polsar::getComplexAmpl(const Mat& in) {
 	Mat out, phase;
 	vector<Mat> channels;
 	split(in, channels);
-
-	//pow(channels[0], 2, channels[0]);
-	//pow(channels[1], 2, channels[1]);
-    //out = channels[0] + channels[1];
-	//pow(out, 0.5, out);
 	cv::cartToPolar(channels[0], channels[1], out, phase);
 	
 	return out;
@@ -269,24 +258,18 @@ Mat polsar::GetFalseColorImg(const Mat& hh, const Mat& vv, const Mat& hv, const 
 
 //R: |HH+VV|, G:|HV|, B: |HH-VV|
 Mat polsar::GetPauliColorImg(const Mat& hh, const Mat& vv, const Mat& hv) {
+	
+	Mat R = logTransform(getComplexAmpl(hh+vv));
+	Mat G = logTransform(getComplexAmpl(hv));
+	Mat B = logTransform(getComplexAmpl(hh-vv));
 
-	vector<Mat> pauli;
-	getPauliBasis(hh, vv, hv, pauli);
-	Mat R = logTransform(getComplexAmpl(pauli[0]));
-	Mat G = logTransform(getComplexAmpl(pauli[2]));
-	Mat B = logTransform(getComplexAmpl(pauli[1]));
-
-	//Mat R = logTransform(getComplexAmpl(hh+vv));
-	//Mat G = logTransform(getComplexAmpl(hv));
-	//Mat B = logTransform(getComplexAmpl(hh-vv));
-
-	//cut everything over 2.5x the mean value
-	float R_mean = cv::mean(R)[0];
-	float G_mean = cv::mean(G)[0];
-	float B_mean = cv::mean(B)[0];
-	threshold(R, R, 2.5 * R_mean, 2.5 * R_mean, THRESH_TRUNC);
-	threshold(G, G, 2.5 * G_mean, 2.5 * G_mean, THRESH_TRUNC);
-	threshold(B, B, 2.5 * B_mean, 2.5 * B_mean, THRESH_TRUNC);
+	////cut everything over 2.5x the mean value
+	//float R_mean = cv::mean(R)[0];
+	//float G_mean = cv::mean(G)[0];
+	//float B_mean = cv::mean(B)[0];
+	//threshold(R, R, 2.5 * R_mean, 2.5 * R_mean, THRESH_TRUNC);
+	//threshold(G, G, 2.5 * G_mean, 2.5 * G_mean, THRESH_TRUNC);
+	//threshold(B, B, 2.5 * B_mean, 2.5 * B_mean, THRESH_TRUNC);
 	return GetColorImg(R, G, B, true);
 }
 
@@ -374,66 +357,6 @@ void polsar::GetPauliDecomp(const vector<Mat>& pauli, vector<Mat> & decompositio
 	decomposition.push_back(logTransform(getComplexAmpl(pauli.at(2))));
 }
 
-// reference:
-// https://gitlab.orfeo-toolbox.org/orfeotoolbox/otb/-/blob/develop/Modules/Filtering/Polarimetry/include/otbReciprocalHuynenDecompImageFilter.h
-void polsar::huynenDecomp(const Mat_<Complexf>& covariance, vector<float>& result) {
-	float A0, B0, B, C, D, E, F, G, H;
-	A0 = covariance.at<Complexf>( 0, 0).re / 2.0f;
-	B0 = (covariance.at<Complexf>(1, 1)+covariance.at<Complexf>(2, 2)).re/ 2.0f;
-	B = covariance.at<Complexf>(1, 1).re - B0;
-	C = covariance.at<Complexf>(0, 1).re;
-	D = -1.0f*covariance.at<Complexf>(0, 1).im;
-	E = covariance.at<Complexf>(1, 2).re;
-	F = covariance.at<Complexf>(1, 2).im;
-	G = covariance.at<Complexf>(0, 2).im;
-	H = covariance.at<Complexf>(0, 2).re;
-	
-	result.push_back(A0);
-	result.push_back(B0);
-	result.push_back(B);
-	result.push_back(C);
-	result.push_back(D);
-	result.push_back(E);
-	result.push_back(F);
-	result.push_back(G);
-	result.push_back(H);
-}
-
-
-void polsar::GetHuynenDecomp(const vector<Mat>& upcorner_coherence, vector<Mat>& decomposition) {
-	Mat A0, B0, B, C, D, E, F, G, H;
-	extractChannel(upcorner_coherence[0], A0, 0);
-	A0 = A0 / 2.0;
-    
-	extractChannel(upcorner_coherence[3]+ upcorner_coherence[5], B0, 0);
-	B0 =  B0 / 2.0;
-
-	extractChannel(upcorner_coherence[3], B, 0);
-	B = B - B0;
-
-	extractChannel(upcorner_coherence[1], C, 0);
-
-	extractChannel(upcorner_coherence[1], D, 1);
-	D = -1.0 * D;
-
-	extractChannel(upcorner_coherence[4], E, 0);
-
-	extractChannel(upcorner_coherence[4], F, 1);
-
-	extractChannel(upcorner_coherence[2], G, 1);
-
-	extractChannel(upcorner_coherence[2], H, 0);
-
-	decomposition.push_back(A0);
-	decomposition.push_back(B0);
-	decomposition.push_back(B);
-	decomposition.push_back(C);
-	decomposition.push_back(D);
-	decomposition.push_back(E);
-	decomposition.push_back(F);
-	decomposition.push_back(G);
-	decomposition.push_back(H);
-}
 
 // reference
 // https://github.com/senbox-org/s1tbx/blob/master/rstb/rstb-op-polarimetric-tools/src/main/java/org/csa/rstb/polarimetric/gpf/decompositions/FreemanDurden.java
@@ -497,89 +420,82 @@ void polsar::freemanDurdenDecomp(const Mat_<Complexf>& covariance, vector<float>
 
 
 // reference:
-// https://gitlab.orfeo-toolbox.org/orfeotoolbox/otb/-/blob/develop/Modules/Filtering/Polarimetry/include/otbReciprocalHAlphaImageFilter.h
+// https://github.com/senbox-org/s1tbx/blob/master/rstb/rstb-op-polarimetric-tools/src/main/java/org/csa/rstb/polarimetric/gpf/decompositions/hAAlpha.java
 void polsar::cloudePottierDecomp(Mat_<Complexf>& coherence, vector<float>& result) {
 
-	Eigen::Map<Eigen::Matrix<std::complex<float>, 3, 3, Eigen::RowMajor>> eigen_mat(coherence.ptr<std::complex<float>>(), coherence.rows, coherence.cols);
-	Eigen::ComplexEigenSolver<Eigen::MatrixXcf> ces;
-	ces.compute(eigen_mat);
-
-	vector<int> V;// indicating positions
-	vector<float> realEigenValues;
-	// extract the first component of each eigen vector sorted by eigen value decrease order
-	vector<complex<float>> cos_alpha;
-
-	int N = ces.eigenvalues().rows();
-	for (int i = 0; i < N; i++) { V.push_back(i); }
-	// sort eigen values in decreasing order, and record the original index in V
-	sort(V.begin(), V.end(), [&](int i, int j) {return ces.eigenvalues()[i].real() > ces.eigenvalues()[j].real(); });
-
-	for(auto & i: V){
-		realEigenValues.push_back(ces.eigenvalues()[i].real());
-		cos_alpha.push_back(ces.eigenvectors()(0.0f, i));
-	}
-	//check the size of eigen values
-	if (N == 2) {
-		realEigenValues.push_back(0.0f);
-		cos_alpha.push_back(complex<float>(0.0f, 0.0f));
-	}
-	if (N == 1) {
-		realEigenValues.push_back(0.0);
-		realEigenValues.push_back(0.0);
-		cos_alpha.push_back(complex<float>(0.0f, 0.0f));
-		cos_alpha.push_back(complex<float>(0.0f, 0.0f));
+	Mat HMr = Mat(3, 3, CV_32FC1); // the real part of Hermitian matrix
+	Mat HMi = Mat(3, 3, CV_32FC1); // the imag part of Hermitian matrix
+	for (int i = 0; i < coherence.rows; i++) {
+		for (int j = 0; j < coherence.cols; j++) {
+			HMr.at<float>(i, j) = coherence.at<Complexf>(i, j).re;
+			HMi.at<float>(i, j) = coherence.at<Complexf>(i, j).im;
+		}
 	}
 
-	// Entropy estimation
-	float totalEigenValues = 0.0f;
-	float p[3];
-	float plog[3];
-	float entropy;
-	float alpha;
-	float anisotropy;
-	for (unsigned int k = 0; k < 3; ++k)
-	{
-		realEigenValues[k] = std::max(realEigenValues[k], 0.0f);
-		totalEigenValues += realEigenValues[k];
+	Mat EigenVectRe = Mat(3,3, CV_32FC1);
+	Mat EigenVectIm = Mat(3, 3, CV_32FC1);
+	vector<float> EigenVal(3);
+	std::array<float,3> lambda , p, alpha, phi, beta, delta, gamma;
+	eigenDecomposition(3, HMr, HMi, EigenVectRe, EigenVectIm, EigenVal);
+	float sum = 0.0f;
+	for (int i = 0; i < 3; ++i) {
+		lambda[i] = EigenVal[i];
+		sum += lambda[i];
 	}
 
-
-	for (unsigned int k = 0; k < 3; ++k)
-	{
-		p[k] = realEigenValues[k] / totalEigenValues;
-
-		if (p[k] < m_Epsilon) // n=log(n)-->0 when n-->0
-			plog[k] = 0.0f;
-		else
-			plog[k] = -p[k] * log(p[k]) / log(3.0f);
+	float EPS = m_Epsilon;
+	for (int j = 0; j < 3; ++j) {
+		alpha[j] = std::acos(std::sqrt(EigenVectRe.at<float>(0,j)* EigenVectRe.at<float>(0, j)+ EigenVectIm.at<float>(0, j)*EigenVectIm.at<float>(0,j))) * CONST_180_PI;
+		beta[j] = std::atan2(std::sqrt(EigenVectRe.at<float>(2,j)* EigenVectRe.at<float>(2, j)+ EigenVectIm.at<float>(2, j)*EigenVectIm.at<float>(2,j)),
+			EPS + std::sqrt(EigenVectRe.at<float>(1,j)* EigenVectRe.at<float>(1, j)+EigenVectIm.at<float>(1,j)* EigenVectIm.at<float>(1, j))) * CONST_180_PI;
+		phi[j] = std::atan2(EigenVectIm.at<float>(0,j), EPS + EigenVectRe.at<float>(0,j));
+		delta[j] = std::atan2(EigenVectIm.at<float>(1,j), EPS + EigenVectRe.at<float>(1,j)) - phi[j];
+		delta[j] = std::atan2(std::sin(delta[j]), std::cos(delta[j]) + EPS) * CONST_180_PI;
+		gamma[j] = std::atan2(EigenVectIm.at<float>(2,j), EPS + EigenVectRe.at<float>(2,j)) - phi[j];
+		gamma[j] = std::atan2(std::sin(gamma[j]),std::cos(gamma[j]) + EPS) * CONST_180_PI;
+		p[j] = lambda[j] / sum;
+		if (p[j] < 0) {
+			p[j] = 0;
+		}
+		else if (p[j] > 1) {
+			p[j] = 1;
+		}
 	}
 
-	entropy = 0.0f;
-	for (unsigned int k = 0; k < 3; ++k)
-		entropy += plog[k];
+	float meanLambda = 0.0f;
+	float meanAlpha = 0.0f;
+	float meanBeta = 0.0f;
+	float meanDelta = 0.0f;
+	float meanGamma = 0.0f;
+	float entropy = 0.0f;
+	for (int k = 0; k < 3; ++k) {
+		meanLambda += p[k] * lambda[k];
+		meanAlpha += p[k] * alpha[k];
+		meanBeta += p[k] * beta[k];
+		meanDelta += p[k] * delta[k];
+		meanGamma += p[k] * gamma[k];
+		entropy -= p[k] * std::log10(p[k] + EPS);
+	}
 
-	// Anisotropy estimation
-	anisotropy = (realEigenValues[1] - realEigenValues[2]) / (realEigenValues[1] + realEigenValues[2] + m_Epsilon);
-
-	// alpha estimation
-	float val0, val1, val2;
-	float a0, a1, a2;
-
-	val0 = std::abs(cos_alpha[0]);
-	a0 = acos(std::abs(val0)) * CONST_180_PI;
-
-	val1 = std::abs(cos_alpha[1]);
-	a1 = acos(std::abs(val1)) * CONST_180_PI;
-
-	val2 = std::abs(cos_alpha[2]);
-	a2 = acos(std::abs(val2)) * CONST_180_PI;
-
-	alpha = p[0] * a0 + p[1] * a1 + p[2] * a2;
+	entropy /= std::log10(3.0f);
+	float anisotropy = (p[1] - p[2]) / (p[1] + p[2] + EPS);
 
 	result.push_back(entropy);
 	result.push_back(anisotropy);
-	result.push_back(alpha);
+	//result.push_back(meanAlpha);
+	//result.push_back(meanBeta);
+	//result.push_back(meanDelta);
+	//result.push_back(meanGamma);
+	//result.push_back(meanLambda);
+	result.push_back(alpha[0]);
+	result.push_back(alpha[1]); 
+	result.push_back(alpha[2]);
+	result.push_back(lambda[0]);
+	result.push_back(lambda[1]);
+	result.push_back(lambda[2]);
 }
+
+ 
 
 //reference
 //https://github.com/senbox-org/s1tbx/blob/master/rstb/rstb-op-polarimetric-tools/src/main/java/org/csa/rstb/polarimetric/gpf/decompositions/Yamaguchi.java
@@ -689,25 +605,21 @@ void polsar::GetCloudePottierDecomp(const vector<Mat>& upcorner_coherence, vecto
 	int rows = upcorner_coherence[0].rows;
 	int cols = upcorner_coherence[0].cols;
 
-	// record the result
-	Mat H = Mat::zeros(rows,cols, CV_32FC1);
-	Mat A = Mat::zeros(rows, cols,  CV_32FC1);
-	Mat Alpha = Mat::zeros(rows, cols,  CV_32FC1);
-
+	decomposition = vector<Mat>(8);
+	for (auto& d : decomposition) {
+		d = Mat(rows, cols, CV_32FC1);
+	}
 	Mat_<Complexf> t = Mat_<Complexf>(3, 3);
 	for (int i = 0; i < rows; i++) {
 		for (int j = 0; j <cols; j++) {
 			t = restoreMatrix(upcorner_coherence, i, j);
 			vector<float> result;
 			cloudePottierDecomp(t, result);
-			H.at<float>(i, j) = result[0];
-			Alpha.at<float>(i, j) = result[1];
-			A.at<float>(i, j) = result[2];
+			for (int k = 0; k < result.size(); k++) {
+				decomposition[k].at<float>(i, j) = result[k];
+			}
 		}
 	}
-	decomposition.push_back(H);
-	decomposition.push_back(Alpha);
-	decomposition.push_back(A);
 }
 
 void polsar::GetYamaguchi4Decomp(const vector<Mat>& upcorner_coherence, const vector<Mat> & upcorner_covariance, vector<Mat>& decomposition) {
@@ -792,3 +704,192 @@ Mat polsar::restoreMatrix(const vector<Mat>& mat, int row, int col) {
 	return m;
 }
 
+
+/**
+	 * Perform eigenvalue decomposition for a given Hermitian matrix
+	 *
+	 * @param n           Matrix dimension
+	 * @param HMr         the real part of the Hermitian matrix 
+	 * @param HMi         the imag part of the Hermitian matrix 
+	 * @param EigenVectRe Real part of the eigenvector matrix
+	 * @param EigenVectIm Imaginary part of the eigenvector matrix
+	 * @param EigenVal    Eigenvalue vector
+	 */
+void polsar::eigenDecomposition(int n, const Mat& HMr, const Mat& HMi, Mat & EigenVectRe, Mat & EigenVectIm, vector<float> & EigenVal) {
+
+	Mat ar = Mat(n,n,CV_32FC1);
+	Mat ai = Mat(n, n, CV_32FC1);
+	Mat vr = Mat(n, n, CV_32FC1);
+	Mat vi = Mat(n, n, CV_32FC1);
+	vector<float> d(n),z(n);
+	array<float,2> w ,s,c,titi,gc,hc;
+	float sm, tresh, x, toto, e, f, g, h, r, d1, d2;
+	int n2 = n * n;
+
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < n; j++) {
+			ar.at<float>(i,j) = HMr.at<float>(i,j);
+			ai.at<float>(i,j) = HMi.at<float>(i,j);
+			vr.at<float>(i,j) = 0.0;
+			vi.at<float>(i,j) = 0.0;
+		}
+		vr.at<float>(i, i) = 1.0f;
+		vi.at<float>(i, i) = 0.0f;
+
+		d[i] = ar.at<float>(i, i);
+		z[i] = 0.0f;
+	}
+
+	 int iiMax = 1000 * n2;
+	for (int ii = 1; ii < iiMax; ii++) {
+
+		sm = 0.;
+		for (int p = 0; p < n - 1; p++) {
+			for (int q = p + 1; q < n; q++) {
+				sm += 2.0f * std::sqrt(ar.at<float>(p,q) * ar.at<float>(p,q) + ai.at<float>(p,q) * ai.at<float>(p,q));
+			}
+		}
+		sm /= (n2 - n);
+
+		if (sm < 1.E-16f) {
+			break;
+		}
+
+		tresh = 1.E-17f;
+		if (ii < 4) {
+			tresh = (long)0.2 * sm / n2;
+		}
+
+		x = -1.E-15f;
+		int p = 0;
+		int q = 0;
+		for (int i = 0; i < n - 1; i++) {
+			for (int j = i + 1; j < n; j++) {
+				toto = std::sqrt(ar.at<float>(i,j) * ar.at<float>(i,j) + ai.at<float>(i,j) * ai.at<float>(i,j));
+				if (x < toto) {
+					x = toto;
+					p = i;
+					q = j;
+				}
+			}
+		}
+		toto = std::sqrt(ar.at<float>(p,q) * ar.at<float>(p,q) + ai.at<float>(p,q) * ai.at<float>(p,q));
+		if (toto > tresh) {
+			e = d[p] - d[q];
+			w[0] = ar.at<float>(p,q);
+			w[1] = ai.at<float>(p,q);
+			g = std::sqrt(w[0] * w[0] + w[1] * w[1]);
+			g = g * g;
+			f = std::sqrt(e * e + 4.0f * g);
+			d1 = e + f;
+			d2 = e - f;
+			if (std::abs(d2) > std::abs(d1)) {
+				d1 = d2;
+			}
+			r = std::abs(d1) / std::sqrt(d1 * d1 + 4.0f * g);
+			s[0] = r;
+			s[1] = 0.0f;
+			titi[0] = 2.0f * r / d1;
+			titi[1] = 0.0f;
+			c[0] = titi[0] * w[0] - titi[1] * w[1];
+			c[1] = titi[0] * w[1] + titi[1] * w[0];
+			r = std::sqrt(s[0] * s[0] + s[1] * s[1]);
+			r = r * r;
+			h = (d1 / 2.0f + 2.0f * g / d1) * r;
+			d[p] = d[p] - h;
+			z[p] = z[p] - h;
+			d[q] = d[q] + h;
+			z[q] = z[q] + h;
+			ar.at<float>(p,q) = 0.0f;
+			ai.at<float>(p,q) = 0.0f;
+
+			for (int j = 0; j < p; j++) {
+				gc[0] = ar.at<float>(j,p);
+				gc[1] = ai.at<float>(j,p);
+				hc[0] = ar.at<float>(j,q);
+				hc[1] = ai.at<float>(j,q);
+				ar.at<float>(j,p) = c[0] * gc[0] - c[1] * gc[1] - s[0] * hc[0] - s[1] * hc[1];
+				ai.at<float>(j,p) = c[0] * gc[1] + c[1] * gc[0] - s[0] * hc[1] + s[1] * hc[0];
+				ar.at<float>(j,q) = s[0] * gc[0] - s[1] * gc[1] + c[0] * hc[0] + c[1] * hc[1];
+				ai.at<float>(j,q) = s[0] * gc[1] + s[1] * gc[0] + c[0] * hc[1] - c[1] * hc[0];
+			}
+			for (int j = p + 1; j < q; j++) {
+				gc[0] = ar.at<float>(p,j);
+				gc[1] = ai.at<float>(p,j);
+				hc[0] = ar.at<float>(j,q);
+				hc[1] = ai.at<float>(j,q);
+				ar.at<float>(p,j) = c[0] * gc[0] + c[1] * gc[1] - s[0] * hc[0] - s[1] * hc[1];
+				ai.at<float>(p,j) = c[0] * gc[1] - c[1] * gc[0] + s[0] * hc[1] - s[1] * hc[0];
+				ar.at<float>(j,q) = s[0] * gc[0] + s[1] * gc[1] + c[0] * hc[0] + c[1] * hc[1];
+				ai.at<float>(j,q) = -s[0] * gc[1] + s[1] * gc[0] + c[0] * hc[1] - c[1] * hc[0];
+			}
+			for (int j = q + 1; j < n; j++) {
+				gc[0] = ar.at<float>(p,j);
+				gc[1] = ai.at<float>(p,j);
+				hc[0] = ar.at<float>(q,j);
+				hc[1] = ai.at<float>(q,j);
+				ar.at<float>(p,j) = c[0] * gc[0] + c[1] * gc[1] - s[0] * hc[0] + s[1] * hc[1];
+				ai.at<float>(p,j) = c[0] * gc[1] - c[1] * gc[0] - s[0] * hc[1] - s[1] * hc[0];
+				ar.at<float>(q,j) = s[0] * gc[0] + s[1] * gc[1] + c[0] * hc[0] - c[1] * hc[1];
+				ai.at<float>(q,j) = s[0] * gc[1] - s[1] * gc[0] + c[0] * hc[1] + c[1] * hc[0];
+			}
+			for (int j = 0; j < n; j++) {
+				gc[0] = vr.at<float>(j,p);
+				gc[1] = vi.at<float>(j,p);
+				hc[0] = vr.at<float>(j,q);
+				hc[1] = vi.at<float>(j,q);
+				vr.at<float>(j,p) = c[0] * gc[0] - c[1] * gc[1] - s[0] * hc[0] - s[1] * hc[1];
+				vi.at<float>(j,p) = c[0] * gc[1] + c[1] * gc[0] - s[0] * hc[1] + s[1] * hc[0];
+				vr.at<float>(j,q) = s[0] * gc[0] - s[1] * gc[1] + c[0] * hc[0] + c[1] * hc[1];
+				vi.at<float>(j,q) = s[0] * gc[1] + s[1] * gc[0] + c[0] * hc[1] - c[1] * hc[0];
+			}
+		}
+	}
+
+	for (int k = 0; k < n; k++) {
+		d[k] = 0;
+		for (int i = 0; i < n; i++) {
+			for (int j = 0; j < n; j++) {
+				d[k] = d[k] + vr.at<float>(i,k) * (HMr.at<float>(i,j) * vr.at<float>(j,k) - HMi.at<float>(i,j) * vi.at<float>(j,k));
+				d[k] = d[k] + vi.at<float>(i,k) * (HMr.at<float>(i,j) * vi.at<float>(j,k) + HMi.at<float>(i,j) * vr.at<float>(j,k));
+			}
+		}
+	}
+
+	float tmp_r, tmp_i;
+	for (int i = 0; i < n; i++) {
+		for (int j = i + 1; j < n; j++) {
+			if (d[j] > d[i]) {
+				x = d[i];
+				d[i] = d[j];
+				d[j] = x;
+				for (int k = 0; k < n; k++) {
+					tmp_r = vr.at<float>(k,i);
+					tmp_i = vi.at<float>(k,i);
+					vr.at<float>(k,i) = vr.at<float>(k,j);
+					vi.at<float>(k,i) = vi.at<float>(k,j);
+					vr.at<float>(k,j) = tmp_r;
+					vi.at<float>(k,j) = tmp_i;
+				}
+			}
+		}
+	}
+
+	if (EigenVal.size() == 0) {
+		EigenVal = vector<float>(n);
+	}
+	if (EigenVectIm.rows == 0) {
+		EigenVectIm = Mat(n, n, CV_32FC1);
+	}
+	if (EigenVectRe.rows == 0) {
+		EigenVectRe = Mat(n, n, CV_32FC1);
+	}
+	for (int i = 0; i < n; i++) {
+		EigenVal[i] = d[i];
+		for (int j = 0; j < n; j++) {
+			EigenVectRe.at<float>(i,j) = vr.at<float>(i,j);
+			EigenVectIm.at<float>(i,j) = vi.at<float>(i,j);
+		}
+	}
+}
+ 
