@@ -2,89 +2,105 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include<opencv2/core/cvdef.h>
-#include<opencv2/opencv.hpp>
-#include  <opencv2/ml.hpp>
-#include  <opencv2/highgui/highgui.hpp>
+#include <opencv2/core/cvdef.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/ml.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/features2d.hpp>
 #include <iostream>
 #include <fstream>
 #include <random>
 #include "sarFeatures.hpp"
-#include "cv_hdf5.hpp"
-#include "Geotiff.hpp"
 #include "KNN.hpp"
-
-
-using namespace std;
-using namespace cv;
+#include "cv_hdf5.hpp"
+#include "../tsne/tsne.h"
 
 namespace Utils {
-	    // by Anupama Rajkumar
-		void GetPatchIndex(int sizeOfPatch, Point2i& samplePoint, const Mat& LabelMap, int& min_col, int& min_row, int& max_col, int& max_row);
-		float calculatePredictionAccuracy(const vector<unsigned char>& classResult, const vector<unsigned char>& testLabels);
-		Mat generateLabelMap(const vector<Mat>& masks);
+	    // calculate the accuracy for each class, and return the overal accuracy
+		float calculatePredictionAccuracy(const std::string& feature_name, const std::vector<unsigned char>& classResult, const std::vector<unsigned char>& testLabels);
+		cv::Mat generateLabelMap(const std::vector<cv::Mat>& masks);
 
 
 		// by Jun Xiang
-		// classifier_type: choose from {KNN, RF}
-		void classifyFeaturesML(const String& hdf5_fileName, const string& feature_name, const string classifier_type, int trainPercent, int filterSize, int patchSize);
-		void applyML(const vector<Mat>& data, const vector<unsigned char>& data_labels, int trainPercent, const string& classifier_type, vector<unsigned char>& class_result);
+
+		// feature dimension reduction by T-SNE
+		// save the dimension reduced features to txt file
+		// check the KNN accuracy on dim reduced features
+		void featureDimReduction(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize);
+		cv::Mat featureDimReduction(const cv::Mat & feature, int new_dims =2);
+
+		// use opencv ml functions
+		// feature_name: choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+		// classifier_type: choose from {"KNN", "RF", "FLANN"}
+		void classifyFeaturesML(const std::string& hdf5_fileName, const std::string& feature_name, const std::string classifier_type, int trainPercent, int filterSize, int patchSize);
+		// return the class results
+		void applyML(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_labels, int trainPercent, const std::string& classifier_type, std::vector<unsigned char>& class_result);
+		void splitVec(const std::vector<cv::Mat>& features, const std::vector<unsigned char>& labels, const std::vector<cv::Point>& labelPoints, std::vector<std::vector<cv::Mat>>& subFeatures,
+			std::vector<std::vector<unsigned char>>& subLables, std::vector<std::vector<cv::Point>>& subLabelPoints, int n = 4);
 		
-		// input: the ground_truth label and the test label
+		// self written KNN
+		// feature_name: choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+		void classifyFeaturesKNN(const std::string& hdf5_fileName, const std::string& feature_name, int k, int trainPercent, int filterSize, int patchSize);
+
+		// input: the class label
 		// return: the color
-		Vec3b getLabelColor( unsigned char class_result);
-	    // feature_name: choose from { texture, color, ctElements,polStatistic,decomp, MP}
-		void generateColorMap(const String& hdf5_fileName, const string& feature_name, const string& class_result, int filterSize,int patchSize);
+		cv::Vec3b getLabelColor( unsigned char class_label);
 		
-		// feature_name: choose from { texture, color, ctElements,polStatistic,decomp, MP}
-		void classifyFeaturesKNN(const String& hdf5_fileName, const string& feature_name, int k, int trainPercent, int filterSize, int patchSize);
+		// get the colormap of classified results
+		// feature_name: choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+		// classifier_type: choose from {"KNN", "RF", "FLANN"}
+		void generateColorMap(const std::string& hdf5_fileName, const std::string& feature_name, const std::string& classifier_type, int filterSize,int patchSize);
+		
+		// get feature, featureLabels and labelPoints from hdf5 file
+        // feature_name: choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+		void getFeaturesFromHDF(const std::string& hdf5_fileName, const std::string& feature_name, std::vector<std::string>& dataset_name,
+			std::vector<cv::Mat>& features, std::vector<unsigned char>& featureLabels, std::vector<cv::Point>& labelPoints, int filterSize = 5, int patchSize = 20); 
+
 		// write back the classified result to hdf ( sample points, class result from classifier)
-		void saveClassResultToHDF(const String& hdf5_fileName, const String& parent_name, const string& dataset_name,
-			const vector<unsigned char>& class_result, const vector<Point>& points, int filterSize, int patchSize);
-		void getFeaturesFromHDF(const String& hdf5_fileName, const String& parent_name, const vector<String>& dataset_name,
-			vector<Mat>& features, vector<unsigned char>& featureLabels, vector<Point>& labelPoints, int filterSize = 5, int patchSize = 20);
+		// feature_name: choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+		// classResult_name: choose from {"/KNN","/RF","/FLANN" }
+		void saveClassResultToHDF(const std::string& hdf5_fileName, const std::string& feature_name, const std::string& classResult_name,
+			const std::vector<unsigned char>& class_result, const std::vector<cv::Point>& points, int filterSize, int patchSize);
 
 
 		// generate all the possible sample points
-		vector<Point>  generateSamplePoints(const Mat& labelMap, const int& sampleSize, const int & stride );
+		std::vector<cv::Point>  generateSamplePoints(const cv::Mat& labelMap, const int& sampleSize, const int & stride );
 		// get random samples of homogeneous area for one type of class, numOfSamplePointPerClass =0 means to return all the possible sample points
-		void getRandomSamplePoint(const Mat& labelMap, vector<Point>& samplePoints, const unsigned char& sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass);
+		void getRandomSamplePoint(const cv::Mat& labelMap, std::vector<cv::Point>& samplePoints, const unsigned char& sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass);
 
 
 		//************* HDF5 file read/write/insert/delete *****************//
-		bool checkExistInHDF(const String& filename, const String& parent_name, const vector<string>& dataset_name,int filterSize,int patchSize);
-		bool checkExistInHDF(const String& filename, const String& parent_name, const string& dataset_name);
+		bool checkExistInHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name,int filterSize,int patchSize);
+		bool checkExistInHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name);
 		// delete dataset from hdf5 file
-		void deleteDataFromHDF(const String& filename, const String& parent_name, const String& dataset_name);
-		void deleteDataFromHDF(const String& filename, const String& parent_name, const vector<String>& dataset_name, int filterSize, int patchSize);
+		void deleteDataFromHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name);
+		void deleteDataFromHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, int filterSize, int patchSize);
 		// eg: filename = "ober.h5", parent_name = "/filtered_data", dataset_name = "/hh_filterSize_5"
-		void writeDataToHDF(const String& filename, const String& parent_name, const String& dataset_name, const Mat& data);
-		void writeDataToHDF(const String& filename, const String& parent_name, const vector<String>& dataset_name, const vector<Mat>& data,int filterSize =0, int patchSize =0);
+		void writeDataToHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name, const cv::Mat& data);
+		void writeDataToHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, const std::vector<cv::Mat>& data,int filterSize =0, int patchSize =0);
 		// eg: filename = "ober.h5" ,parent_name = "/filtered_data", dataset_name = "/hh_filterSize_5"
-		void readDataFromHDF(const String& filename, const String& parent_name, const String& dataset_name, Mat& data);
-		void readDataFromHDF(const String& filename, const String& parent_name, const vector<String>& dataset_name,  vector<Mat>& data, int filterSize =0, int patchSize =0);
+		void readDataFromHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name, cv::Mat& data);
+		void readDataFromHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name,  std::vector<cv::Mat>& data, int filterSize =0, int patchSize =0);
 		//write attribute to the root group
-		void writeAttrToHDF(const String& filename, const String& attribute_name, const int &attribute_value);
-		void writeAttrToHDF(const String& filename, const String& attribute_name, const string &attribute_value);
-		void readAttrFromHDF(const String& filename, const String& attribute_name, int& attribute_value);
-		void readAttrFromHDF(const String& filename, const String& attribute_name, string& attribute_value);
+		void writeAttrToHDF(const std::string& filename, const std::string& attribute_name, const int &attribute_value);
+		void writeAttrToHDF(const std::string& filename, const std::string& attribute_name, const std::string &attribute_value);
+		void readAttrFromHDF(const std::string& filename, const std::string& attribute_name, int& attribute_value);
+		void readAttrFromHDF(const std::string& filename, const std::string& attribute_name, std::string& attribute_value);
 		//insert data
-		bool insertDataToHDF(const String& filename, const String& parent_name, const String& dataset_name, const Mat& data);
-		bool insertDataToHDF(const String& filename, const String& parent_name, const vector<string>& dataset_name, const vector<Mat>& data, int filterSize, int patchSize);
+		bool insertDataToHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name, const cv::Mat& data);
+		bool insertDataToHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, const std::vector<cv::Mat>& data, int filterSize, int patchSize);
 
 
-		//************** Tiff file  read ***************************//
-		Mat readTiff(string filepath);
-
+		
 		
 		//************** Prepare dataset for KNN / Random Forest ***************************//
 		// split the data into train/test set balancely in different classes
 		// return the index of the test data in original data
 		// fold : crossvalidation number,an integer between {1, 100 / (100 - percentOfTrain)}
-		vector<int> DivideTrainTestData(const vector<Mat>& data, const vector<unsigned char>& data_label, int percentOfTrain,
-			vector<Mat>& train_img, vector<unsigned char>& train_label, vector<Mat>& test_img, vector<unsigned char>& test_label, int fold);
-		vector<int> shuffleDataSet(vector<Mat>& data, vector<unsigned char>& data_label);
-		Mat getConfusionMatrix(const map<unsigned char, string>& className, vector<unsigned char>& classResult, vector<unsigned char>& testLabels);
+		std::vector<int> DivideTrainTestData(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_label, int percentOfTrain,
+			std::vector<cv::Mat>& train_img, std::vector<unsigned char>& train_label, std::vector<cv::Mat>& test_img, std::vector<unsigned char>& test_label, int fold);
+		std::vector<int> shuffleDataSet(std::vector<cv::Mat>& data, std::vector<unsigned char>& data_label);
+		cv::Mat getConfusionMatrix(const std::map<unsigned char, std::string>& className, std::vector<unsigned char>& classResult, std::vector<unsigned char>& testLabels);
 
 };
 #endif

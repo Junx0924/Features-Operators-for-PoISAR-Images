@@ -1,7 +1,6 @@
 #include "Utils.h"
 
-using namespace std;
-using namespace cv;
+
 
 /**********************************
 Generating a label map
@@ -13,13 +12,13 @@ label classes.This map serves as points of reference when trying to classify
 patches
 * ************************************************************************/
 
-Mat Utils::generateLabelMap(const vector<Mat> & masks) {
+cv::Mat Utils::generateLabelMap(const std::vector<cv::Mat> & masks) {
 	size_t NUMOFCLASSES = masks.size();
 	int rows = masks[0].rows;
 	int cols = masks[0].cols;
-	Mat labelMap = Mat::zeros(rows, cols, CV_8UC1);
+	cv::Mat labelMap = cv::Mat::zeros(rows, cols, CV_8UC1);
 	for (size_t cnt = 0; cnt < NUMOFCLASSES; cnt++) {
-		Mat mask = masks[cnt];
+		cv::Mat mask = masks[cnt];
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
 				if (labelMap.at<unsigned char>(row, col) == (unsigned char)(0)) {
@@ -39,65 +38,30 @@ Mat Utils::generateLabelMap(const vector<Mat> & masks) {
 input: the ground_truth label and the label from classifiers
 return: the color
 *************************************************************************/
-Vec3b Utils::getLabelColor(unsigned char class_result)
+cv::Vec3b Utils::getLabelColor(unsigned char class_result)
 {
-	 Vec3b labelColor;
+	cv::Vec3b labelColor;
 
 	// Color is BGR not RGB!
-	 Vec3b red = Vec3b(49, 60, 224); //city
+	cv::Vec3b red = cv::Vec3b(49, 60, 224); //city
 
-	 Vec3b blue = Vec3b(164, 85, 50); //street
+	cv::Vec3b blue = cv::Vec3b(164, 85, 50); //street
 
-	 Vec3b yellow = Vec3b(0, 190, 246); //field
+	cv::Vec3b yellow = cv::Vec3b(0, 190, 246); //field
 
-	 Vec3b dark_green = Vec3b(66, 121, 79); //forest
+	cv::Vec3b dark_green = cv::Vec3b(66, 121, 79); //forest
 
-	 Vec3b light_green = Vec3b(0, 189, 181); // grassland
+	cv::Vec3b light_green = cv::Vec3b(0, 189, 181); // grassland
 
-	 Vec3b black = Vec3b(0, 0, 0);
+	cv::Vec3b black = cv::Vec3b(0, 0, 0);
 
-	vector<Vec3b> right_color = { red,  yellow, dark_green, light_green,blue, black };
+	std::vector<cv::Vec3b> right_color = { red,  yellow, dark_green, light_green,blue, black };
 	
 	
 	labelColor = right_color[int(class_result)-1];
 	 
 	return labelColor;
 }
-
-
-
-/***********************************************************************
-Helper function to get the patch start and end index from label map
-make sure the patch stays in one type of class areas
-Author : Anupama Rajkumar
-Date : 29.05.2020
-Modified by: Jun Xiang
-*************************************************************************/
-
-void Utils::GetPatchIndex(int sizeOfPatch, Point2i &samplePoint,const Mat& LabelMap, int& start_col, int& start_row, int& end_col, int& end_row) {
-	// (x,y)->(col,row)
-	start_col = samplePoint.x - (sizeOfPatch / 2.);
-	start_row = samplePoint.y - (sizeOfPatch / 2.);
-
-	end_col = samplePoint.x + (sizeOfPatch / 2.);
-	end_row = samplePoint.y + (sizeOfPatch / 2.);
-
-	if ((start_col < 0) || (start_row < 0))
-	{
-		start_col = 0;
-		start_row = 0;
-		end_col = sizeOfPatch;
-		end_row = sizeOfPatch;
-	}
-	if ((end_row > LabelMap.rows) || (end_col > LabelMap.cols))
-	{
-		start_row = LabelMap.rows - 1 - sizeOfPatch;
-		start_col = LabelMap.cols - 1 - sizeOfPatch;
-		end_row = LabelMap.rows - 1;
-		end_col = LabelMap.cols - 1;
-	}
-}
-
 
 
 
@@ -108,16 +72,16 @@ int fold: the cross validation fold number, an integer between {1, 100 / (100 - 
 Modified by: Jun 15.06.2020
 return: the index of test data in the original data 
 *************************************************************/
-vector<int> Utils::DivideTrainTestData(const vector<Mat> &data, const vector<unsigned char> & data_label, int percentOfTrain,
-	vector<Mat> & train_img,  vector<unsigned char> &train_label, vector<Mat>& test_img, vector<unsigned char> & test_label,int fold) {
+std::vector<int> Utils::DivideTrainTestData(const std::vector<cv::Mat> &data, const std::vector<unsigned char> & data_label, int percentOfTrain,
+	std::vector<cv::Mat> & train_img,  std::vector<unsigned char> &train_label, std::vector<cv::Mat>& test_img, std::vector<unsigned char> & test_label,int fold) {
 	
-	std::map<unsigned char, vector<int>> numPerClass;
+	std::map<unsigned char, std::vector<int>> numPerClass;
 	int index = 0;
 	for (auto c : data_label) { 
 		numPerClass[c].push_back(index); 
 		index++;
 	}
-	vector<int> train_index, test_index;
+	std::vector<int> train_index, test_index;
 	int total_folds = 100 / (100 - percentOfTrain);
 
 	// make sure each class is divided 80% as train, 20% as test
@@ -126,12 +90,12 @@ vector<int> Utils::DivideTrainTestData(const vector<Mat> &data, const vector<uns
 		size_t train_size = it->second.size() * percentOfTrain / 100;
 		size_t test_size = it->second.size() - train_size;
 
-		vector<int> indOfClass;
+		std::vector<int> indOfClass;
 		// expand indOfClass twice
 		copy(it->second.begin(), it->second.end(), back_inserter(indOfClass));
 		copy(it->second.begin(),it->second.end(), back_inserter(indOfClass));
 
-		vector<int> train_temp, test_temp;
+		std::vector<int> train_temp, test_temp;
 		int train_temp_size = 0;
 		int test_temp_size = 0;
 		for (size_t i = 0; i < indOfClass.size(); ++i) {
@@ -161,127 +125,118 @@ vector<int> Utils::DivideTrainTestData(const vector<Mat> &data, const vector<uns
 	return test_index;
 }
 
-void Utils::generateColorMap(const String& hdf5_fileName, const string& feature_name, const string & result, int filterSize, int patchSize) {
-	vector<unsigned char> labels;
-	Mat pts;
-	Mat labelMap;
+void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string& feature_name, const std::string & classifier_type, int filterSize, int patchSize) {
+	std::vector<unsigned char> labels;
+	cv::Mat pts;
+	cv::Mat labelMap;
 
-	string dataset = result;
-	string parent = feature_name;
-	if (patchSize != 0) { dataset = dataset + "_patchSize_" + to_string(patchSize); }
-	if (filterSize != 0) { parent = feature_name + "_filterSize_" + to_string(filterSize); }
+	std::string dataset = "/"+classifier_type;
+	std::string parent = feature_name;
+	if (patchSize != 0) { dataset = dataset + "_patchSize_" + std::to_string(patchSize); }
+	if (filterSize != 0) { parent = feature_name + "_filterSize_" + std::to_string(filterSize); }
 
 	Utils::readDataFromHDF(hdf5_fileName, feature_name, dataset,pts);
 	Utils::readDataFromHDF(hdf5_fileName, "/masks", "/labelMap", labelMap);
 	if(!pts.empty()){
-		Mat colormap = Mat::zeros(Size(labelMap.size()), CV_8UC3);
-		Mat colorLabelMap = Mat::zeros(Size(labelMap.size()), CV_8UC3);
+		cv::Mat colorResultMap = cv::Mat::zeros(cv::Size(labelMap.size()), CV_8UC3);
+		cv::Mat colorLabelMap = cv::Mat::zeros(cv::Size(labelMap.size()), CV_8UC3);
 		for (int i = 0; i < pts.rows; ++i) {
 			int row = pts.at<int>(i, 1);
 			int col = pts.at<int>(i, 2);
 			unsigned char label = unsigned char(pts.at<int>(i, 0));
 			 unsigned char ground_truth = labelMap.at<unsigned char>(row, col);
-			colormap.at<Vec3b>(row, col) = getLabelColor( label);
-			colorLabelMap.at<Vec3b>(row, col) = getLabelColor(ground_truth);
-			if (patchSize >0) {
-				for (int r = row - patchSize / 2; r < row + patchSize / 2; ++r) {
-					for (int c = col - patchSize / 2; c < col + patchSize / 2; ++c){
-						colormap.at<Vec3b>(r, c) = getLabelColor(label);
-					    colorLabelMap.at<Vec3b>(r, c) = getLabelColor(ground_truth);
-					}
-				}
-			}
+			 colorResultMap.at<cv::Vec3b>(row, col) = getLabelColor( label);
+			colorLabelMap.at<cv::Vec3b>(row, col) = getLabelColor(ground_truth);
 		}
-		cout << "generate " << feature_name.substr(1) + "_colormap.png" << endl;
-		cv::imwrite(feature_name.substr(1) + "_colormap.png", colormap);
+		std::cout << "generate " << feature_name.substr(1) + "_colormap.png" << std::endl;
+		cv::imwrite(feature_name.substr(1) + "_colormap.png", colorResultMap);
 		cv::imwrite("colorLabelMap.png", colorLabelMap);
 	}
 	else {
-		cout << "can't find " << parent + dataset << " in " << hdf5_fileName << endl;
+		std::cout << "can't find " << parent + dataset << " in " << hdf5_fileName << std::endl;
 	}
 }
 
-void Utils::classifyFeaturesKNN(const String& hdf5_fileName,  const string& feature_name, int k, int trainPercent,int filterSize, int patchSize) {
+void Utils::classifyFeaturesKNN(const std::string& hdf5_fileName,  const std::string& feature_name, int k, int trainPercent,int filterSize, int patchSize) {
 	KNN* knn = new KNN();
-	
-	vector<string> feature_type = { "/texture","/color" ,"/CTelememts" ,"/polStatistic","/decomp" ,"/MP" };
-	vector<string> dataset_name = { "/feature" ,"/patchLabel" };
-	cout << endl;
-	for (size_t i = 0; i < feature_type.size(); ++i) {
-		if( feature_name == feature_type[i]){
-			vector<Mat> features;
-			vector<Point> labelPoints;
-			vector<unsigned char> labels;
-			vector<unsigned char> class_results;
-			Utils::getFeaturesFromHDF(hdf5_fileName, feature_type[i], dataset_name, features, labels, labelPoints, filterSize, patchSize);
-			if(!features.empty()){
-				cout << "get " << features.size()<<" rows for "<< feature_type[i] << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << endl;
-			    knn->applyKNN(features, labels, k, 80, class_results);
+	std::vector<std::string> dataset_name = { "/feature_dimReduced" ,"/patchLabel" };
+	std::vector<cv::Mat> features;
+	std::vector<cv::Point> labelPoints;
+	std::vector<unsigned char> labels;
+	std::vector<unsigned char> class_results;
+	Utils::getFeaturesFromHDF(hdf5_fileName, feature_name, dataset_name,features, labels, labelPoints, filterSize, patchSize);
+	if (!features.empty()) {
+		std::cout << "get " << features.size() << " rows for " << feature_name << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << std::endl;
+		knn->applyKNN(features, labels, k, 80, class_results);
 
-				if (Utils::checkExistInHDF(hdf5_fileName, feature_type[i], { "/knn" }, filterSize, patchSize)){
-					Utils::deleteDataFromHDF(hdf5_fileName, feature_type[i], { "/knn" },filterSize, patchSize);
-				}
-
-				Utils::saveClassResultToHDF(hdf5_fileName, feature_type[i], "/knn", class_results, labelPoints, filterSize, patchSize);
-				features.clear();
-				labelPoints.clear();
-				labels.clear();
-				class_results.clear();
-			}
-			else {
-				cout << feature_type[i] << " with filterSize " << filterSize << " , patchSize " << patchSize << " is not existed in hdf5 file " << endl;
-			}
+		if (Utils::checkExistInHDF(hdf5_fileName, feature_name, { "/knn" }, filterSize, patchSize)) {
+			Utils::deleteDataFromHDF(hdf5_fileName, feature_name, { "/knn" }, filterSize, patchSize);
 		}
+
+		Utils::saveClassResultToHDF(hdf5_fileName, feature_name, "/knn", class_results, labelPoints, filterSize, patchSize);
+		features.clear();
+		labelPoints.clear();
+		labels.clear();
+		class_results.clear();
 	}
+	else {
+		std::cout << feature_name << " with filterSize " << filterSize << " , patchSize " << patchSize << " is not existed in hdf5 file " << std::endl;
+	}
+	 
 	delete knn;
 }
 
 // classifier_type: choose from {"KNN", "RF"}
-void Utils::classifyFeaturesML(const String& hdf5_fileName, const string& feature_name, const string classifier_type, int trainPercent, int filterSize, int patchSize) {
+void Utils::classifyFeaturesML(const std::string& hdf5_fileName, const std::string& feature_name, const std::string classifier_type, int trainPercent, int filterSize, int patchSize) {
 
-	vector<string> feature_type = { "/texture","/color" ,"/CTelememts" ,"/polStatistic","/decomp" ,"/MP" };
-	vector<string> dataset_name = { "/feature" ,"/patchLabel" };
-	cout << endl;
-	for (size_t i = 0; i < feature_type.size(); ++i) {
-		if (feature_name == feature_type[i]) {
-			vector<Mat> features;
-			vector<Point> labelPoints;
-			vector<unsigned char> labels;
-			vector<unsigned char> class_results;
-			Utils::getFeaturesFromHDF(hdf5_fileName, feature_type[i], dataset_name, features, labels, labelPoints, filterSize, patchSize);
-			if (!features.empty()) {
-				cout << "get " << features.size() << " rows for " << feature_type[i] << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << endl;
-				applyML(features, labels,  80, classifier_type, class_results);
-
-				if (Utils::checkExistInHDF(hdf5_fileName, feature_type[i], { "/"+ classifier_type }, filterSize, patchSize)) {
-					Utils::deleteDataFromHDF(hdf5_fileName, feature_type[i], { "/" + classifier_type }, filterSize, patchSize);
-				}
-
-				Utils::saveClassResultToHDF(hdf5_fileName, feature_type[i], "/" + classifier_type, class_results, labelPoints, filterSize, patchSize);
-				features.clear();
-				labelPoints.clear();
-				labels.clear();
-				class_results.clear();
-			}
-			else {
-				cout << feature_type[i] << " with filterSize " << filterSize << " , patchSize " << patchSize << " is not existed in hdf5 file " << endl;
-			}
+	std::vector<std::string> dataset_name = { "/feature" ,"/patchLabel" };
+	std::cout << std::endl;
+	
+	std::map<unsigned char, int> accuracy;
+	std::vector<cv::Mat> features;
+	std::vector<cv::Point> labelPoints;
+	std::vector<unsigned char> labels;
+	Utils::getFeaturesFromHDF(hdf5_fileName, feature_name, dataset_name, features, labels, labelPoints, filterSize, patchSize);
+	if (!features.empty()) {
+		if (Utils::checkExistInHDF(hdf5_fileName, feature_name, { "/" + classifier_type }, filterSize, patchSize)) {
+			Utils::deleteDataFromHDF(hdf5_fileName, feature_name, { "/" + classifier_type }, filterSize, patchSize);
 		}
+		std::cout << "get " << features.size() << " rows for " << feature_name << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << std::endl;
+
+		int n = features.size() / 5000;
+		if (n == 0) { n = 1; }
+		std::vector<std::vector<cv::Mat>> subFeatures(n);
+		std::vector<std::vector<unsigned char>> subLabels(n);
+		std::vector<std::vector<cv::Point> > subLabelPoints(n);
+		splitVec(features, labels, labelPoints, subFeatures, subLabels, subLabelPoints, n);
+
+		
+		for (int j = 0; j < n; j++) {
+			std::vector<unsigned char> class_results;
+			applyML(subFeatures[j], subLabels[j], 80, classifier_type, class_results);
+			Utils::saveClassResultToHDF(hdf5_fileName, feature_name, "/" + classifier_type, class_results, subLabelPoints[j], filterSize, patchSize);
+			
+			calculatePredictionAccuracy(feature_name,class_results, subLabels[j]);
+			class_results.clear();
+		}
+	}
+	else {
+		std::cout << feature_name << " with filterSize " << filterSize << " , patchSize " << patchSize << " is not existed in hdf5 file " << std::endl;
 	}
 }
 
 // save the classify result to hdf5
-void Utils::saveClassResultToHDF(const String& hdf5_fileName, const String& parent_name, const string& dataset_name, const vector<unsigned char>& class_result, const vector<Point>& points,int filterSize,int patchSize) {
-	Mat pts = Mat(points.size(), 3, CV_32SC1);
+void Utils::saveClassResultToHDF(const std::string& hdf5_fileName, const std::string& parent_name, const std::string& dataset_name, const std::vector<unsigned char>& class_result, const std::vector<cv::Point> & points,int filterSize,int patchSize) {
+	cv::Mat pts = cv::Mat(points.size(), 3, CV_32SC1);
 	for (size_t i = 0; i < points.size(); ++i) {
 		pts.at<int>(i, 0) = (int)(class_result[i]);
 		pts.at<int>(i, 1) = points[i].y; //row
 		pts.at<int>(i, 2) = points[i].x; //col
 	}
-	string dataset = dataset_name;
-	string parent = parent_name;
-	if (patchSize != 0) { dataset = dataset_name + "_patchSize_" + to_string(patchSize); }
-	if (filterSize != 0) { parent = parent_name + "_filterSize_" + to_string(filterSize); }
+	std::string dataset = dataset_name;
+	std::string parent = parent_name;
+	if (patchSize != 0) { dataset = dataset_name + "_patchSize_" + std::to_string(patchSize); }
+	if (filterSize != 0) { parent = parent_name + "_filterSize_" + std::to_string(filterSize); }
 	Utils::insertDataToHDF(hdf5_fileName, parent_name, dataset, pts);
 }
 
@@ -289,17 +244,18 @@ void Utils::saveClassResultToHDF(const String& hdf5_fileName, const String& pare
 // get features data from hdf5
 // features and featureLabels for train and test
 // labelPoints for the location in image
-void Utils::getFeaturesFromHDF(const String& hdf5_fileName, const String& parent_name, const vector<String>& dataset_name,
-	vector<Mat>& features, vector<unsigned char>& featureLabels, vector<Point>& labelPoints, int filterSize, int patchSize) {
-	vector<Mat> data;
+void Utils::getFeaturesFromHDF(const std::string& hdf5_fileName, const std::string& parent_name, std::vector<std::string>& dataset_name,
+	std::vector<cv::Mat>& features,std::vector<unsigned char>& featureLabels, std::vector<cv::Point> & labelPoints, int filterSize, int patchSize) {
+	
+	std::vector<cv::Mat> data;
 	if (Utils::checkExistInHDF(hdf5_fileName, parent_name, dataset_name, filterSize, patchSize)) {
 		Utils::readDataFromHDF(hdf5_fileName, parent_name, dataset_name, data, filterSize, patchSize);
-		Mat feature = data[0];
-		Mat pts = data[1]; //labelPoint
+		cv::Mat feature = data[0];
+		cv::Mat pts = data[1]; //labelPoint
 		for (int i = 0; i < feature.rows; ++i) {
 			features.push_back(feature.row(i));
 			featureLabels.push_back((unsigned char)(pts.at<int>(i, 0)));
-			Point p;
+			cv::Point p;
 			p.y = pts.at<int>(i, 1); //row
 			p.x = pts.at<int>(i, 2); //col
 			labelPoints.push_back(p);
@@ -308,14 +264,14 @@ void Utils::getFeaturesFromHDF(const String& hdf5_fileName, const String& parent
 }
 
 // shuffle the data, and record the original index of the shuffled data
-vector<int> Utils::shuffleDataSet(vector<Mat>& data, vector<unsigned char>& data_label) {
+std::vector<int> Utils::shuffleDataSet(std::vector<cv::Mat>& data, std::vector<unsigned char>& data_label) {
 	int size = data.size();
-	vector<int> ind(size);
+	std::vector<int> ind(size);
 	std::random_device random_device;
 	std::mt19937 engine{ random_device() };
 	std::uniform_int_distribution<int> rnd(0, size - 1);
 	for (int i = 0; i < size; ++i) {
-		Mat temp = data[i];
+		cv::Mat temp = data[i];
 		signed char temp_c = data_label[i];
 		int swap = rnd(engine);
 		if (swap == i) { continue; }
@@ -331,64 +287,79 @@ vector<int> Utils::shuffleDataSet(vector<Mat>& data, vector<unsigned char>& data
 	return ind;
 }
 
-float Utils::calculatePredictionAccuracy(const vector<unsigned char>& classResult, const vector<unsigned char>& testLabels)
+float Utils::calculatePredictionAccuracy(const std::string & feature_name,const std::vector<unsigned char>& classResult, const std::vector<unsigned char>& testLabels)
 {
+	std::string overall_accuracy = "oa_"+ feature_name.substr(1)+".txt";
+	std::ofstream fout(overall_accuracy);
+	fout << feature_name.substr(1) << std::endl;
 	float accuracy = 0.0;
 	if (classResult.size() != testLabels.size()) {
-		cerr << "Predicted and actual label vectors differ in length. Somethig doesn't seem right." << endl;
+		std::cerr << "Predicted and actual label vectors differ in length. Somethig doesn't seem right." << std::endl;
 		exit(-1);
 	}
 	else {
+		std::map<unsigned char, float> hit;
+		std::map<unsigned char, float> total;
+
 		int dim = classResult.size();
-		float hit, miss;
-		hit = 0;
-		miss = 0;
+
 		for (int i = 0; i < dim; ++i) {
 			if (classResult[i] == testLabels[i]) {
-				hit++;
+				hit[classResult[i]]++;
 			}
-			else {
-				miss++;
-			}
+			total[testLabels[i]]++;
 		}
-		accuracy = float(hit / dim);
+
+		float a = 0.0;
+		for (auto& h : hit) {
+			unsigned char label = h.first;
+			float correct = h.second;
+			float totalNum = total[label];
+			float class_accuracy = correct / totalNum;
+			fout<< "accuracy for class " << std::to_string(label) << ": " << class_accuracy << std::endl;
+			std::cout << "accuracy for class " << std::to_string(label) << ": " << class_accuracy << std::endl;
+			a = correct + a;
+		}
+		accuracy = a / testLabels.size();
+		std::cout << "overall accuracy: " << accuracy << std::endl;
+		fout << "oa: " << accuracy << std::endl;
 	}
-	return accuracy;
+	return  accuracy;
 }
 
-Mat Utils::getConfusionMatrix(const map<unsigned char, string>& className, vector<unsigned char>& classResult, vector<unsigned char>& testLabels) {
-	map<pair<unsigned char, signed char>, int> testCount;
+cv::Mat Utils::getConfusionMatrix(const std::map<unsigned char, std::string>& className, std::vector<unsigned char>& classResult, std::vector<unsigned char>& testLabels) {
+	std::map<std::pair<unsigned char, signed char>, int> testCount;
 
 	for (int i = 0; i < testLabels.size(); ++i) {
 		for (int j = 0; j < classResult.size(); ++j) {
-			pair temp = make_pair(testLabels[i], classResult[j]);
+			std::pair temp = std::make_pair(testLabels[i], classResult[j]);
 			testCount[temp]++;
 		}
 	}
 
 	int numOfClass = className.size();
-	vector<unsigned char> classList(numOfClass);
+	std::vector<unsigned char> classList(numOfClass);
 	for (auto it = className.begin(); it != className.end(); it++) {
 		classList.push_back(it->first);
 	}
 
-	Mat count = Mat(className.size(), className.size(), CV_8UC1);
+	cv::Mat count = cv::Mat(className.size(), className.size(), CV_8UC1);
 	for (int i = 0; i < numOfClass; ++i) {
 		for (int j = 0; j < numOfClass; ++j) {
-			pair temp = make_pair(classList[i], classList[j]);
+			std::pair temp = std::make_pair(classList[i], classList[j]);
 			count.at<unsigned char>(i, j) = testCount[temp];
 		}
 	}
 	return count;
 }
 
-void Utils::deleteDataFromHDF(const String& filename, const String& parent_name, const vector<String>& dataset_name, int filterSize, int patchSize) {
-	string parent = parent_name;
+void Utils::deleteDataFromHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, int filterSize, int patchSize) {
+	std::string parent = parent_name;
 
-	if (filterSize != 0) { parent = parent + "_filterSize_" + to_string(filterSize); }
+	if (filterSize != 0) { parent = parent + "_filterSize_" + std::to_string(filterSize); }
 	for (int i = 0; i < dataset_name.size(); ++i) {
 		if (patchSize != 0) {
-			deleteDataFromHDF(filename, parent, dataset_name[i] + "_patchSize_" + to_string(patchSize));
+			deleteDataFromHDF(filename, parent, dataset_name[i] + "_patchSize_" + std::to_string(patchSize));
 		}
 		else {
 			deleteDataFromHDF(filename, parent, dataset_name[i]);
@@ -397,22 +368,22 @@ void Utils::deleteDataFromHDF(const String& filename, const String& parent_name,
 }
 
 
-void Utils::deleteDataFromHDF(const String& filename, const String& parent_name, const String& dataset_name) {
-	Ptr<hdf::HDF5> h5io = hdf::open(filename);
-	string datasetName = parent_name + dataset_name;
+void Utils::deleteDataFromHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name) {
+	cv::Ptr<hdf::HDF5> h5io = hdf::open(filename);
+	std::string datasetName = parent_name + dataset_name;
 
 	if (!h5io->hlexists(parent_name)) {
-		cout << parent_name << " is not existed." << endl;
+		std::cout << parent_name << " is not existed." << std::endl;
 	}else {
 		if (!h5io->hlexists(datasetName)) {
-			cout << datasetName << " is not existed." << endl;
+			std::cout << datasetName << " is not existed." << std::endl;
 		}else {
 	        int result = h5io->dsdelete(datasetName);
 			if (!result) {
-				cout << "delete dataset " << datasetName << " success." << endl;
+				std::cout << "delete dataset " << datasetName << " success." << std::endl;
 			}
 			else {
-				cout << "Failed to delete " << datasetName << endl;
+				std::cout << "Failed to delete " << datasetName << std::endl;
 			}
 		}
 	}
@@ -420,14 +391,14 @@ void Utils::deleteDataFromHDF(const String& filename, const String& parent_name,
 
 
 
-void Utils::writeDataToHDF(const String& filename, const String& parent_name, const vector<String>& dataset_name, const vector<Mat>& data, int filterSize , int patchSize) {
-	string parent = parent_name;
-	if (filterSize != 0) { parent = parent + "_filterSize_" + to_string(filterSize); }
+void Utils::writeDataToHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, const std::vector<cv::Mat>& data, int filterSize , int patchSize) {
+	std::string parent = parent_name;
+	if (filterSize != 0) { parent = parent + "_filterSize_" + std::to_string(filterSize); }
 
 	if (data.size() == dataset_name.size()) {
 		for (int i = 0; i < data.size(); ++i) {
 			if(patchSize !=0){
-			writeDataToHDF(filename, parent, dataset_name[i]+ "_patchSize_"+ to_string(patchSize), data[i]);
+			writeDataToHDF(filename, parent, dataset_name[i]+ "_patchSize_"+ std::to_string(patchSize), data[i]);
 			}
 			else {
 				writeDataToHDF(filename, parent, dataset_name[i] , data[i]);
@@ -435,59 +406,59 @@ void Utils::writeDataToHDF(const String& filename, const String& parent_name, co
 		}
 	}
 	else {
-		cout << "the size of dataset_name doesn't match that of data" << endl;
+		std::cout << "the size of dataset_name doesn't match that of data" << std::endl;
 	}
 }
 
-void Utils::writeDataToHDF(const String& filename, const String& parent_name, const String& dataset_name, const Mat& src) {
+void Utils::writeDataToHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name, const cv::Mat& src) {
 	if(!src.empty()){
-		Mat data = src.clone();
+		cv::Mat data = src.clone();
 		if (data.channels() > 1) {
 			for (size_t i = 0; i < data.total() * data.channels(); ++i)
 				((int*)data.data)[i] = (int)i;
 		}
 
-		Ptr<hdf::HDF5> h5io = hdf::open(filename);
+		cv::Ptr<hdf::HDF5> h5io = hdf::open(filename);
 
 		// first we need to create the parent group
 		if (!h5io->hlexists(parent_name)) h5io->grcreate(parent_name);
 
 		// create the dataset if it not exists
-		string datasetName = parent_name + dataset_name;
+		std::string datasetName = parent_name + dataset_name;
 		if (!h5io->hlexists(datasetName)) {
 			h5io->dscreate(data.rows, data.cols, data.type(), datasetName);
 			h5io->dswrite(data, datasetName);
 
 			// check if the data are correctly write to hdf file
-			Mat expected = Mat(Size(data.size()), data.type());
+			cv::Mat expected = cv::Mat(cv::Size(data.size()), data.type());
 			h5io->dsread(expected, datasetName);
 			float diff = norm(data - expected);
 			CV_Assert(abs(diff) < 1e-10);
 
 			if (h5io->hlexists(datasetName))
 			{
-				//cout << "write " << datasetName << " to " << filename << " success." << endl;
+				//std::cout << "write " << datasetName << " to " << filename << " success." << std::endl;
 			}
 			else {
-				cout << "Failed to write " << datasetName << " to " << filename << endl;
+				std::cout << "Failed to write " << datasetName << " to " << filename << std::endl;
 			}
 		}
 		else {
-			cout << datasetName << " is already existed." << endl;
+			std::cout << datasetName << " is already existed." << std::endl;
 		}
 		h5io->close();
 	}
 }
 
-void Utils::readDataFromHDF(const String& filename, const String& parent_name, const vector<String>& dataset_name, vector<Mat>& data, int filterSize, int patchSize) {
-	string parent = parent_name;
+void Utils::readDataFromHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, std::vector<cv::Mat>& data, int filterSize, int patchSize) {
+	std::string parent = parent_name;
 	if (!data.empty()) { data.clear(); }
 
-	if (filterSize != 0) { parent = parent + "_filterSize_" + to_string(filterSize); }
+	if (filterSize != 0) { parent = parent + "_filterSize_" + std::to_string(filterSize); }
 		for (int i = 0; i < dataset_name.size(); ++i) {
-			Mat temp;
+			cv::Mat temp;
 			if (patchSize != 0) {
-				readDataFromHDF(filename, parent, dataset_name[i] + "_patchSize_" + to_string(patchSize), temp);
+				readDataFromHDF(filename, parent, dataset_name[i] + "_patchSize_" + std::to_string(patchSize), temp);
 			}
 			else {
 				readDataFromHDF(filename, parent, dataset_name[i], temp);
@@ -496,58 +467,58 @@ void Utils::readDataFromHDF(const String& filename, const String& parent_name, c
 		}
 }
 
-void Utils::readDataFromHDF(const String& filename, const String& parent_name, const String& dataset_name, Mat& data) {
+void Utils::readDataFromHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name, cv::Mat& data) {
 
-	Ptr<hdf::HDF5> h5io = hdf::open(filename);
+	cv::Ptr<hdf::HDF5> h5io = hdf::open(filename);
 
-	string datasetName = parent_name + dataset_name;
+	std::string datasetName = parent_name + dataset_name;
 
 	if (!h5io->hlexists(parent_name)) {
-		//cout << parent_name << " is not existed" << endl;
-		data = Mat();
+		//std::cout << parent_name << " is not existed" << std::endl;
+		data = cv::Mat();
 	}
 	else if (!h5io->hlexists(datasetName) ) { 
-		//cout << datasetName << " is not existed" << endl;  
-		data = Mat(); 
+		//std::cout << datasetName << " is not existed" << std::endl;  
+		data = cv::Mat(); 
 	} else {
-		vector<int> data_size = h5io->dsgetsize(datasetName);
+		std::vector<int> data_size = h5io->dsgetsize(datasetName);
 
-		data = Mat(data_size[0],data_size[1],h5io->dsgettype(datasetName));
+		data = cv::Mat(data_size[0],data_size[1],h5io->dsgettype(datasetName));
 
 	    h5io->dsread(data, datasetName);
-		//cout << "get " <<  datasetName  << " success" << endl;
+		//std::cout << "get " <<  datasetName  << " success" << std::endl;
 	}
 
 	h5io->close();
 }
 
 
-void Utils::writeAttrToHDF(const String& filename,const String& attribute_name,const int &attribute_value) {
-	Ptr<hdf::HDF5> h5io = hdf::open(filename);
+void Utils::writeAttrToHDF(const std::string& filename,const std::string& attribute_name,const int &attribute_value) {
+	cv::Ptr<hdf::HDF5> h5io = hdf::open(filename);
 	if (!h5io->atexists(attribute_name)) {
 		h5io->atwrite(attribute_value, attribute_name);
 	}
 	else {
-		cout << " already existed" << endl;
+		std::cout << " already existed" << std::endl;
 	}
 	h5io->close();
 }
 
-void Utils::writeAttrToHDF(const String& filename, const String& attribute_name, const string &attribute_value) {
-	Ptr<hdf::HDF5> h5io = hdf::open(filename);
+void Utils::writeAttrToHDF(const std::string& filename, const std::string& attribute_name, const std::string &attribute_value) {
+	cv::Ptr<hdf::HDF5> h5io = hdf::open(filename);
 	if (!h5io->atexists(attribute_name)) {
 		h5io->atwrite(attribute_value, attribute_name);
 	}
 	else {
-		cout << " already existed" << endl;
+		std::cout << " already existed" << std::endl;
 	}
 	h5io->close();
 }
 
-void Utils::readAttrFromHDF(const String& filename, const String& attribute_name,  string &attribute_value) {
-	Ptr<hdf::HDF5> h5io = hdf::open(filename);
+void Utils::readAttrFromHDF(const std::string& filename, const std::string& attribute_name,  std::string &attribute_value) {
+	cv::Ptr<hdf::HDF5> h5io = hdf::open(filename);
 	if (!h5io->atexists(attribute_name)) {
-		cout << attribute_name<<" is not existed" << endl;
+		std::cout << attribute_name<<" is not existed" << std::endl;
 	}
 	else {
 		h5io->atread(&attribute_value, attribute_name);
@@ -555,10 +526,10 @@ void Utils::readAttrFromHDF(const String& filename, const String& attribute_name
 	h5io->close();
 }
 
-void Utils::readAttrFromHDF(const String& filename, const String& attribute_name, int& attribute_value) {
-	Ptr<hdf::HDF5> h5io = hdf::open(filename);
+void Utils::readAttrFromHDF(const std::string& filename, const std::string& attribute_name, int& attribute_value) {
+	cv::Ptr<hdf::HDF5> h5io = hdf::open(filename);
 	if (!h5io->atexists(attribute_name)) {
-		cout << attribute_name << " is not existed" << endl;
+		std::cout << attribute_name << " is not existed" << std::endl;
 	}
 	else {
 		h5io->atread(&attribute_value, attribute_name);
@@ -566,42 +537,35 @@ void Utils::readAttrFromHDF(const String& filename, const String& attribute_name
 	h5io->close();
 }
 
-Mat Utils::readTiff(string filepath) {
-	const char* file = filepath.c_str();
-	GeoTiff* tiff = new GeoTiff(file);
-	cout << "this tiff file has: cols " << tiff->NCOLS << " , rows " << tiff->NROWS << " , channels " << tiff->NLEVELS << endl;
-	Mat data = tiff->GetMat().clone();
-	delete tiff;
-	return data;
-}
 
-bool Utils::checkExistInHDF(const String& filename, const String& parent_name, const string& dataset_name) {
-	Ptr<hdf::HDF5> h5io = hdf::open(filename);
+
+bool Utils::checkExistInHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name) {
+	cv::Ptr<hdf::HDF5> h5io = hdf::open(filename);
 	bool flag = true;
 	
 	if (!h5io->hlexists(parent_name)) {
 		flag = false;
-		//cout << parent_name << " is not existed" << endl;
+		//std::cout << parent_name << " is not existed" << std::endl;
 	}else if (!h5io->hlexists(parent_name + dataset_name)) {
 		flag = false;
-		//cout << parent_name + dataset_name << " is not existed" << endl;
+		//std::cout << parent_name + dataset_name << " is not existed" << std::endl;
 	}
 	h5io->close();
 	return flag;
 }
 
 
-bool Utils::checkExistInHDF(const String& filename, const String& parent_name, const vector<string>& dataset_name, int filterSize, int patchSize ) {
+bool Utils::checkExistInHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, int filterSize, int patchSize ) {
 	bool flag = true;
-	string parent = parent_name;
-	vector<string> dataset = dataset_name;
+	std::string parent = parent_name;
+	std::vector<std::string> dataset = dataset_name;
 	if (filterSize != 0) {
-		parent = parent_name + "_filterSize_" + to_string(filterSize);
+		parent = parent_name + "_filterSize_" + std::to_string(filterSize);
 	}
 
 	for (auto& n : dataset) {
 		if(patchSize !=0){
-		   n =  n + "_patchSize_" + to_string(patchSize);
+		   n =  n + "_patchSize_" + std::to_string(patchSize);
 		}
 		bool temp = checkExistInHDF(filename, parent, n);
 		flag = flag && temp;
@@ -610,14 +574,14 @@ bool Utils::checkExistInHDF(const String& filename, const String& parent_name, c
 }
 
 
-bool Utils::insertDataToHDF(const String& filename, const String& parent_name, const String& dataset_name, const Mat& data) {
+bool Utils::insertDataToHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name, const cv::Mat& data) {
 	bool flag = true;
 	if(!data.empty()){
-		Ptr<hdf::HDF5> h5io = hdf::open(filename);
+		cv::Ptr<hdf::HDF5> h5io = hdf::open(filename);
 
 		if (checkExistInHDF(filename, parent_name, dataset_name)) {
-			string dataset = parent_name + dataset_name;
-			vector<int> data_size = h5io->dsgetsize(dataset);
+			std::string dataset = parent_name + dataset_name;
+			std::vector<int> data_size = h5io->dsgetsize(dataset);
 			// expand the dataset at row direction
 			int offset[2] = { data_size[0],0 };
 
@@ -625,47 +589,47 @@ bool Utils::insertDataToHDF(const String& filename, const String& parent_name, c
 				h5io->dsinsert(data, dataset, offset);
 
 				//check if insert success
-				//cout << endl;
-				//cout << "insert " << data.rows << " rows to " << dataset << " success " << endl;
-				//cout << dataset << " rows in total: " << data.rows + offset[0] << endl;
+				//std::cout << std::endl;
+				//std::cout << "insert " << data.rows << " rows to " << dataset << " success " << std::endl;
+				//std::cout << dataset << " rows in total: " << data.rows + offset[0] << std::endl;
 			}
 
 			else {
 				flag = false;
-				cout << endl;
-				cout << " the new data has different size and type with the existed data" << endl;
-				cout << dataset << " insert failed" << endl;
+				std::cout << std::endl;
+				std::cout << " the new data has different size and type with the existed data" << std::endl;
+				std::cout << dataset << " insert failed" << std::endl;
 			}
 		}
 		else {
 			// first we need to create the parent group
 			if (!h5io->hlexists(parent_name)) h5io->grcreate(parent_name);
 
-			string dataset = parent_name + dataset_name;
+			std::string dataset = parent_name + dataset_name;
 			int chunks[2] = { 1, data.cols };
 			// create Unlimited x data.cols, data.type() space, dataset can be expanded unlimted on the row direction
 			h5io->dscreate(hdf::HDF5::H5_UNLIMITED, data.cols, data.type(), dataset, hdf::HDF5::H5_NONE, chunks);
 			// the first time to write data, offset at row,col direction is 0
 			int offset[2] = { 0, 0 };
 			h5io->dsinsert(data, dataset, offset);
-			cout << endl;
-			//cout << "insert " << data.rows << " rows to" << dataset << " success " << endl;
-			//cout << dataset << " rows in total: " << data.rows + offset[0] << endl;
+			std::cout << std::endl;
+			//std::cout << "insert " << data.rows << " rows to" << dataset << " success " << std::endl;
+			//std::cout << dataset << " rows in total: " << data.rows + offset[0] << std::endl;
 		}
 	}
 	return flag;
 }
 
-bool Utils::insertDataToHDF(const String& filename, const String& parent_name, const vector<string>& dataset_name, const vector<Mat>& data, int filterSize, int patchSize) {
+bool Utils::insertDataToHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, const std::vector<cv::Mat>& data, int filterSize, int patchSize) {
 	bool flag = true;
-	string parent = parent_name;
-	if (filterSize != 0) { parent = parent + "_filterSize_" + to_string(filterSize); }
+	std::string parent = parent_name;
+	if (filterSize != 0) { parent = parent + "_filterSize_" + std::to_string(filterSize); }
 
 	if (data.size() == dataset_name.size()) {
 		for (int i = 0; i < data.size(); ++i) {
 			bool temp;
 			if (patchSize != 0) {
-				temp =insertDataToHDF(filename, parent, dataset_name[i] + "_patchSize_" + to_string(patchSize), data[i]);
+				temp =insertDataToHDF(filename, parent, dataset_name[i] + "_patchSize_" + std::to_string(patchSize), data[i]);
 			}
 			else {
 				temp =insertDataToHDF(filename, parent, dataset_name[i], data[i]);
@@ -675,39 +639,39 @@ bool Utils::insertDataToHDF(const String& filename, const String& parent_name, c
 	}
 	else {
 		flag = false;
-		cout << "the size of dataset_name doesn't match that of data"<<endl;
+		std::cout << "the size of dataset_name doesn't match that of data"<<std::endl;
 	}
 	return flag;
 }
 
 
-vector<Point> Utils::generateSamplePoints(const Mat& labelMap, const int& patchSize, const int& stride) {
+std::vector<cv::Point> Utils::generateSamplePoints(const cv::Mat& labelMap, const int& patchSize, const int& stride) {
 
-	vector<Point> samplePoints;
+	std::vector<cv::Point> samplePoints;
 	for (int row = 0; row < labelMap.rows - patchSize; row += stride) {
 		for (int col = 0; col < labelMap.cols - patchSize; col += stride) {
-			Rect cell = Rect(col, row, patchSize, patchSize);
+			cv::Rect cell = cv::Rect(col, row, patchSize, patchSize);
 
 			int halfsize = patchSize / 2;
 			
 			//record the central points of each patch
-			samplePoints.push_back(Point(col + halfsize, row + halfsize));
+			samplePoints.push_back(cv::Point(col + halfsize, row + halfsize));
 		}
 	}
 	return samplePoints;
 }
 
-void Utils::getRandomSamplePoint(const Mat& labelMap, vector<Point>& samplePoints, const unsigned char &sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass) {
+void Utils::getRandomSamplePoint(const cv::Mat& labelMap, std::vector<cv::Point> & samplePoints, const unsigned char &sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass) {
 	 
-	vector<Point> temp = generateSamplePoints(labelMap, sampleSize, stride);
-	map<unsigned char, vector<Point>> count;
+	std::vector<cv::Point> temp = generateSamplePoints(labelMap, sampleSize, stride);
+	std::map<unsigned char, std::vector<cv::Point> > count;
 	for (auto& p : temp) {
 		unsigned char label = labelMap.at<unsigned char>(p.y, p.x);
 		if (label == sampleLabel) {
 			count[sampleLabel].push_back(p);
 		}
 	}
-	vector<Point> pts = count[sampleLabel];
+	std::vector<cv::Point> pts = count[sampleLabel];
 
 	if (numOfSamplePointPerClass > 0) {
 		std::random_device random_device;
@@ -717,7 +681,7 @@ void Utils::getRandomSamplePoint(const Mat& labelMap, vector<Point>& samplePoint
 		size_t iter = 0;
 
 		while (num < numOfSamplePointPerClass) {
-			Point p = pts[pt(engine)];
+			cv::Point p = pts[pt(engine)];
 
 			// get samples in homogeneous areas 
 			// this is only for checking the accuracy of features
@@ -736,42 +700,42 @@ void Utils::getRandomSamplePoint(const Mat& labelMap, vector<Point>& samplePoint
 		}
 	 }
 	 else {
-		 cout << "load all the sample points" << endl;
+		 std::cout << "load all the sample points" << std::endl;
 		 copy(pts.begin(), pts.end(), back_inserter(samplePoints));
 	 }
 }
 
 
-void Utils::applyML(const vector<Mat>& data, const vector<unsigned char>& data_labels,int trainPercent, const string & classifier_type, vector<unsigned char>& results) {
+void Utils::applyML(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_labels,int trainPercent, const std::string & classifier_type, std::vector<unsigned char>& results) {
 
-	cout << "start to classify data with classifier :" << classifier_type << endl;
+	std::cout << "start to classify data with classifier :" << classifier_type << std::endl;
 
 	// classify result
-	 results = vector<unsigned char>(data_labels.size());
+	 results = std::vector<unsigned char>(data_labels.size());
 
 	//copy the original data
-	vector<Mat> temp(data.begin(), data.end());
-	vector<unsigned char> temp_labels(data_labels.begin(), data_labels.end());
+	std::vector<cv::Mat> temp(data.begin(), data.end());
+	std::vector<unsigned char> temp_labels(data_labels.begin(), data_labels.end());
 
-	vector<Mat> train;
-	vector<unsigned char> train_labels;
-	vector<Mat> test;
-	vector<unsigned char> test_labels;
+	std::vector<cv::Mat> train;
+	std::vector<unsigned char> train_labels;
+	std::vector<cv::Mat> test;
+	std::vector<unsigned char> test_labels;
 
 	int total_folds = 100 / (100 - trainPercent);
-	float accuracy = 0.0;
 	for (int fold = 1; fold < total_folds + 1; ++fold) {
-		float acc = 0.0;
-		vector<int> test_ind = Utils::DivideTrainTestData(temp, temp_labels, trainPercent, train, train_labels, test, test_labels, fold);
-		vector<unsigned char> test_result;
-		Mat traindata, traindata_label, testdata;
+		std::vector<int> test_ind = Utils::DivideTrainTestData(temp, temp_labels, trainPercent, train, train_labels, test, test_labels, fold);
+		std::vector<unsigned char> test_result;
+		cv::Mat traindata, traindata_label, testdata;
 		vconcat(train, traindata);
+		vconcat(test, testdata);
 		vconcat(train_labels, traindata_label);
-		traindata_label.convertTo(traindata_label, CV_32FC1);
+		traindata_label.convertTo(traindata_label, CV_32SC1);
 		traindata.convertTo(traindata, CV_32FC1);
-		cv::Ptr<cv::ml::TrainData> cv_data = cv::ml::TrainData::create(traindata, 0, traindata_label);
+		testdata.convertTo(testdata, CV_32FC1);
 
 		if (classifier_type == "KNN") {
+			cv::Ptr<cv::ml::TrainData> cv_data = cv::ml::TrainData::create(traindata, 0, traindata_label);
 			cv::Ptr<cv::ml::KNearest>  knn(cv::ml::KNearest::create());
 			knn->setDefaultK(20);
 			knn->setIsClassifier(true);
@@ -781,26 +745,50 @@ void Utils::applyML(const vector<Mat>& data, const vector<unsigned char>& data_l
 				auto knn_result = knn->predict(x_test);
 				test_result.push_back(unsigned char(knn_result));
 			}
-			
+		}
+		else if (classifier_type == "FLANN") {
+			int K = 20;
+			cv::flann::Index flann_index(
+				traindata,
+				cv::flann::KDTreeIndexParams(4),
+				cvflann::FLANN_DIST_EUCLIDEAN
+			);
+			cv::Mat indices(testdata.rows, K, CV_32S);
+			cv::Mat dists(testdata.rows, K, CV_32F);
+			flann_index.knnSearch(testdata, indices, dists,K, cv::flann::SearchParams(200));
+			KNN* knn = new KNN();
+			for (int i = 0; i < testdata.rows; i++) {
+				std::vector<std::pair<float, unsigned char>> dist_vec(K);
+				for (int j = 0; j < K; j++) {
+					unsigned char temp = train_labels[indices.at<int>(i, j)];
+					float distance = dists.at<float>(i, j);
+					dist_vec[j] = std::make_pair(distance, temp);
+				}
+				// voting 
+				test_result.push_back(knn->Classify(dist_vec,K));
+				dist_vec.clear();
+			}
+			delete knn;
 		}
 		else if (classifier_type == "RF") {
+			cv::Ptr<cv::ml::TrainData> cv_data = cv::ml::TrainData::create(traindata, cv::ml::ROW_SAMPLE, traindata_label);
 			cv::Ptr<cv::ml::RTrees>  randomForest(cv::ml::RTrees::create());
 			auto criterRamdomF = cv::TermCriteria();
 			criterRamdomF.type = cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS;
 			criterRamdomF.epsilon = 1e-8;
-			criterRamdomF.maxCount = 5000;
-			randomForest->setMaxCategories(2);
-			randomForest->setMaxDepth(3000);
-			randomForest->setMinSampleCount(1);
-			randomForest->setTruncatePrunedTree(false);
-			randomForest->setUse1SERule(false);
-			randomForest->setUseSurrogates(false);
-			randomForest->setPriors(cv::Mat());
+			criterRamdomF.maxCount = 500;
 			randomForest->setTermCriteria(criterRamdomF);
-			randomForest->setCVFolds(1);
-
+			//randomForest->setMaxCategories(15);
+			//randomForest->setMaxDepth(25);
+			//randomForest->setMinSampleCount(1);
+			//randomForest->setTruncatePrunedTree(false);
+			//randomForest->setUse1SERule(false);
+			//randomForest->setUseSurrogates(false);
+			//randomForest->setPriors(cv::Mat());
+			//randomForest->setCVFolds(1);
+			 
 			randomForest->train(cv_data);
-			for (auto const& x_test : test) {
+			for (auto & x_test : test) {
 				x_test.convertTo(x_test, CV_32FC1);
 				test_result.push_back(unsigned char(randomForest->predict(x_test)));
 			}
@@ -815,8 +803,6 @@ void Utils::applyML(const vector<Mat>& data, const vector<unsigned char>& data_l
 			}
 			results[test_ind[i]] = y_result;
 		}
-		acc =  count / test.size();
-		accuracy = accuracy + acc;
 		 
 		train.clear();
 		train_labels.clear();
@@ -824,7 +810,118 @@ void Utils::applyML(const vector<Mat>& data, const vector<unsigned char>& data_l
 		test_labels.clear();
 		test_result.clear();
 	}
+}
 
-	accuracy = accuracy / total_folds;
-	cout << "cross validation accuracy: " << accuracy << endl;
+// put data in batches, make sure each class has balanced proportion in each batch
+// n: number of batches
+void Utils::splitVec(const std::vector<cv::Mat>& features, const std::vector<unsigned char>& labels, const std::vector<cv::Point> & labelPoints, std::vector<std::vector<cv::Mat>>& subFeatures,
+	std::vector<std::vector<unsigned char>>& subLables, std::vector<std::vector<cv::Point> >& subLabelPoints, int n) {
+	if ((features.size() == labels.size()) && (labels.size() == labelPoints.size())) {
+
+		if (subFeatures.size() == 0) { subFeatures = std::vector<std::vector<cv::Mat>>(n); }
+		if (subLables.size() == 0) { subLables = std::vector<std::vector<unsigned char>>(n); }
+		if (subLabelPoints.size() == 0) { subLabelPoints = std::vector<std::vector<cv::Point> >(n); }
+
+		
+		// To regulate count of parts
+		int partsCount = n;
+
+		std::map<unsigned char, std::vector<int>> count;
+		for (int ind = 0; ind < labels.size(); ind++) {
+			count[labels[ind]].push_back(ind);
+		}
+
+		for (const auto& c : count) {
+			std::vector<int> inds = c.second;
+			// Variable to control size of non divided elements
+			int fullSize = inds.size();
+			int start = 0;
+			std::vector<std::vector<int>> subInd(n);
+			for (int i = 0; i < partsCount; ++i) {
+				int partSize = fullSize / (partsCount - i);
+				fullSize -= partSize;
+				std::vector<int> temp;
+				for (int j = 0; j < partSize; j++) {
+					temp.push_back(inds[start + j]);
+				}
+				subInd[i] = temp;
+				start = start + partSize;
+			}
+			for (int i = 0; i < subInd.size(); i++) {
+				for (const auto& ind : subInd[i]) {
+					subFeatures[i].push_back(features[ind]);
+					subLables[i].push_back(labels[ind]);
+					subLabelPoints[i].push_back(labelPoints[ind]);
+				}
+			}
+		}
+	}
+}
+
+void Utils::featureDimReduction(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize) {
+	std::vector<std::string> dataset_name = { "/feature" ,"/patchLabel" };
+
+	std::vector<cv::Mat> data;
+	Utils::readDataFromHDF(hdf5_fileName, feature_name, dataset_name, data, filterSize, patchSize);
+	cv::Mat feature = data[0];
+	cv::Mat patchLabels = data[1];
+	
+	int new_dims = 2;
+	cv::Mat reduced_feature = featureDimReduction(feature, new_dims);
+
+	//save dimension reduced features and labels to txt file
+	std::string dim_reduce =  feature_name.substr(1) + "_dimReduced" + ".txt";
+	std::ofstream fout(dim_reduce);
+	for(int i =0; i< reduced_feature.rows; i++){
+	   fout << patchLabels.at<int>(i, 0) << "," << reduced_feature.at<float>(i, 0) << "," << reduced_feature.at<float>(i, 1) << std::endl;
+	}
+	
+	//check the KNN accuracy of dim reduced features
+	std::vector<cv::Mat> newfeatures(reduced_feature.rows);
+	std::vector<unsigned char> labels(reduced_feature.rows);
+	for (int i = 0; i < reduced_feature.rows; i++) {
+		labels[i] = unsigned char(patchLabels.at<int>(i, 0));
+		cv::Mat temp(1, 2, CV_32FC1);
+		temp.at<float>(0, 0) = reduced_feature.at<float>(i, 0);
+		temp.at<float>(0, 1) = reduced_feature.at<float>(i, 1);
+		newfeatures[i] = temp;
+	}
+	std::vector<unsigned char> results;
+	applyML(newfeatures, labels, 80, "KNN", results);
+	calculatePredictionAccuracy(feature_name, results, labels);
+}
+
+//input: Mat& feature, one sample per row
+//new_dims: default 2
+cv::Mat Utils::featureDimReduction(const cv::Mat& features, int new_dims) {
+	cv::Mat feature;
+	features.convertTo(feature, CV_64FC1);
+	// Define some variables
+	int N = feature.rows;
+	int D = feature.cols;
+	int perplexity = 40;
+	int max_iter = 1000;
+	double* X = (double*)malloc(feature.total() * sizeof(double)); // data
+	double* Y = (double*)malloc(N * new_dims * sizeof(double));//output
+	
+	//data
+	for (int i = 0; i < feature.rows; i++) {
+		for (int j = 0; j < feature.cols; j++) {
+			X[i * feature.cols + j] = feature.at<double>(i, j);
+		}
+	}
+	 TSNE::run(X, N, D, Y,new_dims,perplexity,0.5,-1,false,max_iter,250,250);
+
+
+	cv::Mat  reduced_feature(N, new_dims, CV_32FC1);
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < new_dims; j++) {
+			reduced_feature.at<float>(i, j) = float(Y[i * new_dims + j]);
+		}
+	}
+	
+	// Clean up the memory
+	free(X); X = NULL;
+	free(Y); Y = NULL;
+	return reduced_feature;
 }
