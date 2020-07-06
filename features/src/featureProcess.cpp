@@ -29,6 +29,7 @@ std::vector<int> featureProcess::DivideTrainTestData(const std::vector<cv::Mat>&
 		// expand indOfClass twice
 		copy(it->second.begin(), it->second.end(), back_inserter(indOfClass));
 		copy(it->second.begin(), it->second.end(), back_inserter(indOfClass));
+		copy(it->second.begin(), it->second.end(), back_inserter(indOfClass));
 
 		std::vector<int> train_temp, test_temp;
 		int train_temp_size = 0;
@@ -87,11 +88,13 @@ std::vector<int> featureProcess::shuffleDataSet(std::vector<cv::Mat>& data, std:
 
 float featureProcess::calculatePredictionAccuracy(const std::string& feature_name, const std::vector<unsigned char>& classResult, const std::vector<unsigned char>& testLabels)
 {
-	std::string overall_accuracy = "oa_" + feature_name.substr(1) + ".txt";
-	std::ofstream fout(overall_accuracy);
-	if (!feature_name.empty()) {
-		fout << feature_name.substr(1) << std::endl;
+	std::string overall_accuracy;
+	std::ofstream fout;
+	if (!feature_name.empty()) { 
+		overall_accuracy = "oa_" + feature_name.substr(1) + ".txt";
+		fout.open(overall_accuracy);
 	}
+	
 	float accuracy = 0.0;
 	if (classResult.size() != testLabels.size()) {
 		std::cerr << "Predicted and actual label vectors differ in length. Somethig doesn't seem right." << std::endl;
@@ -160,7 +163,7 @@ cv::Mat featureProcess::getConfusionMatrix(const std::map<unsigned char, std::st
 }
 
 
-void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_labels, int trainPercent, const std::string& classifier_type, std::vector<unsigned char>& results) {
+void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_labels, int trainPercent, const std::string& classifier_type, std::vector<unsigned char>& results,int K) {
 
 	std::cout << "start to classify data with classifier :" << classifier_type << std::endl;
 
@@ -191,7 +194,7 @@ void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector
 		if (classifier_type == "opencvKNN") {
 			cv::Ptr<cv::ml::TrainData> cv_data = cv::ml::TrainData::create(traindata, 0, traindata_label);
 			cv::Ptr<cv::ml::KNearest>  knn(cv::ml::KNearest::create());
-			knn->setDefaultK(20);
+			knn->setDefaultK(K);
 			knn->setIsClassifier(true);
 			knn->train(cv_data);
 			for (auto& x_test : test) {
@@ -202,11 +205,10 @@ void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector
 		}
 		else if (classifier_type == "KNN") {
 			KNN* knn = new KNN();
-			knn->KNNTest(train, train_labels, test, test_labels, 20, test_result);
+			knn->KNNTest(train, train_labels, test, test_labels, K, test_result);
 			delete knn;
 		}
 		else if (classifier_type == "opencvFLANN") {
-			int K = 20;
 			cv::flann::Index flann_index(
 				traindata,
 				cv::flann::KDTreeIndexParams(4),
@@ -237,8 +239,8 @@ void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector
 			criterRamdomF.epsilon = 1e-8;
 			criterRamdomF.maxCount = 500;
 			randomForest->setTermCriteria(criterRamdomF);
-			//randomForest->setMaxCategories(15);
-			//randomForest->setMaxDepth(25);
+			randomForest->setMaxCategories(K);
+			randomForest->setMaxDepth(K);
 			//randomForest->setMinSampleCount(1);
 			//randomForest->setTruncatePrunedTree(false);
 			//randomForest->setUse1SERule(false);
@@ -269,6 +271,7 @@ void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector
 		test_labels.clear();
 		test_result.clear();
 	}
+	calculatePredictionAccuracy("", results, data_labels);
 }
 
 
