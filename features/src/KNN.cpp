@@ -115,7 +115,7 @@ Author : Anupama Rajkumar
 Date : 12.06.2020
 Description: Classify test points using KNN Classifier
 *************************************************************************/
-float KNN::KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& trainLabels, const vector<Mat>& testVal, const vector<unsigned char>& testLabels, int k, vector<unsigned char>& classResult) {
+void KNN::KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& trainLabels, const vector<Mat>& testVal, const vector<unsigned char>& testLabels, int k, vector<unsigned char>& classResult) {
 	/*for each sample in the testing data, caculate distance from each training sample */
 	for (int i = 0; i < testVal.size(); i++) {								//for each test sample
 		vector<pair<float, unsigned char>> distVec;
@@ -133,8 +133,8 @@ float KNN::KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& tra
 		unsigned char classVal = this->Classify(distVec, k);
 		classResult.push_back(classVal);
 	}	
-	float accuracy = featureProcess::calculatePredictionAccuracy("",classResult, testLabels);
-	return accuracy;
+	//float accuracy = featureProcess::calculatePredictionAccuracy("",classResult, testLabels);
+	//return accuracy;
 }
 
 
