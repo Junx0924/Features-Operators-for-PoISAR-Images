@@ -21,7 +21,7 @@ namespace Utils {
 		// feature_name: choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
 		// classifier_type: choose from {"KNN","opencvKNN", "opencvRF", "opencvFLANN"}
 		void classifyFeaturesML(const std::string& hdf5_fileName, const std::string& feature_name, const std::string classifier_type, int trainPercent, int filterSize, int patchSize);
-	
+		void splitVec(const std::vector<int>& labels, std::vector<std::vector<int>>& subInd, int n);
 		
 		
 		// get the colormap of classified results

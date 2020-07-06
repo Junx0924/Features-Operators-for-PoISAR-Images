@@ -108,46 +108,49 @@ void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string
 
 // classifier_type: choose from {"KNN", "opencvKNN","opencvRF","opencvFLANN"}
 void Utils::classifyFeaturesML(const std::string& hdf5_fileName, const std::string& feature_name, const std::string classifier_type, int trainPercent, int filterSize, int patchSize) {
-
 	std::vector<std::string> dataset_name = { "/feature" ,"/patchLabel" };
-	std::cout << std::endl;
-	int fullSize = getRowSize(hdf5_fileName, feature_name, dataset_name[0], filterSize, patchSize);
- 
-	std::cout << "get " << fullSize << " rows for " << feature_name << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << std::endl;
 
-	//delete the old classifier results
 	if (Utils::checkExistInHDF(hdf5_fileName, feature_name, { "/" + classifier_type }, filterSize, patchSize)) {
 		Utils::deleteDataFromHDF(hdf5_fileName, feature_name, { "/" + classifier_type }, filterSize, patchSize);
 	}
-	
-	if (fullSize != 0) {
-		//create a vector to record all the index, then shuffle them
-		std::cout << "shuffle all the data" << std::endl;
-		std::vector<int> inds;
-		for (int i = 0; i < fullSize; i++) { inds.push_back(i); }
-		// obtain a time-based seed
-		unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-		std::default_random_engine e(seed);
-		std::shuffle(inds.begin(), inds.end(), e);
 
-		std::vector<cv::Mat> features;
-		std::vector<cv::Point> labelPoints;
-		std::vector<unsigned char> labels;
-		for (int i = 0; i < fullSize; ++i) {
-			
-			Utils::getFeaturesFromHDF(hdf5_fileName, feature_name, dataset_name, features, labels, labelPoints, filterSize, patchSize, inds[i], 1);
+	int totalrows = getRowSize(hdf5_fileName, feature_name, "/patchLabel", filterSize, patchSize);
+	if (totalrows > 0) {
+		std::cout << "get " << totalrows << " rows for " << feature_name << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << std::endl;
 
-			if ((features.size() == 5000) || (i == fullSize - 1)) {
+		std::vector<int> labels;
+		int start = 0, part = 5000;
+		while (start < totalrows) {
+			std::vector<cv::Mat> temp;
+			if ((start < totalrows) && (start + part > totalrows)) { part = totalrows - start; }
+			else { part = 5000; }
+			Utils::readDataFromHDF(hdf5_fileName, feature_name, { "/patchLabel" }, temp, filterSize, patchSize, start, part);
 
-				std::cout << "get " << features.size() << " rows for classification" << std::endl;
-
-				std::vector<unsigned char> class_results;
-				featureProcess::applyML(features, labels, 80, classifier_type, class_results);
-				saveClassResultToHDF(hdf5_fileName, feature_name, "/" + classifier_type, class_results, labelPoints, filterSize, patchSize);
-				features.clear();
-				labelPoints.clear();
-				labels.clear();
+			for (int i = 0; i < part; i++) {
+				labels.push_back(temp[0].at<int>(i, 0));
 			}
+			start = start + part;
+		}
+
+		int n = totalrows / 5000;
+		if (n == 0) { n = 1; }
+		std::vector<std::vector<int>> subInd(n);
+		splitVec(labels, subInd, n);
+		for (int j = 0; j < n; j++) {
+			std::vector<cv::Mat> features;
+			std::vector<cv::Point> labelPoints;
+			std::vector<unsigned char> patchLabels;
+			for (auto& ind : subInd[j]) {
+				Utils::getFeaturesFromHDF(hdf5_fileName, feature_name, dataset_name, features, patchLabels, labelPoints, filterSize, patchSize, ind, 1);
+			}
+			std::vector<unsigned char> class_results;
+			featureProcess::applyML(features, patchLabels, 80, classifier_type, class_results);
+			Utils::saveClassResultToHDF(hdf5_fileName, feature_name, "/" + classifier_type, class_results, labelPoints, filterSize, patchSize);
+
+			class_results.clear();
+			features.clear();
+			labelPoints.clear();
+			patchLabels.clear();
 		}
 	}
 	else {
@@ -329,7 +332,7 @@ void Utils::readDataFromHDF(const std::string& filename, const std::string& pare
 
 		std::vector<int> data_size = h5io->dsgetsize(datasetName);
 
-		if(counts_rows !=0 && counts_rows < data_size[0]){
+		if(counts_rows !=0 && counts_rows <= data_size[0]){
 			data = cv::Mat(counts_rows, data_size[1], h5io->dsgettype(datasetName));
 			std::vector<int> dims_offset(2), dims_count(2);
 			dims_offset = { offset_row,0 };
