@@ -46,6 +46,8 @@ src/KNN.hpp
 src/KNN.cpp
 src/cv_hdf5.cpp
 src/cv_hdf5.hpp
+src/featureProcess.hpp
+src/featureProcess.cpp
 
 tsne/sptree.cpp
 tsne/sptree.h
