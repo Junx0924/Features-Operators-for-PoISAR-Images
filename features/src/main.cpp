@@ -26,20 +26,20 @@ int main() {
    
     // test features
     int patchSize = 10;
-    int numOfSamplePoints = 200;
+    int numOfSamplePoints = 0;
     int filterSize = 0;
     unsigned char classlabel = 255;
-    string feature_name = color;
+    string feature_name = MP;
     
     ober* ob = new ober(ratfolder, labelfolder, oberfile);
     ob->caculFeatures(filterSize, patchSize, numOfSamplePoints, classlabel, feature_name);
     delete ob;
     
-    Utils::classifyFeaturesML(oberfile, feature_name, "FLANN", 80, filterSize, patchSize);
+   // Utils::classifyFeaturesML(oberfile, feature_name, "opencvFLANN", 80, filterSize, patchSize);
     
-    Utils::generateColorMap(oberfile, feature_name, "FLANN", filterSize, patchSize);
+   // Utils::generateColorMap(oberfile, feature_name, "opencvFLANN", filterSize, patchSize);
+   // Utils::featureDimReduction(oberfile, feature_name, 3000,filterSize, patchSize);
    
-    return 0;
 }
    
 

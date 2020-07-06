@@ -12,6 +12,12 @@
 
 // source:https://sites.google.com/site/alexzaitsevcodesamples/home/image-processing/extendedmax-reconstruct-regmax-c-implementation 
 namespace mp {
+    enum { LEADING = 1, TRAILING = 2, CENTER = 4 };
+    struct PTS {
+        int x = 0;
+        int y = 0;
+    };
+
     // width : cols, height: rows
     template <typename TYPE>
     void Reconstruct(TYPE* const Marker, const TYPE* const Mask, int  Width, int  Height)
@@ -221,11 +227,7 @@ namespace mp {
 
 
 
-    enum { LEADING = 1, TRAILING = 2, CENTER = 4 };
-    struct PTS {
-        int x = 0;
-        int y = 0;
-    };
+    
     class NeighborhoodWalker2D
 
     {

@@ -72,12 +72,12 @@ void ober::caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, un
 		default:
 			break;
 		}
-		if ((feature.size() == 2000) ||(j== N-1)) {
+		if ((feature.size() == 5000) ||(j== N-1)) {
 			cv::Mat temp_feature,temp_pts;
 			cv::vconcat(feature, temp_feature);
 			cv::vconcat(pts, temp_pts);
-			cv::Mat newFeature = Utils::featureDimReduction(temp_feature, 3);
-			Utils::insertDataToHDF(this->hdf5_file, feature_name, dataset_name, { newFeature, temp_pts }, filterSize, patchSize);
+			//cv::Mat newFeature = Utils::featureDimReduction(temp_feature, 2);
+			Utils::insertDataToHDF(this->hdf5_file, feature_name, dataset_name, { temp_feature, temp_pts }, filterSize, patchSize);
 			feature.clear();
 			pts.clear();
 		}
@@ -164,11 +164,11 @@ Mat ober::caculColor(const Mat& hh, const Mat& vv, const Mat& hv) {
 Mat ober::caculMP(const Mat& hh, const Mat& vv, const Mat& hv) {
 	 Mat hh_log = polsar::logTransform(polsar::getComplexAmpl(hh));
 	 Mat vv_log = polsar::logTransform(polsar::getComplexAmpl(vv));
-	  Mat hv_log = polsar::logTransform(polsar::getComplexAmpl(hv));
+	 Mat hv_log = polsar::logTransform(polsar::getComplexAmpl(hv));
 	 Mat result;
 	 result.push_back(cvFeatures::GetMP(hh_log, { 1,3,5 }));
 	 result.push_back(cvFeatures::GetMP(vv_log, { 1,3,5 }));
-	  result.push_back(cvFeatures::GetMP(hv_log, { 1,3,5 }));
+	 result.push_back(cvFeatures::GetMP(hv_log, { 1,3,5 }));
 
 	 return result.reshape(1,1);
 }
