@@ -79,19 +79,25 @@ void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string
 	Utils::readDataFromHDF(hdf5_fileName, feature_name, dataset,pts);
 	Utils::readDataFromHDF(hdf5_fileName, "/masks", "/labelMap", labelMap);
 	if(!pts.empty()){
+		std::vector<unsigned char> class_results;
+		std::vector<unsigned char> ground_truth_labels;
 		cv::Mat colorResultMap = cv::Mat::zeros(cv::Size(labelMap.size()), CV_8UC3);
-		cv::Mat colorLabelMap = cv::Mat::zeros(cv::Size(labelMap.size()), CV_8UC3);
+		cv::Mat groundTruthMap = cv::Mat::zeros(cv::Size(labelMap.size()), CV_8UC3);
 		for (int i = 0; i < pts.rows; ++i) {
 			int row = pts.at<int>(i, 1);
 			int col = pts.at<int>(i, 2);
 			unsigned char label = unsigned char(pts.at<int>(i, 0));
 			 unsigned char ground_truth = labelMap.at<unsigned char>(row, col);
+			 class_results.push_back(label);
+			 ground_truth_labels.push_back(ground_truth);
+
 			 colorResultMap.at<cv::Vec3b>(row, col) = getLabelColor( label);
-			colorLabelMap.at<cv::Vec3b>(row, col) = getLabelColor(ground_truth);
+			 groundTruthMap.at<cv::Vec3b>(row, col) = getLabelColor(ground_truth);
 		}
 		std::cout << "generate " << feature_name.substr(1) + "_colormap.png" << std::endl;
 		cv::imwrite(feature_name.substr(1) + "_colormap.png", colorResultMap);
-		cv::imwrite("colorLabelMap.png", colorLabelMap);
+		cv::imwrite("colorLabelMap.png", groundTruthMap);
+		featureProcess::calculatePredictionAccuracy(feature_name.substr(1), class_results, ground_truth_labels);
 	}
 	else {
 		std::cout << "can't find " << parent + dataset << " in " << hdf5_fileName << std::endl;
@@ -106,25 +112,42 @@ void Utils::classifyFeaturesML(const std::string& hdf5_fileName, const std::stri
 	std::vector<std::string> dataset_name = { "/feature" ,"/patchLabel" };
 	std::cout << std::endl;
 	int fullSize = getRowSize(hdf5_fileName, feature_name, dataset_name[0], filterSize, patchSize);
-	int offset_row = 0;
-	int partSize;
-	int partsCount = fullSize / 5000 +1;
-	if( fullSize !=0){
-		for (int i = 0; i < partsCount; ++i) {
-			partSize = fullSize / (partsCount - i);
-			fullSize -= partSize;
-			if (fullSize < 0) { break; }
-			std::vector<cv::Mat> features;
-			std::vector<cv::Point> labelPoints;
-			std::vector<unsigned char> labels;
-			Utils::getFeaturesFromHDF(hdf5_fileName, feature_name, dataset_name, features, labels, labelPoints, filterSize, patchSize, offset_row, partSize);
-			std::cout << "get " << features.size() << " rows for " << feature_name << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << std::endl;
+ 
+	std::cout << "get " << fullSize << " rows for " << feature_name << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << std::endl;
 
-			std::vector<unsigned char> class_results;
-			featureProcess::applyML(features, labels, 80, classifier_type, class_results);
-			featureProcess::calculatePredictionAccuracy(feature_name, class_results, labels);
-			saveClassResultToHDF(hdf5_fileName, feature_name, "/" + classifier_type, class_results, labelPoints, filterSize, patchSize);
-			offset_row = offset_row + partSize;
+	//delete the old classifier results
+	if (Utils::checkExistInHDF(hdf5_fileName, feature_name, { "/" + classifier_type }, filterSize, patchSize)) {
+		Utils::deleteDataFromHDF(hdf5_fileName, feature_name, { "/" + classifier_type }, filterSize, patchSize);
+	}
+	
+	if (fullSize != 0) {
+		//create a vector to record all the index, then shuffle them
+		std::cout << "shuffle all the data" << std::endl;
+		std::vector<int> inds;
+		for (int i = 0; i < fullSize; i++) { inds.push_back(i); }
+		// obtain a time-based seed
+		unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+		std::default_random_engine e(seed);
+		std::shuffle(inds.begin(), inds.end(), e);
+
+		std::vector<cv::Mat> features;
+		std::vector<cv::Point> labelPoints;
+		std::vector<unsigned char> labels;
+		for (int i = 0; i < fullSize; ++i) {
+			
+			Utils::getFeaturesFromHDF(hdf5_fileName, feature_name, dataset_name, features, labels, labelPoints, filterSize, patchSize, inds[i], 1);
+
+			if ((features.size() == 5000) || (i == fullSize - 1)) {
+
+				std::cout << "get " << features.size() << " rows for classification" << std::endl;
+
+				std::vector<unsigned char> class_results;
+				featureProcess::applyML(features, labels, 80, classifier_type, class_results);
+				saveClassResultToHDF(hdf5_fileName, feature_name, "/" + classifier_type, class_results, labelPoints, filterSize, patchSize);
+				features.clear();
+				labelPoints.clear();
+				labels.clear();
+			}
 		}
 	}
 	else {
