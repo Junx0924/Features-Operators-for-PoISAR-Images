@@ -11,49 +11,7 @@
 using namespace std;
 using namespace cv;
 
-void KNN::applyKNN(const vector<Mat>& data, const vector<unsigned char> &data_labels, int k, int trainPercent, vector<unsigned char> &class_result) {
-	
-	cout << "start to classify data with KNN k = " << k<< endl;
-	cout << "train data size: " << data.size() * trainPercent / 100 << endl;
-	cout << "test data size: " << data.size()* (100 - trainPercent)/100 << endl;
-	cout << "cross validation folds: " << 100 / (100 - trainPercent) << endl;
 
-	// classify result
-	vector<unsigned char> results(data_labels.size());
-	
-	//copy the original data
-	vector<Mat> temp(data.begin(),data.end());
-	vector<unsigned char> temp_labels(data_labels.begin(), data_labels.end());
-
-	// record the original index of data before shuffle
-	//vector<int> original_ind = Utils::shuffleDataSet(temp, temp_labels);
-
-	class_result= vector<unsigned char>(data_labels.size());
-
-	vector<Mat> train;
-	vector<unsigned char> train_labels;
-	vector<Mat> test;
-	vector<unsigned char> test_labels;
-
-	int total_folds = 100 / (100 - trainPercent);
-	float accuracy =0.0;
-	for( int fold =1; fold < total_folds+1; ++fold){
-		vector<int> test_ind = Utils::DivideTrainTestData(temp, temp_labels, trainPercent, train, train_labels, test, test_labels, fold);
-		vector<unsigned char> test_result;
-		float acc = KNNTest(train, train_labels, test, test_labels, k, test_result);
-		accuracy = accuracy + acc;
-
-		for (size_t i = 0; i < test_ind.size(); i++) {
-			results[test_ind[i]] = test_result[i];
-		}
-		train.clear();
-		train_labels.clear();
-		test.clear();
-		test_labels.clear();
-	}
-	accuracy = accuracy / total_folds;
-	cout << "cross validation accuracy: " << accuracy << endl;
-}
 
 
 /***********************************************************************
@@ -69,8 +27,8 @@ float KNN::Euclidean(Mat& testVal, Mat& trainVal) {
 	testVal.convertTo(testVal, CV_32FC1);
 	trainVal.convertTo(trainVal, CV_32FC1);
 
-	double distance = 0.0;
-	double sum = 0.0;
+	float distance = 0.0f;
+	float sum = 0.0f;
 	//ensure that the dimensions of testVal and trainVal are same
 	if ((testVal.rows != trainVal.rows) || (testVal.cols != trainVal.cols))
 	{
@@ -175,7 +133,7 @@ float KNN::KNNTest(const vector<Mat>& trainVal, const vector<unsigned char>& tra
 		unsigned char classVal = this->Classify(distVec, k);
 		classResult.push_back(classVal);
 	}	
-	float accuracy = Utils::calculatePredictionAccuracy("feature",classResult, testLabels);
+	float accuracy = featureProcess::calculatePredictionAccuracy("",classResult, testLabels);
 	return accuracy;
 }
 
