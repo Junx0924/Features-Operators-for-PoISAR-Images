@@ -33,10 +33,12 @@ void ober::caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, un
 	LoadSamplePoints(patchSize, numOfSamplePoint, classlabel, 1);
 
 	cout << "start to calculate " << feature_name << " with filterSize " << filterSize << " , patchSize " << patchSize << endl;
-	size_t N = this->samplePoints.size();
+
 	vector<Mat> feature;
 	vector<Mat> pts;
-	for(size_t j =0; j< N; ++j){
+
+	size_t N = this->samplePoints.size();
+	for(size_t j = 0; j< N; ++j){
 		Point p = this->samplePoints[j];
 		int patchLabel = this->sampleLabel[j];
 

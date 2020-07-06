@@ -35,10 +35,10 @@ int main() {
     ob->caculFeatures(filterSize, patchSize, numOfSamplePoints, classlabel, feature_name);
     delete ob;
     
-   // Utils::classifyFeaturesML(oberfile, feature_name, "opencvFLANN", 80, filterSize, patchSize);
+    Utils::classifyFeaturesML(oberfile, feature_name, "opencvFLANN", 80, filterSize, patchSize);
     
-   // Utils::generateColorMap(oberfile, feature_name, "opencvFLANN", filterSize, patchSize);
-   // Utils::featureDimReduction(oberfile, feature_name, 3000,filterSize, patchSize);
+    Utils::generateColorMap(oberfile, feature_name, "opencvFLANN", filterSize, patchSize);
+    Utils::featureDimReduction(oberfile, feature_name, 5000,filterSize, patchSize);
    
 }
    
