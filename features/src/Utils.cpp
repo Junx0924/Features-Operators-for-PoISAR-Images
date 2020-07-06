@@ -650,3 +650,33 @@ void Utils::featureDimReduction(const std::string& hdf5_fileName, const std::str
 	featureProcess::calculatePredictionAccuracy(feature_name, results, labels);
 }
 
+//split data to batches, make sure the distribution of each class in each batch is the same as it in the whole data
+// get the index vectors of original data
+// n: number of batches
+void Utils::splitVec(const std::vector<int>& labels, std::vector<std::vector<int>>& subInd, int n) {
+
+	if (subInd.size() == 0) { subInd = std::vector<std::vector<int>>(n); }
+
+	// To regulate count of parts
+	int partsCount = n;
+
+	std::map<int, std::vector<int>> count;
+	for (int ind = 0; ind < labels.size(); ind++) {
+		count[labels[ind]].push_back(ind);
+	}
+
+	for (const auto& c : count) {
+		std::vector<int> inds = c.second;
+		// Variable to control size of non divided elements
+		int fullSize = inds.size();
+		int start = 0;
+		for (int i = 0; i < partsCount; ++i) {
+			int partSize = fullSize / (partsCount - i);
+			fullSize -= partSize;
+			for (int j = 0; j < partSize; j++) {
+				subInd[i].push_back(inds[start + j]);
+			}
+			start = start + partSize;
+		}
+	}
+}
