@@ -22,32 +22,30 @@ std::vector<int> featureProcess::DivideTrainTestData(const std::vector<cv::Mat>&
 	// make sure each class is divided 80% as train, 20% as test
 	for (auto it = numPerClass.begin(); it != numPerClass.end(); it++)
 	{
-		size_t train_size = it->second.size() * percentOfTrain / 100;
-		size_t test_size = it->second.size() - train_size;
+		size_t test_size = it->second.size() *(100 - percentOfTrain )/ 100;
+		size_t train_size = it->second.size() - test_size;
+		if( train_size >0 && test_size >0){
+			std::vector<int> indOfClass;
+			// expand indOfClass twice
+			copy(it->second.begin(), it->second.end(), back_inserter(indOfClass));
+			copy(it->second.begin(), it->second.end(), back_inserter(indOfClass));
 
-		std::vector<int> indOfClass;
-		// expand indOfClass twice
-		copy(it->second.begin(), it->second.end(), back_inserter(indOfClass));
-		copy(it->second.begin(), it->second.end(), back_inserter(indOfClass));
-		copy(it->second.begin(), it->second.end(), back_inserter(indOfClass));
-
-		std::vector<int> train_temp, test_temp;
-		int train_temp_size = 0;
-		int test_temp_size = 0;
-		for (size_t i = 0; i < indOfClass.size(); ++i) {
-			if (train_temp_size < test_size) {
-				test_temp.push_back(indOfClass[i + (fold - 1) * test_size]);
-				train_temp_size++;
+			std::vector<int> train_temp, test_temp;
+			int train_temp_size = 0;
+			int test_temp_size = 0;
+			for (size_t i = 0; i < indOfClass.size(); ++i) {
+				if (train_temp_size < test_size) {
+					test_temp.push_back(indOfClass[i + (fold - 1) * test_size]);
+					train_temp_size++;
+				}
+				if (test_temp_size < train_size) {
+					train_temp.push_back(indOfClass[i + fold * test_size]);
+					test_temp_size++;
+				}
 			}
-			if (test_temp_size < train_size) {
-				train_temp.push_back(indOfClass[i + fold * test_size]);
-				test_temp_size++;
-			}
+			copy(train_temp.begin(), train_temp.end(), back_inserter(train_index));
+			copy(test_temp.begin(), test_temp.end(), back_inserter(test_index));
 		}
-
-		copy(train_temp.begin(), train_temp.end(), back_inserter(train_index));
-		copy(test_temp.begin(), test_temp.end(), back_inserter(test_index));
-
 	}
 	for (auto i : train_index) {
 		train_img.push_back(data[i]);
@@ -71,7 +69,7 @@ std::vector<int> featureProcess::shuffleDataSet(std::vector<cv::Mat>& data, std:
 	std::uniform_int_distribution<int> rnd(0, size - 1);
 	for (int i = 0; i < size; ++i) {
 		cv::Mat temp = data[i];
-		signed char temp_c = data_label[i];
+		unsigned char temp_c = data_label[i];
 		int swap = rnd(engine);
 		if (swap == i) { continue; }
 		else {
@@ -166,13 +164,16 @@ cv::Mat featureProcess::getConfusionMatrix(const std::map<unsigned char, std::st
 void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_labels, int trainPercent, const std::string& classifier_type, std::vector<unsigned char>& results,int K) {
 
 	std::cout << "start to classify data with classifier :" << classifier_type << std::endl;
-
+	std::cout << "data size :" << data.size() << std::endl;
 	// classify result
 	results = std::vector<unsigned char>(data_labels.size());
+	 
 
 	//copy the original data
 	std::vector<cv::Mat> temp(data.begin(), data.end());
 	std::vector<unsigned char> temp_labels(data_labels.begin(), data_labels.end());
+	// shuffle the data
+	//std::vector<int> original_ind =shuffleDataSet(temp, temp_labels);
 
 	std::vector<cv::Mat> train;
 	std::vector<unsigned char> train_labels;
@@ -255,14 +256,9 @@ void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector
 			}
 		}
 
-		float count = 0.0;
-		for (int i = 0; i < test.size(); ++i) {
-			unsigned char y_test = test_labels[i];
-			unsigned char y_result = test_result[i];
-			if (y_test == y_result) {
-				count = count + 1.0;
-			}
-			results[test_ind[i]] = y_result;
+		for (int i = 0; i < test_result.size(); ++i) {
+			//results[original_ind[test_ind[i]]] = test_result[i];
+			results[test_ind[i]] = test_result[i];
 		}
 
 		train.clear();
