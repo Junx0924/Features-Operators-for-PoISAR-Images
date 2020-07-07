@@ -20,8 +20,9 @@ namespace Utils {
 		// use opencv ml functions
 		// feature_name: choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
 		// classifier_type: choose from {"KNN","opencvKNN", "opencvRF", "opencvFLANN"}
-		void classifyFeaturesML(const std::string& hdf5_fileName, const std::string& feature_name, const std::string classifier_type, int trainPercent, int filterSize, int patchSize);
-		void splitVec(const std::vector<int>& labels, std::vector<std::vector<int>>& subInd, int n);
+		void classifyFeaturesML(const std::string& hdf5_fileName, const std::string& feature_name, const std::string classifier_type, int trainPercent, int filterSize, int patchSize, int batchSize);
+		
+
 		
 		
 		// get the colormap of classified results
@@ -52,7 +53,10 @@ namespace Utils {
 		// get random samples of homogeneous area for one type of class, numOfSamplePointPerClass =0 means to return all the possible sample points
 		void getRandomSamplePoint(const cv::Mat& labelMap, std::vector<cv::Point>& samplePoints, const unsigned char& sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass);
 		cv::Mat generateLabelMap(const std::vector<cv::Mat>& masks);
-
+		// split data to batches, make sure the distribution of each class in each batch is the same as it in the whole data
+        // shuffle the index, record the index vectors of original data
+        // batchSize: batchSize, default 5000
+		void splitVec(const std::vector<unsigned char>& labels, std::vector<std::vector<int>>& subInd, int batchSize);
 
 
 		//************* HDF5 file read/write/insert/delete *****************//

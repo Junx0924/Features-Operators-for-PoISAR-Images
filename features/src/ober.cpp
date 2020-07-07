@@ -25,64 +25,71 @@ namespace fs = std::filesystem;
 // classlabel: choose which class to load, 255 means to load all the classes
 // numOfSamplePoint, the number of samples for one type of class, 0 means load all the possible sample points
 // feature_name: choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
-void ober::caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, unsigned char classlabel, string feature_name) {
+void ober::caculFeatures(std::string feature_name, unsigned char classlabel, int filterSize, int patchSize, int numOfSamplePoint, int batchSize) {
 	
-	std::map<string, int> feature_type = { {"/texture",0},{"/color",1},{"/CTelememts",2},{"/polStatistic",3},{"/decomp",4},{"/MP",5} };
+	std::map<string, int> feature_type = { {"/texture",1},{"/color",2},{"/CTelements",3},{"/polStatistic",4},{"/decomp",5},{"/MP",6} };
 	vector<string> dataset_name = { "/feature" ,"/patchLabel" };
 
 	LoadSamplePoints(patchSize, numOfSamplePoint, classlabel, 1);
 
 	cout << "start to calculate " << feature_name << " with filterSize " << filterSize << " , patchSize " << patchSize << endl;
 
-	vector<Mat> feature;
-	vector<Mat> pts;
+	//shuffle all the samplePoints based on its label
+	//make sure each class has right portion in each batch
+	std::vector<std::vector<int>> subInd;
+	Utils::splitVec(this->sampleLabel, subInd, batchSize);
 
-	size_t N = this->samplePoints.size();
-	for(size_t j = 0; j< N; ++j){
-		Point p = this->samplePoints[j];
-		int patchLabel = this->sampleLabel[j];
+	for (auto i = 0; i < subInd.size();i++) {
+		std::vector<int> ind = subInd[i];
+		size_t N = ind.size();
 
-		cv::Mat temp = Mat(1, 3, CV_32SC1);
-		temp.at<int>(0, 0) = patchLabel;
-		temp.at<int>(0, 1) = p.y; //row
-		temp.at<int>(0, 2) = p.x; //col
-		pts.push_back(temp);
+		vector<Mat> feature;
+		vector<Mat> pts;
+		for (size_t j = 0; j < N; ++j) {
+			Point p = this->samplePoints[ind[j]];
+			int patchLabel = this->sampleLabel[ind[j]];
 
-		Mat hh, vv, hv;
-		getSample(p, patchSize, filterSize, hh, vv, hv);
+			cv::Mat temp = Mat(1, 3, CV_32SC1);
+			temp.at<int>(0, 0) = patchLabel;
+			temp.at<int>(0, 1) = p.y; //row
+			temp.at<int>(0, 2) = p.x; //col
+			pts.push_back(temp);
 
-		
-		switch (feature_type[feature_name]) {
-		case 0:
-			feature.push_back(caculTexture(hh, vv, hv));
-			break;
-		case 1:
-			feature.push_back(caculColor(hh, vv, hv));
-			break;
-		case 2:
-			feature.push_back(caculCTelements(hh, vv, hv));
-			break;
-		case 3:
-			feature.push_back(caculPolStatistic(hh, vv, hv));
-			break;
-		case 4:
-			feature.push_back(caculDecomp(hh, vv, hv));
-			break;
-		case 5:
-			feature.push_back(caculMP(hh, vv, hv));
-			break;
-		default:
-			break;
+			Mat hh, vv, hv;
+			getSample(p, patchSize, filterSize, hh, vv, hv);
+
+			switch (feature_type[feature_name]) {
+			case 1:
+				feature.push_back(caculTexture(hh, vv, hv));
+				break;
+			case 2:
+				feature.push_back(caculColor(hh, vv, hv));
+				break;
+			case 3:
+				feature.push_back(caculCTelements(hh, vv, hv));
+				break;
+			case 4:
+				feature.push_back(caculPolStatistic(hh, vv, hv));
+				break;
+			case 5:
+				feature.push_back(caculDecomp(hh, vv, hv));
+				break;
+			case 6:
+				feature.push_back(caculMP(hh, vv, hv));
+				break;
+			default:
+				std::cout << "feature name not existed:" << feature_name << std::endl;
+				exit(-1);
+				break;
+			}
 		}
-		if ((feature.size() == 5000) ||(j== N-1)) {
-			cv::Mat temp_feature,temp_pts;
-			cv::vconcat(feature, temp_feature);
-			cv::vconcat(pts, temp_pts);
-			//cv::Mat newFeature = Utils::featureDimReduction(temp_feature, 2);
-			Utils::insertDataToHDF(this->hdf5_file, feature_name, dataset_name, { temp_feature, temp_pts }, filterSize, patchSize);
-			feature.clear();
-			pts.clear();
-		}
+		cv::Mat temp_feature, temp_pts;
+		cv::vconcat(feature, temp_feature);
+		cv::vconcat(pts, temp_pts);
+		Utils::insertDataToHDF(this->hdf5_file, feature_name, dataset_name, { temp_feature, temp_pts }, filterSize, patchSize);
+		feature.clear();
+		pts.clear();
+		std::cout << "calculate "<<feature_name.substr(1)<<" progress: " << float(i+1) / float(subInd.size()) * 100.0 << "% \n" << std::endl;
 	}
 }
 
@@ -330,6 +337,8 @@ void ober::writeLabelMapToHDF(const string& hdf5_fileName, const vector<Mat>&mas
 			Utils::writeAttrToHDF(hdf5_fileName, "label_" + to_string(name.first), name.second);
 			cout <<name.second<< " label : "<<to_string(name.first) << endl;
 		}
+
+		
 	}
 	else {
 		cout << "load labelMap to memory" << endl;
@@ -343,43 +352,7 @@ void ober::writeLabelMapToHDF(const string& hdf5_fileName, const vector<Mat>&mas
 	}
 }
 
-// generate sample points with stride 1 and save to hdf5
-void ober::generateSamplePoints(const string& hdf5_fileName, const Mat & labelmap, int patchSize) {
-	
-	int stride = 1;
-	string parent_name = "/samplePoints";
-	string data_name = "/patchSize_" + to_string(patchSize);
-	bool flag = Utils::checkExistInHDF(hdf5_fileName, parent_name, data_name);
 
-	Mat samplePoints;
-	if (!flag) {
-			vector<Point> pts = Utils::generateSamplePoints(labelmap, patchSize, 1);
-			for (auto& p : pts) {
-				Mat temp;
-				unsigned char patch_label = labelmap.at<unsigned char>(p.y, p.x);
-				// get patch class label
-				unsigned char patch_upcorner = labelmap.at<unsigned char>(p.y - patchSize / 2, p.x - patchSize / 2);
-				unsigned char patch_downcorner = labelmap.at<unsigned char>(p.y + patchSize / 2, p.x + patchSize / 2);
-				if ((patch_label != patch_upcorner) && (patch_label != patch_downcorner))
-				{
-					patch_label = unsigned char(0);
-				}
-				temp.push_back((int)patch_label);
-				temp.push_back(p.y); //row
-				temp.push_back(p.x); //col
-				samplePoints.push_back(temp);
-			}
-	
-		   Utils::writeDataToHDF(hdf5_fileName, parent_name, data_name, samplePoints);
-		   cout << "get " << samplePoints.rows << " samples with patch size " << patchSize << endl;
-		   getSampleInfo(hdf5_fileName, samplePoints, patchSize);
-	}
-	else {
-		cout << "" << endl;
-		Utils::readDataFromHDF(hdf5_fileName, parent_name, data_name, samplePoints);
-		getSampleInfo( hdf5_fileName,samplePoints, patchSize);
-	}
-}
 
 void ober::getSampleInfo(const string& hdf5_fileName,const Mat& pts, int patchSize) {
 	cout << "it has " << pts.rows << " samples with patchSize " << patchSize << endl;

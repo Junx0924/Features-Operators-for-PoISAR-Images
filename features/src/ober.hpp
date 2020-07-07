@@ -76,14 +76,15 @@ public:
     // classlabel: choose which class to load, 255 means to load all the classes
     // numOfSamplePoint, the number of samples for one type of class, 0 means load all the possible sample points
 	// feature_name: choose from { texture, color, ctElements,polStatistic,decomp, MP}
-	 void caculFeatures(int filterSize, int patchSize, int numOfSamplePoint, unsigned char classlabel, std::string feature_name);
+	 void caculFeatures(std::string feature_name, unsigned char classlabel, int filterSize, int patchSize, int numOfSamplePoint,int batchSize =5000);
 
 private:
 	// input sample size and the maximum number of samples per class 
-	//numOfSamplePoint =0 means load all the possible sample points
+	// numOfSamplePoint =0 means load all the possible sample points
+	// shuffle all the points based on its label
 	void LoadSamplePoints(const int& sampleSize, const int& numOfSamplePoint, const unsigned char& classlabel, int stride = 1);
 	void getSample(const cv::Point& p, int patchSize, int filtersize, cv::Mat& hh, cv::Mat& vv, cv::Mat& hv);
-	void generateSamplePoints(const std::string& hdf5_fileName, const cv::Mat& labelmap, int patchSize);
+	
 	void getSampleInfo(const std::string& hdf5_fileName, const cv::Mat& pts, int patchSize);
 
 	// get texture features(LBP and GLCM) on HH,VV,VH

@@ -43,22 +43,23 @@ cv::Vec3b Utils::getLabelColor(unsigned char class_result)
 	cv::Vec3b labelColor;
 
 	// Color is BGR not RGB!
-	cv::Vec3b red = cv::Vec3b(49, 60, 224); //city
+	cv::Vec3b black = cv::Vec3b(0, 0, 0);// unclassified, class 0
 
-	cv::Vec3b blue = cv::Vec3b(164, 85, 50); //street
+	cv::Vec3b red = cv::Vec3b(49, 60, 224); //city, class 1
 
-	cv::Vec3b yellow = cv::Vec3b(0, 190, 246); //field
+	cv::Vec3b blue = cv::Vec3b(164, 85, 50); //street, class 2
 
-	cv::Vec3b dark_green = cv::Vec3b(66, 121, 79); //forest
+	cv::Vec3b yellow = cv::Vec3b(0, 190, 246); //field, class 3
 
-	cv::Vec3b light_green = cv::Vec3b(0, 189, 181); // grassland
+	cv::Vec3b dark_green = cv::Vec3b(66, 121, 79); //forest, class 4
 
-	cv::Vec3b black = cv::Vec3b(0, 0, 0);
+	cv::Vec3b light_green = cv::Vec3b(0, 189, 181); // grassland, class 5
 
-	std::vector<cv::Vec3b> right_color = { red,  yellow, dark_green, light_green,blue, black };
+
+	std::vector<cv::Vec3b> right_color = { black, red,  yellow, dark_green, light_green,blue,};
 	
 	
-	labelColor = right_color[int(class_result)-1];
+	labelColor = right_color[int(class_result)];
 	 
 	return labelColor;
 }
@@ -68,25 +69,27 @@ cv::Vec3b Utils::getLabelColor(unsigned char class_result)
 
 void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string& feature_name, const std::string & classifier_type, int filterSize, int patchSize) {
 	std::vector<unsigned char> labels;
-	cv::Mat pts;
-	cv::Mat labelMap;
 
 	std::string dataset = "/"+classifier_type;
+	int totalrows = getRowSize(hdf5_fileName, feature_name, dataset, filterSize, patchSize);
+
 	std::string parent = feature_name;
 	if (patchSize != 0) { dataset = dataset + "_patchSize_" + std::to_string(patchSize); }
 	if (filterSize != 0) { parent = feature_name + "_filterSize_" + std::to_string(filterSize); }
 
-	Utils::readDataFromHDF(hdf5_fileName, feature_name, dataset,pts);
+	cv::Mat labelMap;
 	Utils::readDataFromHDF(hdf5_fileName, "/masks", "/labelMap", labelMap);
-	if(!pts.empty()){
+	if(totalrows>0){
 		std::vector<unsigned char> class_results;
 		std::vector<unsigned char> ground_truth_labels;
 		cv::Mat colorResultMap = cv::Mat::zeros(cv::Size(labelMap.size()), CV_8UC3);
 		cv::Mat groundTruthMap = cv::Mat::zeros(cv::Size(labelMap.size()), CV_8UC3);
-		for (int i = 0; i < pts.rows; ++i) {
-			int row = pts.at<int>(i, 1);
-			int col = pts.at<int>(i, 2);
-			unsigned char label = unsigned char(pts.at<int>(i, 0));
+		for (int i = 0; i < totalrows; ++i) {
+			cv::Mat pts;
+			Utils::readDataFromHDF(hdf5_fileName, feature_name, dataset, pts,i,1);
+			int row = pts.at<int>(0, 1);
+			int col = pts.at<int>(0, 2);
+			unsigned char label = unsigned char(pts.at<int>(0, 0));
 			 unsigned char ground_truth = labelMap.at<unsigned char>(row, col);
 			 class_results.push_back(label);
 			 ground_truth_labels.push_back(ground_truth);
@@ -94,9 +97,10 @@ void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string
 			 colorResultMap.at<cv::Vec3b>(row, col) = getLabelColor( label);
 			 groundTruthMap.at<cv::Vec3b>(row, col) = getLabelColor(ground_truth);
 		}
+		std::cout << std::endl;
 		std::cout << "generate " << feature_name.substr(1) + "_colormap.png" << std::endl;
 		cv::imwrite(feature_name.substr(1) + "_colormap.png", colorResultMap);
-		cv::imwrite("colorLabelMap.png", groundTruthMap);
+		cv::imwrite("groundTruthMap.png", groundTruthMap);
 		featureProcess::calculatePredictionAccuracy(feature_name.substr(1), class_results, ground_truth_labels);
 	}
 	else {
@@ -107,50 +111,37 @@ void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string
 
 
 // classifier_type: choose from {"KNN", "opencvKNN","opencvRF","opencvFLANN"}
-void Utils::classifyFeaturesML(const std::string& hdf5_fileName, const std::string& feature_name, const std::string classifier_type, int trainPercent, int filterSize, int patchSize) {
+void Utils::classifyFeaturesML(const std::string& hdf5_fileName, const std::string& feature_name, const std::string classifier_type, int trainPercent, int filterSize, int patchSize,int batchSize) {
 	std::vector<std::string> dataset_name = { "/feature" ,"/patchLabel" };
 
 	if (Utils::checkExistInHDF(hdf5_fileName, feature_name, { "/" + classifier_type }, filterSize, patchSize)) {
 		Utils::deleteDataFromHDF(hdf5_fileName, feature_name, { "/" + classifier_type }, filterSize, patchSize);
 	}
 
-	int totalrows = getRowSize(hdf5_fileName, feature_name, "/patchLabel", filterSize, patchSize);
-	if (totalrows > 0) {
-		std::cout << "get " << totalrows << " rows for " << feature_name << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << std::endl;
-
-		std::vector<int> labels;
-		int start = 0, part = 5000;
-		while (start < totalrows) {
-			std::vector<cv::Mat> temp;
-			if ((start < totalrows) && (start + part > totalrows)) { part = totalrows - start; }
-			else { part = 5000; }
-			Utils::readDataFromHDF(hdf5_fileName, feature_name, { "/patchLabel" }, temp, filterSize, patchSize, start, part);
-
-			for (int i = 0; i < part; i++) {
-				labels.push_back(temp[0].at<int>(i, 0));
-			}
-			start = start + part;
-		}
-
-		int n = totalrows / 5000;
-		if (n == 0) { n = 1; }
-		std::vector<std::vector<int>> subInd(n);
-		splitVec(labels, subInd, n);
-		for (int j = 0; j < n; j++) {
+	int fullSize = getRowSize(hdf5_fileName, feature_name, dataset_name[0], filterSize, patchSize);
+	std::cout << "get " << fullSize << " rows for " << feature_name << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << std::endl;
+	
+	int offset_row = 0;
+	int partSize;
+	if (batchSize > fullSize) { batchSize = fullSize; }
+	int partsCount = fullSize / batchSize;
+	if (fullSize != 0) {
+		for (int i = 0; i < partsCount; ++i) {
+			partSize = fullSize / (partsCount - i);
+			fullSize -= partSize;
+			if (fullSize < 0) { break; }
 			std::vector<cv::Mat> features;
 			std::vector<cv::Point> labelPoints;
-			std::vector<unsigned char> patchLabels;
-			for (auto& ind : subInd[j]) {
-				Utils::getFeaturesFromHDF(hdf5_fileName, feature_name, dataset_name, features, patchLabels, labelPoints, filterSize, patchSize, ind, 1);
-			}
-			std::vector<unsigned char> class_results;
-			featureProcess::applyML(features, patchLabels, 80, classifier_type, class_results);
-			Utils::saveClassResultToHDF(hdf5_fileName, feature_name, "/" + classifier_type, class_results, labelPoints, filterSize, patchSize);
+			std::vector<unsigned char> labels;
+			Utils::getFeaturesFromHDF(hdf5_fileName, feature_name, dataset_name, features, labels, labelPoints, filterSize, patchSize, offset_row, partSize);
+			std::cout << "get " << features.size() << " rows for " << feature_name << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << std::endl;
 
-			class_results.clear();
-			features.clear();
-			labelPoints.clear();
-			patchLabels.clear();
+			std::vector<unsigned char> class_results;
+			featureProcess::applyML(features, labels, 80, classifier_type, class_results);
+			featureProcess::calculatePredictionAccuracy(feature_name, class_results, labels);
+			saveClassResultToHDF(hdf5_fileName, feature_name, "/" + classifier_type, class_results, labelPoints, filterSize, patchSize);
+			offset_row = offset_row + partSize;
+			std::cout << "classifiy " << feature_name.substr(1) << " progress: " << float(i + 1) / float(partsCount) * 100.0 << "% \n" << std::endl;
 		}
 	}
 	else {
@@ -647,20 +638,19 @@ void Utils::featureDimReduction(const std::string& hdf5_fileName, const std::str
 	}
 	std::vector<unsigned char> results;
 	featureProcess::applyML(newfeatures, labels, 80, "opencvFLANN", results);
-	featureProcess::calculatePredictionAccuracy(feature_name, results, labels);
+	featureProcess::calculatePredictionAccuracy("", results, labels);
 }
 
-//split data to batches, make sure the distribution of each class in each batch is the same as it in the whole data
-// get the index vectors of original data
-// n: number of batches
-void Utils::splitVec(const std::vector<int>& labels, std::vector<std::vector<int>>& subInd, int n) {
 
-	if (subInd.size() == 0) { subInd = std::vector<std::vector<int>>(n); }
+void Utils::splitVec(const std::vector<unsigned char>& labels, std::vector<std::vector<int>>& subInd, int batchSize) {
 
 	// To regulate count of parts
-	int partsCount = n;
+	if (batchSize > labels.size()) { batchSize = labels.size(); }
+	int partsCount = labels.size()/ batchSize;
 
-	std::map<int, std::vector<int>> count;
+	if (subInd.size() == 0) { subInd = std::vector<std::vector<int>>(partsCount); }
+
+	std::map<unsigned char, std::vector<int>> count;
 	for (int ind = 0; ind < labels.size(); ind++) {
 		count[labels[ind]].push_back(ind);
 	}
@@ -678,5 +668,13 @@ void Utils::splitVec(const std::vector<int>& labels, std::vector<std::vector<int
 			}
 			start = start + partSize;
 		}
+	}
+
+	//shuffle the index
+	// obtain a time-based seed
+	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	std::default_random_engine e(seed);
+	for (auto i = 0; i < subInd.size(); i++) {
+		std::shuffle(subInd[i].begin(), subInd[i].end(), e);
 	}
 }
