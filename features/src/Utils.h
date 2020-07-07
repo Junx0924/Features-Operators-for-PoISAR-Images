@@ -28,7 +28,7 @@ namespace Utils {
 		// get the colormap of classified results
 		// feature_name: choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
 		// classifier_type: choose from {"KNN","opencvKNN", "opencvRF", "opencvFLANN"}
-		void generateColorMap(const std::string& hdf5_fileName, const std::string& feature_name, const std::string& classifier_type, int filterSize,int patchSize);
+		void generateColorMap(const std::string& hdf5_fileName, const std::string& feature_name, const std::string& classifier_type, int filterSize,int patchSize, int batchSize);
 		// input: the class label
 		// return: the color
 		cv::Vec3b getLabelColor(unsigned char class_label);
@@ -60,18 +60,18 @@ namespace Utils {
 
 
 		//************* HDF5 file read/write/insert/delete *****************//
-		bool checkExistInHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name,int filterSize,int patchSize);
+		bool checkExistInHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name,int filterSize=0,int patchSize=0);
 		bool checkExistInHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name);
 		// delete dataset from hdf5 file
 		void deleteDataFromHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name);
-		void deleteDataFromHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, int filterSize, int patchSize);
+		void deleteDataFromHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, int filterSize=0, int patchSize=0);
 		// eg: filename = "ober.h5", parent_name = "/MP", dataset_name = "/feature_patchSize_10"
 		void writeDataToHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name, const cv::Mat& data);
-		void writeDataToHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, const std::vector<cv::Mat>& data,int filterSize, int patchSize);
+		void writeDataToHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, const std::vector<cv::Mat>& data,int filterSize=0, int patchSize=0);
 		// eg: filename = "ober.h5" ,parent_name = "/MP", dataset_name = "/feature_patchSize_10"
 		void readDataFromHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name, cv::Mat& data, int offset_row = 0, int counts_rows = 0);
-		void readDataFromHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name,  std::vector<cv::Mat>& data, int filterSize, int patchSize, int offset_row=0, int counts_rows=0);
-		int getRowSize(const std::string& filename, const std::string& parent_name, const std::string& dataset_name,int filterSize, int patchSize);
+		void readDataFromHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name,  std::vector<cv::Mat>& data, int filterSize=0, int patchSize=0, int offset_row=0, int counts_rows=0);
+		int getRowSize(const std::string& filename, const std::string& parent_name, const std::string& dataset_name,int filterSize=0, int patchSize=0);
 		
 		//write attribute to the root group
 		void writeAttrToHDF(const std::string& filename, const std::string& attribute_name, const int &attribute_value);
@@ -80,7 +80,7 @@ namespace Utils {
 		void readAttrFromHDF(const std::string& filename, const std::string& attribute_name, std::string& attribute_value);
 		//insert data
 		bool insertDataToHDF(const std::string& filename, const std::string& parent_name, const std::string& dataset_name, const cv::Mat& data);
-		bool insertDataToHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, const std::vector<cv::Mat>& data, int filterSize, int patchSize);
+		bool insertDataToHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, const std::vector<cv::Mat>& data, int filterSize=0, int patchSize=0);
 
 
 };

@@ -267,7 +267,6 @@ void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector
 		test_labels.clear();
 		test_result.clear();
 	}
-	calculatePredictionAccuracy("", results, data_labels);
 }
 
 

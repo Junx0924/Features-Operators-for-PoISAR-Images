@@ -67,9 +67,10 @@ cv::Vec3b Utils::getLabelColor(unsigned char class_result)
 
 
 
-void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string& feature_name, const std::string & classifier_type, int filterSize, int patchSize) {
+void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string& feature_name, const std::string & classifier_type, int filterSize, int patchSize,int batchSize) {
 	std::vector<unsigned char> labels;
-
+	std::cout << std::endl;
+	std::cout << "start to generate the color map of classified results"<<std::endl;
 	std::string dataset = "/"+classifier_type;
 	int totalrows = getRowSize(hdf5_fileName, feature_name, dataset, filterSize, patchSize);
 
@@ -84,20 +85,33 @@ void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string
 		std::vector<unsigned char> ground_truth_labels;
 		cv::Mat colorResultMap = cv::Mat::zeros(cv::Size(labelMap.size()), CV_8UC3);
 		cv::Mat groundTruthMap = cv::Mat::zeros(cv::Size(labelMap.size()), CV_8UC3);
-		for (int i = 0; i < totalrows; ++i) {
-			cv::Mat pts;
-			Utils::readDataFromHDF(hdf5_fileName, feature_name, dataset, pts,i,1);
-			int row = pts.at<int>(0, 1);
-			int col = pts.at<int>(0, 2);
-			unsigned char label = unsigned char(pts.at<int>(0, 0));
-			 unsigned char ground_truth = labelMap.at<unsigned char>(row, col);
-			 class_results.push_back(label);
-			 ground_truth_labels.push_back(ground_truth);
 
-			 colorResultMap.at<cv::Vec3b>(row, col) = getLabelColor( label);
-			 groundTruthMap.at<cv::Vec3b>(row, col) = getLabelColor(ground_truth);
+		int offset_row = 0;
+		int partSize;
+		if (batchSize > totalrows) { batchSize = totalrows; }
+		int partsCount = totalrows / batchSize;
+		for (int i = 0; i < partsCount; ++i) {
+			partSize = totalrows / (partsCount - i);
+			totalrows -= partSize;
+			if (totalrows < 0) { break; }
+			cv::Mat pts;
+			Utils::readDataFromHDF(hdf5_fileName, feature_name, dataset, pts, offset_row, partSize);
+
+			for (int j = 0; j < pts.rows; j++) {
+				int row = pts.at<int>(j, 1);
+				int col = pts.at<int>(j, 2);
+				unsigned char label = unsigned char(pts.at<int>(j, 0));
+				unsigned char ground_truth = labelMap.at<unsigned char>(row, col);
+
+				colorResultMap.at<cv::Vec3b>(row, col) = getLabelColor(label);
+				groundTruthMap.at<cv::Vec3b>(row, col) = getLabelColor(ground_truth);
+
+				class_results.push_back(label);
+				ground_truth_labels.push_back(ground_truth);
+			}
+			offset_row = offset_row + partSize;
 		}
-		std::cout << std::endl;
+		
 		std::cout << "generate " << feature_name.substr(1) + "_colormap.png" << std::endl;
 		cv::imwrite(feature_name.substr(1) + "_colormap.png", colorResultMap);
 		cv::imwrite("groundTruthMap.png", groundTruthMap);
@@ -138,7 +152,7 @@ void Utils::classifyFeaturesML(const std::string& hdf5_fileName, const std::stri
 
 			std::vector<unsigned char> class_results;
 			featureProcess::applyML(features, labels, 80, classifier_type, class_results);
-			featureProcess::calculatePredictionAccuracy(feature_name, class_results, labels);
+			featureProcess::calculatePredictionAccuracy("", class_results, labels);
 			saveClassResultToHDF(hdf5_fileName, feature_name, "/" + classifier_type, class_results, labelPoints, filterSize, patchSize);
 			offset_row = offset_row + partSize;
 			std::cout << "classifiy " << feature_name.substr(1) << " progress: " << float(i + 1) / float(partsCount) * 100.0 << "% \n" << std::endl;
@@ -620,6 +634,7 @@ void Utils::featureDimReduction(const std::string& hdf5_fileName, const std::str
 	cv::Mat reduced_feature = featureProcess::featureDimReduction(feature, new_dims);
 
 	//save dimension reduced features and labels to txt file
+	std::cout << "save dimension reduced "<< feature_name.substr(1)<<" feature to txt" << std::endl;
 	std::string dim_reduce =  feature_name.substr(1) + "_dimReduced" + ".txt";
 	std::ofstream fout(dim_reduce);
 	for(int i =0; i< reduced_feature.rows; i++){
