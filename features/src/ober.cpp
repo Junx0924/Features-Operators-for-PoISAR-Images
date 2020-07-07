@@ -19,12 +19,24 @@ using namespace cv;
 namespace fs = std::filesystem;
  
 
-// calulate features and save them to hdf5 file
-// filterSize: apply refined Lee despeckling filter, choose from (0, 5, 7, 9, 11)
-// patchSize: to draw samples
-// classlabel: choose which class to load, 255 means to load all the classes
-// numOfSamplePoint, the number of samples for one type of class, 0 means load all the possible sample points
-// feature_name: choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+/*===================================================================
+ * Function: caculFeatures
+ *
+ * Summary:
+ *   shuffle the samples and split them into batches with porper class distribution
+ *	 calulate features and save to hdf5 file
+ *
+ * Arguments:
+ *   std::string feature_name - choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+ *   unsigned char classlabel  -  choose which class to load, 255 means to load all the classes
+ *   int filterSize - apply refined Lee despeckling filter, choose from (0, 5, 7, 9, 11)
+ *	 int patchSize
+ *	 int numOfSamplePoint - the number of samples for one type of class, 0 means load all the possible sample points
+ *	 int batchSize - default 5000
+ * output:
+ *
+=====================================================================
+*/
 void ober::caculFeatures(std::string feature_name, unsigned char classlabel, int filterSize, int patchSize, int numOfSamplePoint, int batchSize) {
 	
 	std::map<string, int> feature_type = { {"/texture",1},{"/color",2},{"/CTelements",3},{"/polStatistic",4},{"/decomp",5},{"/MP",6} };
@@ -94,10 +106,21 @@ void ober::caculFeatures(std::string feature_name, unsigned char classlabel, int
 }
 
 
-
-
-// classlabel: choose which class to load, 255 means to load all the classes
-//numOfSamplePoint, the number of samples for one type of class, 0 means load all the possible sample points
+/*===================================================================
+ * Function: LoadSamplePoints
+ *
+ * Summary:
+ *   load sample points
+ *
+ * Arguments:
+ *   const int& patchSize - choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+ *	 const int& numOfSamplePoint - the number of samples for one type of class, 0 means load all the possible sample points
+ *   const unsigned char& classlabel - choose which class to load, 255 means to load all the classes
+ *	 int stride
+ * output:
+ *
+=====================================================================
+*/
 void ober::LoadSamplePoints(const int& patchSize, const int& numOfSamplePoint, const unsigned char& classlabel, int stride) {
 
 	if (!this->samplePoints.empty()) {
@@ -136,17 +159,74 @@ void ober::LoadSamplePoints(const int& patchSize, const int& numOfSamplePoint, c
 	}
 }
 
-// get texture features(LBP,GLCM) on three channels, default feature mat size 1*64
+/*===================================================================
+ * Function: getSample
+ *
+ * Summary:
+ *   get sample mat at sample point
+ *   apply refined Lee filter to the sample mat if filtersize is not 0
+ *
+ * Arguments:
+ *  const Point& p - sample point
+ *	int patchSize
+ *	int filtersize - choose from {0, 5, 7, 9, 11}
+ * output:
+ * Mat& hh, Mat& vv, Mat& hv
+=====================================================================
+*/
+void ober::getSample(const Point& p, int patchSize, int filtersize, Mat& hh, Mat& vv, Mat& hv) {
+	int size = patchSize;
+	int start_x = int(p.x) - patchSize / 2;
+	int start_y = int(p.y) - patchSize / 2;
+	Rect roi = Rect(start_x, start_y, size, size);
+
+	//boundary check
+	//check if the sample corners are on the border
+	int x_min = p.x - int(patchSize / 2); // (x,y) -> (col,row)
+	int x_max = p.x + int(patchSize / 2);
+	int y_min = p.y - int(patchSize / 2);
+	int y_max = p.y + int(patchSize / 2);
+	if (x_max < data[0].cols && y_max < data[0].rows && y_min >= 0 && x_min >= 0) {
+		if (this->data.size() == 3) {
+			if (filtersize == 5 || filtersize == 7 || filtersize == 9 || filtersize == 11) {
+				hh = this->data[0](roi).clone();
+				vv = this->data[1](roi).clone();
+				hv = this->data[2](roi).clone();
+
+				RefinedLee* filter = new RefinedLee(filtersize, 1);
+				filter->filterFullPol(hh, vv, hv);
+				delete filter;
+			}
+			else {
+				hh = data[0](roi);
+				vv = data[1](roi);
+				hv = data[2](roi);
+			}
+		}
+		else if (data.size() == 2) {
+			vv = this->data[0](roi);
+			hv = this->data[1](roi);
+		}
+	}
+	else {
+		cout << "out of boundary, get sample at point (" << p.x << "," << p.y << "with patchSize " << patchSize << " failed " << endl;
+		hh = Mat();
+		vv = Mat();
+		hv = Mat();
+	}
+}
+
+// calculate texture features on each channel
 Mat ober::caculTexture(const Mat& hh, const Mat& vv, const Mat& hv) {
 	vector<Mat> temp(3);
 	// intensity of HH channel
 	temp[0] = polsar::logTransform(polsar::getComplexAmpl(hh));
+
 	// intensity of VV channel
 	temp[1] = polsar::logTransform(polsar::getComplexAmpl(vv));
+
 	// intensity of HV channel
 	temp[2] = polsar::logTransform(polsar::getComplexAmpl(hv));
-
-	 
 
 	vector<Mat> output;
 	for (const auto& t : temp) {
@@ -160,16 +240,15 @@ Mat ober::caculTexture(const Mat& hh, const Mat& vv, const Mat& hv) {
 	return result.reshape(1,1);
 }
 
-// get color features(MPEG-7 DCD,CSD) on Pauli Color image, default feature mat size 1*44
+// calculate color features on Pauli Color Coding
 Mat ober::caculColor(const Mat& hh, const Mat& vv, const Mat& hv) {
 	Mat colorImg = polsar::GetPauliColorImg(hh, vv, hv);
-
 	Mat result;
 	cv::hconcat(cvFeatures::GetMPEG7CSD(colorImg, 32), cvFeatures::GetMPEG7DCD(colorImg, 3), result);
 	return result;
 }
 
-// get MP features on grayscaled Pauli Color image, default feature mat size
+// calculate morphological profile on each channel with diameter (1,3,5)
 Mat ober::caculMP(const Mat& hh, const Mat& vv, const Mat& hv) {
 	 Mat hh_log = polsar::logTransform(polsar::getComplexAmpl(hh));
 	 Mat vv_log = polsar::logTransform(polsar::getComplexAmpl(vv));
@@ -182,10 +261,7 @@ Mat ober::caculMP(const Mat& hh, const Mat& vv, const Mat& hv) {
 	 return result.reshape(1,1);
 }
 
-
-
-
-// get polsar features on target decompostion 
+// calculate target decomposition
 Mat ober::caculDecomp(const Mat& hh, const Mat& vv, const Mat& hv) {
 	Mat result;
 
@@ -201,11 +277,11 @@ Mat ober::caculDecomp(const Mat& hh, const Mat& vv, const Mat& hv) {
 	polsar::GetCovarianceC(lexi, covariance);
 
 	vector<Mat> decomposition;
-	  polsar::GetCloudePottierDecomp(coherency, decomposition); //8  
-	  polsar::GetFreemanDurdenDecomp(coherency, decomposition); //3  
-	  polsar::GetKrogagerDecomp(circ, decomposition); // 3  
-	  polsar::GetPauliDecomp(pauli, decomposition); // 3  
-	  polsar::GetYamaguchi4Decomp(coherency, covariance, decomposition); //4 
+	polsar::GetCloudePottierDecomp(coherency, decomposition); //8  
+	polsar::GetFreemanDurdenDecomp(coherency, decomposition); //3  
+	polsar::GetKrogagerDecomp(circ, decomposition); // 3  
+	polsar::GetPauliDecomp(pauli, decomposition); // 3  
+	polsar::GetYamaguchi4Decomp(coherency, covariance, decomposition); //4 
 
 	vconcat(decomposition, result);
 	return result.reshape(1, 1);
@@ -236,19 +312,25 @@ Mat ober::caculPolStatistic(const Mat& hh, const Mat& vv, const Mat& hv) {
 	
 	// intensity of VV channel
 	Mat vv_log = polsar::logTransform(polsar::getComplexAmpl(vv));
+
 	// intensity of HV channel
 	Mat hv_log = polsar::logTransform(polsar::getComplexAmpl(hv));
+
 	// phase difference HH-VV
 	Mat phaseDiff = polsar::getPhaseDiff(hh, vv);
+
 	//statistic of Co-polarize ratio VV-HH
 	Mat coPolarize = vv_log - hh_log;
+
 	// Cross-polarized ratio HV-HH
 	Mat crossPolarize = hv_log - hh_log;
+
 	// polarized ratio HV-VV
 	Mat otherPolarize = hv_log - vv_log;
 
 	//Copolarization ratio
 	Mat copolarizationRatio = polsar::getCoPolarizationRatio(hh, vv, 3);
+
 	//deCopolarization ratio
 	Mat deCopolarizationRatio = polsar::getDePolarizationRatio(hh, vv, hv, 3);
 
@@ -276,51 +358,6 @@ Mat ober::caculPolStatistic(const Mat& hh, const Mat& vv, const Mat& hv) {
 	return output.reshape(1, 1);
 }
 
-
-// get data at sample point
-void ober::getSample(const Point& p,int patchSize, int filtersize,Mat& hh, Mat& vv, Mat& hv) {
-	int size = patchSize;
-	int start_x = int(p.x) - patchSize / 2;
-	int start_y = int(p.y) - patchSize / 2;
-	Rect roi = Rect(start_x, start_y, size, size);
-	
-	//boundary check
-	//check if the sample corners are on the border
-	int x_min = p.x - int(patchSize / 2); // (x,y) -> (col,row)
-	int x_max = p.x + int(patchSize / 2);
-	int y_min = p.y - int(patchSize / 2);
-	int y_max = p.y + int(patchSize / 2);
-	if (x_max < data[0].cols && y_max < data[0].rows && y_min >= 0 && x_min >= 0){
-		if (this->data.size() == 3) {
-			if (filtersize == 5 || filtersize == 7 || filtersize == 9 || filtersize == 11) {
-				hh = this->data[0](roi).clone();
-				vv = this->data[1](roi).clone();
-				hv = this->data[2](roi).clone();
-
-				RefinedLee* filter = new RefinedLee(filtersize, 1);
-				filter->filterFullPol(hh, vv, hv);
-				delete filter;
-			}
-			else {
-				hh = data[0](roi);
-				vv = data[1](roi);
-				hv = data[2](roi);
-			}
-		}
-		else if(data.size() ==2) {
-			vv = this->data[0](roi);
-			hv = this->data[1](roi);
-		}
-	}
-	else {
-		cout << "out of boundary, get sample at point (" << p.x << "," << p.y << "with patchSize "<< patchSize <<" failed " << endl;
-		hh = Mat();
-		vv = Mat();
-		hv = Mat();
-	}
-	
-
-}
 
 void ober::writeLabelMapToHDF(const string& hdf5_fileName, const vector<Mat>&masks, Mat& labelMap) {
 

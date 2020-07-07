@@ -49,9 +49,6 @@ public:
 	void filterFullPol(cv::Mat& hh, cv::Mat& vv, cv::Mat& hv);
 	void filterFullPol(cv::Mat& hh, cv::Mat& vv, cv::Mat& hv, cv::Mat& span);
 
-	
-	//void filterDualPol();
-
 private:
 	float computePixelValueUsingLocalStatistics(const cv::Mat& neighborPixelValues, int numSamples);
 
@@ -62,8 +59,6 @@ private:
 	float getLocalMeanValue(const cv::Mat& neighborValues, int numSamples);
 
 	float getLocalVarianceValue(const cv::Mat& neighborValues, int numSamples, float mean);
-
-	
 
 	// Compute mean values for the 3x3 sub-areas in the sliding window 
 	void computeSubAreaMeans(const cv::Mat& neighborPixelValues, cv::Mat& subAreaMeans);

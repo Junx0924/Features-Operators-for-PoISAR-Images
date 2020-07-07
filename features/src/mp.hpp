@@ -303,11 +303,8 @@ namespace mp {
                 }
 
             }
-
             points_end_ = ipoint_;
-
         }
-
     };
 
 

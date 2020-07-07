@@ -10,8 +10,6 @@
 
 namespace polsar {
 
-	//Generate false color image
-	// R , G, B
 	cv::Mat GetColorImg(const cv::Mat& R, const cv::Mat& G, const cv::Mat& B, bool normed);
 	//R: HH+VV, G:HV, B: HH-VV
 	cv::Mat GetPauliColorImg(const cv::Mat& hh, const cv::Mat& vv, const cv::Mat& hv);
@@ -79,9 +77,9 @@ namespace polsar {
 	//restore 3*3 covariance or coherence mat from upcorner vector elements
 	cv::Mat restoreMatrix(const std::vector<cv::Mat>& upcorner, int row, int col);
 
-	// get copolarization ratio
 	cv::Mat getCoPolarizationRatio(const cv::Mat& hh, const cv::Mat& vv, int winSize);
 	cv::Mat getDePolarizationRatio(const cv::Mat& hh, const cv::Mat& vv, const cv::Mat & hv, int winSize);
+
 	// get <band1*conju(band2)>
 	cv::Mat calcuCoherenceOfPol(const cv::Mat& band1, const cv::Mat& band2, int winSize);
 	cv::Mat getPhaseDiff(const cv::Mat& vv, const cv::Mat& vh);

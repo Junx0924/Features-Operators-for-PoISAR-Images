@@ -1,12 +1,24 @@
 #include "featureProcess.hpp"
 
-/************************************************************
-Dividing the data samples into training and test samples
-eg: make sure each class is divided 80% as train, 20% as test
-int fold: the cross validation fold number, an integer between {1, 100 / (100 - percentOfTrain)}
-Modified by: Jun 15.06.2020
-return: the index of test data in the original data
-*************************************************************/
+/*===================================================================
+ * Function: DivideTrainTestData
+ *
+ * Summary:
+ *   split the data into train/test set balancely in different classes
+ *	 return the index of the test data in original data
+ *
+ * Arguments:
+ *   const std::vector<cv::Mat>& data
+ *   const std::vector<unsigned char>& data_label
+ *	 int percentOfTrain
+ *	 int fold - crossvalidation number,an integer between {1, 100 / (100 - percentOfTrain)}
+ * output:
+ *	std::vector<cv::Mat>& train_img
+ *	std::vector<unsigned char>& train_label
+ *	std::vector<cv::Mat>& test_img
+ *	std::vector<unsigned char>& test_label
+=====================================================================
+*/
 std::vector<int> featureProcess::DivideTrainTestData(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_label, int percentOfTrain,
 	std::vector<cv::Mat>& train_img, std::vector<unsigned char>& train_label, std::vector<cv::Mat>& test_img, std::vector<unsigned char>& test_label, int fold) {
 
@@ -60,7 +72,19 @@ std::vector<int> featureProcess::DivideTrainTestData(const std::vector<cv::Mat>&
 }
 
 
-// shuffle the data, and record the original index of the shuffled data
+/*===================================================================
+ * Function: shuffleDataSet
+ *
+ * Summary:
+ *   shuffle the data, and return the original index of the shuffled data
+ *
+ * Arguments:
+ *   std::vector<cv::Mat>& data  
+ *   std::vector<unsigned char>& data_label
+ * output:
+ *	std::vector<int> original index of the shuffled data
+=====================================================================
+*/
 std::vector<int> featureProcess::shuffleDataSet(std::vector<cv::Mat>& data, std::vector<unsigned char>& data_label) {
 	int size = data.size();
 	std::vector<int> ind(size);
@@ -84,7 +108,23 @@ std::vector<int> featureProcess::shuffleDataSet(std::vector<cv::Mat>& data, std:
 	return ind;
 }
 
-float featureProcess::calculatePredictionAccuracy(const std::string& feature_name, const std::vector<unsigned char>& classResult, const std::vector<unsigned char>& testLabels)
+/*===================================================================
+ * Function: calculatePredictionAccuracy
+ *
+ * Summary:
+ *   calculate the accuracy for each class, and return the overal accuracy
+ *	 if provided feature_name, write accuracy to txt file
+ *
+ * Arguments:
+ *   const std::string& feature_name -  choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+ *   const std::vector<unsigned char>& classResult 
+ *	 const std::vector<unsigned char>& groundtruth 
+ *	 const std::map<unsigned char, std::string>& className - class name for each class label
+ * output:
+ *	float accuracy
+=====================================================================
+*/
+float featureProcess::calculatePredictionAccuracy(const std::string& feature_name, const std::vector<unsigned char>& classResult, const std::vector<unsigned char>& groundtruth, const std::map<unsigned char, std::string>& className)
 {
 	std::string overall_accuracy;
 	std::ofstream fout;
@@ -94,7 +134,7 @@ float featureProcess::calculatePredictionAccuracy(const std::string& feature_nam
 	}
 	
 	float accuracy = 0.0;
-	if (classResult.size() != testLabels.size()) {
+	if (classResult.size() != groundtruth.size()) {
 		std::cerr << "Predicted and actual label vectors differ in length. Somethig doesn't seem right." << std::endl;
 		exit(-1);
 	}
@@ -105,26 +145,27 @@ float featureProcess::calculatePredictionAccuracy(const std::string& feature_nam
 		int dim = classResult.size();
 
 		for (int i = 0; i < dim; ++i) {
-			if (classResult[i] == testLabels[i]) {
+			if (classResult[i] == groundtruth[i]) {
 				hit[classResult[i]]++;
 			}
-			total[testLabels[i]]++;
+			total[groundtruth[i]]++;
 		}
 
 		float a = 0.0;
 		for (auto& h : hit) {
 			unsigned char label = h.first;
+			std::string classname = className.at(label);
 			float correct = h.second;
 			float totalNum = total[label];
 			float class_accuracy = correct / totalNum;
 			a = correct + a;
-			std::cout << "accuracy for class " << std::to_string(label) << ": " << class_accuracy << std::endl;
+			std::cout << "accuracy for class " << classname << ": " << class_accuracy << std::endl;
 
 			if (!feature_name.empty()) {
-				fout << "accuracy for class " << std::to_string(label) << ": " << class_accuracy << std::endl;
+				fout << "accuracy for class " << classname << ": " << class_accuracy << std::endl;
 			}
 		}
-		accuracy = a / testLabels.size();
+		accuracy = a / groundtruth.size();
 		std::cout << "overall accuracy: " << accuracy << std::endl;
 
 		if (!feature_name.empty()) {
@@ -134,12 +175,26 @@ float featureProcess::calculatePredictionAccuracy(const std::string& feature_nam
 	return  accuracy;
 }
 
-cv::Mat featureProcess::getConfusionMatrix(const std::map<unsigned char, std::string>& className, std::vector<unsigned char>& classResult, std::vector<unsigned char>& testLabels) {
+/*===================================================================
+ * Function: getConfusionMatrix
+ *
+ * Summary:
+ *   calculate the ConfusionMatrix from class results and groundtruth
+ *
+ * Arguments:
+ *   const std::string& feature_name -  choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+ *   const std::vector<unsigned char>& classResult
+ *	 const std::vector<unsigned char>& groundtruth
+ * output:
+ *	cv::Mat 
+=====================================================================
+*/
+cv::Mat featureProcess::getConfusionMatrix(const std::map<unsigned char, std::string>& className, std::vector<unsigned char>& classResult, std::vector<unsigned char>& groundtruth) {
 	std::map<std::pair<unsigned char, signed char>, int> testCount;
 
-	for (int i = 0; i < testLabels.size(); ++i) {
+	for (int i = 0; i < groundtruth.size(); ++i) {
 		for (int j = 0; j < classResult.size(); ++j) {
-			std::pair temp = std::make_pair(testLabels[i], classResult[j]);
+			std::pair temp = std::make_pair(groundtruth[i], classResult[j]);
 			testCount[temp]++;
 		}
 	}
@@ -160,20 +215,33 @@ cv::Mat featureProcess::getConfusionMatrix(const std::map<unsigned char, std::st
 	return count;
 }
 
-
+/*===================================================================
+ * Function: applyML
+ *
+ * Summary:
+ *   classify the data, run cross validation on each test part, get class results
+ *
+ * Arguments:
+ *   const std::vector<cv::Mat>& data - original data
+ *   const std::vector<unsigned char>& data_labels  
+ *	 int trainPercent
+ *   const std::string& classifier_type - choose from {"KNN","opencvKNN", "opencvRF", "opencvFLANN"}
+ *   const std::vector<unsigned char>& classResult
+ *	 int K - the number for KNN, opencvKNN, opencvRF
+ * output:
+ *	std::vector<unsigned char>& results
+=====================================================================
+*/
 void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_labels, int trainPercent, const std::string& classifier_type, std::vector<unsigned char>& results,int K) {
 
 	std::cout << "start to classify data with classifier :" << classifier_type << std::endl;
 	std::cout << "data size :" << data.size() << std::endl;
 	// classify result
 	results = std::vector<unsigned char>(data_labels.size());
-	 
 
 	//copy the original data
 	std::vector<cv::Mat> temp(data.begin(), data.end());
 	std::vector<unsigned char> temp_labels(data_labels.begin(), data_labels.end());
-	// shuffle the data
-	//std::vector<int> original_ind =shuffleDataSet(temp, temp_labels);
 
 	std::vector<cv::Mat> train;
 	std::vector<unsigned char> train_labels;
@@ -242,12 +310,6 @@ void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector
 			randomForest->setTermCriteria(criterRamdomF);
 			randomForest->setMaxCategories(K);
 			randomForest->setMaxDepth(K);
-			//randomForest->setMinSampleCount(1);
-			//randomForest->setTruncatePrunedTree(false);
-			//randomForest->setUse1SERule(false);
-			//randomForest->setUseSurrogates(false);
-			//randomForest->setPriors(cv::Mat());
-			//randomForest->setCVFolds(1);
 
 			randomForest->train(cv_data);
 			for (auto& x_test : test) {
@@ -270,8 +332,19 @@ void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector
 }
 
 
-//input: Mat& feature, one sample per row
-//new_dims: default 2
+/*===================================================================
+ * Function: featureDimReduction
+ *
+ * Summary:
+ *   calculate the ConfusionMatrix from class results and groundtruth
+ *
+ * Arguments:
+ *   const cv::Mat& features - each row is a sample
+ *	 int new_dims - the reduced dimension size
+ * output:
+ *	cv::Mat size( features.rows, new_dims)
+=====================================================================
+*/
 cv::Mat featureProcess::featureDimReduction(const cv::Mat& features, int new_dims) {
 	cv::Mat feature;
 	features.convertTo(feature, CV_64FC1);
@@ -279,7 +352,7 @@ cv::Mat featureProcess::featureDimReduction(const cv::Mat& features, int new_dim
 	int N = feature.rows;
 	int D = feature.cols;
 	int perplexity = 40;
-	int max_iter = 1000;
+	int max_iter = 1200;
 	double* X = (double*)malloc(feature.total() * sizeof(double)); // data
 	double* Y = (double*)malloc(N * new_dims * sizeof(double));//output
 

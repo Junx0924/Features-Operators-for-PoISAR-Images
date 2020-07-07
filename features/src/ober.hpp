@@ -59,49 +59,41 @@ public:
 		for (int i = 0; i < labelNames.size(); i++) {
 			classNames.insert(std::pair<unsigned char, std::string>(i + 1, labelNames[i]));
 		}
-
 		 writeLabelMapToHDF(hdf5_file, masks, this->LabelMap);
-		 
-
 	}
-
 
 	~ober() {
 		
 	}
 
-	// calulate features and save them to hdf5 file
-	// filterSize: apply refined Lee despeckling filter, choose from (0, 5, 7, 9, 11)
-	// patchSize: to draw samples
-    // classlabel: choose which class to load, 255 means to load all the classes
-    // numOfSamplePoint, the number of samples for one type of class, 0 means load all the possible sample points
-	// feature_name: choose from { texture, color, ctElements,polStatistic,decomp, MP}
-	 void caculFeatures(std::string feature_name, unsigned char classlabel, int filterSize, int patchSize, int numOfSamplePoint,int batchSize =5000);
+	void caculFeatures(std::string feature_name, unsigned char classlabel, int filterSize, int patchSize, int numOfSamplePoint,int batchSize =5000);
 
 private:
-	// input sample size and the maximum number of samples per class 
-	// numOfSamplePoint =0 means load all the possible sample points
-	// shuffle all the points based on its label
 	void LoadSamplePoints(const int& sampleSize, const int& numOfSamplePoint, const unsigned char& classlabel, int stride = 1);
+
 	void getSample(const cv::Point& p, int patchSize, int filtersize, cv::Mat& hh, cv::Mat& vv, cv::Mat& hv);
 	
 	void getSampleInfo(const std::string& hdf5_fileName, const cv::Mat& pts, int patchSize);
 
 	// get texture features(LBP and GLCM) on HH,VV,VH
 	cv::Mat caculTexture(const cv::Mat& hh, const cv::Mat& vv, const cv::Mat& hv);
+
 	// get color features(MPEG-7 DCD,CSD) on Pauli Color image
 	cv::Mat caculColor(const cv::Mat& hh, const cv::Mat& vv, const cv::Mat& hv);
+
 	// get MP features on HH,VV,VH 
 	cv::Mat caculMP(const cv::Mat& hh, const cv::Mat& vv, const cv::Mat& hv);
-	// calculate covariance and coherency matrix and store to hdf5 file
+
 	// get polsar features on elements of covariance matrix C and coherency matrix T
 	cv::Mat caculCTelements(const cv::Mat& hh, const cv::Mat& vv, const cv::Mat& hv);
+
 	// get polsar features on target decompostion 
 	cv::Mat caculDecomp(const cv::Mat& hh, const cv::Mat& vv, const cv::Mat& hv);
+
 	// get polsar features on statistic of polsar parameters
 	cv::Mat caculPolStatistic(const cv::Mat& hh, const cv::Mat& vv, const cv::Mat& hv);
 
-	// write the labelmap to hdf5 and return the labelmap
+	// generate labelmap and save to hdf5
 	void writeLabelMapToHDF(const std::string& hdf5_fileName, const std::vector<cv::Mat>& masks,cv::Mat& labelMap);
 
 	/***Author: Anupama Rajkumar***/

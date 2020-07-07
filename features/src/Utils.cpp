@@ -35,7 +35,7 @@ cv::Mat Utils::generateLabelMap(const std::vector<cv::Mat> & masks) {
 
 
 /***********************************************************************
-input: the ground_truth label and the label from classifiers
+input: the label 
 return: the color
 *************************************************************************/
 cv::Vec3b Utils::getLabelColor(unsigned char class_result)
@@ -47,13 +47,13 @@ cv::Vec3b Utils::getLabelColor(unsigned char class_result)
 
 	cv::Vec3b red = cv::Vec3b(49, 60, 224); //city, class 1
 
-	cv::Vec3b blue = cv::Vec3b(164, 85, 50); //street, class 2
+	cv::Vec3b yellow = cv::Vec3b(0, 190, 246); //field, class 2
 
-	cv::Vec3b yellow = cv::Vec3b(0, 190, 246); //field, class 3
+	cv::Vec3b dark_green = cv::Vec3b(66, 121, 79); //forest, class 3
 
-	cv::Vec3b dark_green = cv::Vec3b(66, 121, 79); //forest, class 4
+	cv::Vec3b light_green = cv::Vec3b(0, 189, 181); // grassland, class 4
 
-	cv::Vec3b light_green = cv::Vec3b(0, 189, 181); // grassland, class 5
+	cv::Vec3b blue = cv::Vec3b(164, 85, 50); //street, class 5
 
 
 	std::vector<cv::Vec3b> right_color = { black, red,  yellow, dark_green, light_green,blue,};
@@ -66,17 +66,34 @@ cv::Vec3b Utils::getLabelColor(unsigned char class_result)
 
 
 
-
+/*===================================================================
+ * Function: generateColorMap
+ *
+ * Summary:
+ *   Generate the colormap of classified results
+ *
+ * Arguments:
+ *   std::string& hdf5_fileName - hdf5 filename
+ *   std::string& feature_name - choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+ *   std::string & classifier_type - choose from {"KNN","opencvKNN", "opencvRF", "opencvFLANN"}
+ *   int filterSize  
+ *	 int patchSize   
+ *	 int batchSize  
+ * Returns:
+ *   void
+=====================================================================
+*/
 void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string& feature_name, const std::string & classifier_type, int filterSize, int patchSize,int batchSize) {
 	std::vector<unsigned char> labels;
-	std::cout << std::endl;
-	std::cout << "start to generate the color map of classified results"<<std::endl;
+
 	std::string dataset = "/"+classifier_type;
 	int totalrows = getRowSize(hdf5_fileName, feature_name, dataset, filterSize, patchSize);
 
 	std::string parent = feature_name;
 	if (patchSize != 0) { dataset = dataset + "_patchSize_" + std::to_string(patchSize); }
 	if (filterSize != 0) { parent = feature_name + "_filterSize_" + std::to_string(filterSize); }
+
+	
 
 	cv::Mat labelMap;
 	Utils::readDataFromHDF(hdf5_fileName, "/masks", "/labelMap", labelMap);
@@ -111,11 +128,17 @@ void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string
 			}
 			offset_row = offset_row + partSize;
 		}
-		
-		std::cout << "generate " << feature_name.substr(1) + "_colormap.png" << std::endl;
-		cv::imwrite(feature_name.substr(1) + "_colormap.png", colorResultMap);
+
+		std::cout << std::endl;
+		std::string featureName = feature_name.substr(1);
+		std::cout << "classifier: " << classifier_type << std::endl;
+		std::cout << "save colormap to " << featureName + "_colormap.png" << std::endl;
+
+		cv::imwrite(featureName + "_colormap.png", colorResultMap);
 		cv::imwrite("groundTruthMap.png", groundTruthMap);
-		featureProcess::calculatePredictionAccuracy(feature_name.substr(1), class_results, ground_truth_labels);
+
+		std::map<unsigned char, std::string> className = Utils::getClassName(hdf5_fileName);
+		featureProcess::calculatePredictionAccuracy(featureName, class_results, ground_truth_labels, className);
 	}
 	else {
 		std::cout << "can't find " << parent + dataset << " in " << hdf5_fileName << std::endl;
@@ -124,9 +147,27 @@ void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string
 
 
 
-// classifier_type: choose from {"KNN", "opencvKNN","opencvRF","opencvFLANN"}
+/*===================================================================
+ * Function: classifyFeaturesML
+ *
+ * Summary:
+ *   Read the features from hdf5 file, classify them and write the classifiy results into hdf5 file
+ *
+ * Arguments:
+ *   std::string& hdf5_fileName - hdf5 filename
+ *   std::string& feature_name - choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+ *   std::string & classifier_type - choose from {"KNN","opencvKNN", "opencvRF", "opencvFLANN"}
+ *	 int trainPercent
+ *   int filterSize
+ *	 int patchSize
+ *	 int batchSize
+ * Returns:
+ *   void
+=====================================================================
+*/
 void Utils::classifyFeaturesML(const std::string& hdf5_fileName, const std::string& feature_name, const std::string classifier_type, int trainPercent, int filterSize, int patchSize,int batchSize) {
 	std::vector<std::string> dataset_name = { "/feature" ,"/patchLabel" };
+	std::map<unsigned char, std::string> className = Utils::getClassName(hdf5_fileName);
 
 	if (Utils::checkExistInHDF(hdf5_fileName, feature_name, { "/" + classifier_type }, filterSize, patchSize)) {
 		Utils::deleteDataFromHDF(hdf5_fileName, feature_name, { "/" + classifier_type }, filterSize, patchSize);
@@ -152,7 +193,7 @@ void Utils::classifyFeaturesML(const std::string& hdf5_fileName, const std::stri
 
 			std::vector<unsigned char> class_results;
 			featureProcess::applyML(features, labels, 80, classifier_type, class_results);
-			featureProcess::calculatePredictionAccuracy("", class_results, labels);
+			featureProcess::calculatePredictionAccuracy("", class_results, labels, className);
 			saveClassResultToHDF(hdf5_fileName, feature_name, "/" + classifier_type, class_results, labelPoints, filterSize, patchSize);
 			offset_row = offset_row + partSize;
 			std::cout << "classifiy " << feature_name.substr(1) << " progress: " << float(i + 1) / float(partsCount) * 100.0 << "% \n" << std::endl;
@@ -163,25 +204,62 @@ void Utils::classifyFeaturesML(const std::string& hdf5_fileName, const std::stri
 	}
 }
 
-// save the classify result to hdf5
-void Utils::saveClassResultToHDF(const std::string& hdf5_fileName, const std::string& parent_name, const std::string& dataset_name, const std::vector<unsigned char>& class_result, const std::vector<cv::Point> & points,int filterSize,int patchSize) {
+/*===================================================================
+ * Function: saveClassResultToHDF
+ *
+ * Summary:
+ *   write back the classified results to hdf5 ( class result from classifier,sample points)
+ *
+ * Arguments:
+ *   std::string& hdf5_fileName - hdf5 filename
+ *   std::string& feature_name  - choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+ *   std::string & classResult_name - choose from {"/KNN","/opencvKNN", "/opencvRF", "/opencvFLANN"}
+ *	 std::vector<unsigned char>& class_result
+ *	 std::vector<cv::Point> & points
+ *   int filterSize
+ *	 int patchSize
+ *	 int batchSize
+ * output:
+ *  
+=====================================================================
+*/
+void Utils::saveClassResultToHDF(const std::string& hdf5_fileName, const std::string& feature_name, const std::string& classResult_name, const std::vector<unsigned char>& class_result, const std::vector<cv::Point> & points,int filterSize,int patchSize) {
 	cv::Mat pts = cv::Mat(points.size(), 3, CV_32SC1);
 	for (size_t i = 0; i < points.size(); ++i) {
 		pts.at<int>(i, 0) = (int)(class_result[i]);
 		pts.at<int>(i, 1) = points[i].y; //row
 		pts.at<int>(i, 2) = points[i].x; //col
 	}
-	std::string dataset = dataset_name;
-	std::string parent = parent_name;
-	if (patchSize != 0) { dataset = dataset_name + "_patchSize_" + std::to_string(patchSize); }
-	if (filterSize != 0) { parent = parent_name + "_filterSize_" + std::to_string(filterSize); }
-	Utils::insertDataToHDF(hdf5_fileName, parent_name, dataset, pts);
+	std::string dataset = classResult_name;
+	std::string parent = feature_name;
+	if (patchSize != 0) { dataset = classResult_name + "_patchSize_" + std::to_string(patchSize); }
+	if (filterSize != 0) { parent = feature_name + "_filterSize_" + std::to_string(filterSize); }
+	Utils::insertDataToHDF(hdf5_fileName, parent, dataset, pts);
 }
 
 
-// get features data from hdf5
-// features and featureLabels for train and test
-// labelPoints for the location in image
+
+/*===================================================================
+ * Function: getFeaturesFromHDF
+ *
+ * Summary:
+ *   get features data from hdf5
+ *
+ * Arguments:
+ *   std::string& hdf5_fileName - hdf5 filename
+ *   std::string& parent_name  - choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+ *   std::vector<std::string>& dataset_name  - default { "/feature" ,"/patchLabel" }
+ *   int filterSize
+ *	 int patchSize
+ *	 int batchSize
+ *	 int offset_row - the start row
+ *   int counts_rows - the number of samples for output
+ * output:
+ *	 std::vector<cv::Mat>& features 
+ *   std::vector<unsigned char>& featureLabels 
+ *	 std::vector<cv::Point> & labelPoints 
+=====================================================================
+*/
 void Utils::getFeaturesFromHDF(const std::string& hdf5_fileName, const std::string& parent_name, std::vector<std::string>& dataset_name,
 	std::vector<cv::Mat>& features,std::vector<unsigned char>& featureLabels, std::vector<cv::Point> & labelPoints, int filterSize, int patchSize, int offset_row, int counts_rows) {
 	
@@ -202,6 +280,232 @@ void Utils::getFeaturesFromHDF(const std::string& hdf5_fileName, const std::stri
 	}
 }
 
+
+/*===================================================================
+ * Function: generateSamplePoints
+ *
+ * Summary:
+ *   generate all the possible sample points
+ *
+ * Arguments:
+ *   cv::Mat& labelMap  
+ *   int filterSize
+ *	 int patchSize
+ *	 int& stride
+ * output:
+ *	 std::vector<cv::Point> samplePoints
+=====================================================================
+*/
+std::vector<cv::Point> Utils::generateSamplePoints(const cv::Mat& labelMap, const int& patchSize, const int& stride) {
+
+	std::vector<cv::Point> samplePoints;
+	for (int row = 0; row < labelMap.rows - patchSize; row += stride) {
+		for (int col = 0; col < labelMap.cols - patchSize; col += stride) {
+			cv::Rect cell = cv::Rect(col, row, patchSize, patchSize);
+
+			int halfsize = patchSize / 2;
+
+			//record the central points of each patch
+			samplePoints.push_back(cv::Point(col + halfsize, row + halfsize));
+		}
+	}
+	return samplePoints;
+}
+
+/*===================================================================
+ * Function: getRandomSamplePoint
+ *
+ * Summary:
+ *   get random samples of homogeneous area for one type of class
+ *
+ * Arguments:
+ *   cv::Mat& labelMap
+ *	 unsigned char& sampleLabel
+ *   int filterSize
+ *	 int sampleSize
+ *	 int& stride
+ *   int& numOfSamplePointPerClass - 0 means to return all the possible sample points
+ * output:
+ *	 std::vector<cv::Point>& samplePoints
+=====================================================================
+*/
+void Utils::getRandomSamplePoint(const cv::Mat& labelMap, std::vector<cv::Point>& samplePoints, const unsigned char& sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass) {
+
+	std::vector<cv::Point> temp = generateSamplePoints(labelMap, sampleSize, stride);
+	std::map<unsigned char, std::vector<cv::Point> > count;
+	for (auto& p : temp) {
+		unsigned char label = labelMap.at<unsigned char>(p.y, p.x);
+		if (label == sampleLabel) {
+			count[sampleLabel].push_back(p);
+		}
+	}
+	std::vector<cv::Point> pts = count[sampleLabel];
+
+	if (numOfSamplePointPerClass > 0) {
+		std::random_device random_device;
+		std::mt19937 engine{ random_device() };
+		std::uniform_int_distribution<int> pt(0, pts.size() - 1);
+		size_t num = 0;
+		size_t iter = 0;
+
+		while (num < numOfSamplePointPerClass) {
+			cv::Point p = pts[pt(engine)];
+
+			// get samples in homogeneous areas 
+			// this is only for checking the accuracy of features
+			unsigned char label = labelMap.at<unsigned char>(p.y, p.x);
+			unsigned char sample_upcorner = labelMap.at<unsigned char>(p.y - sampleSize / 2, p.x - sampleSize / 2);
+			unsigned char sample_downcorner = labelMap.at<unsigned char>(p.y + sampleSize / 2, p.x + sampleSize / 2);
+			unsigned char sample_leftcorner = labelMap.at<unsigned char>(p.y + sampleSize / 2, p.x - sampleSize / 2);
+			unsigned char sample_rightcorner = labelMap.at<unsigned char>(p.y - sampleSize / 2, p.x + sampleSize / 2);
+			if ((label == sample_upcorner) && (label == sample_downcorner) &&
+				(label == sample_leftcorner) && (label == sample_rightcorner)) {
+				samplePoints.push_back(p);
+				++num;
+			}
+			++iter;
+			if (iter > pts.size()) { break; }
+		}
+	}
+	else {
+		std::cout << "load all the sample points" << std::endl;
+		copy(pts.begin(), pts.end(), back_inserter(samplePoints));
+	}
+}
+
+
+/*===================================================================
+ * Function: splitVec
+ *
+ * Summary:
+ *   split index to batches, make sure the distribution of each class in each batch is the same as it in the whole data
+ *	 shuffle the index, record the index vectors of original data
+ *
+ * Arguments:
+ *   std::vector<unsigned char>& labels
+ *   int batchSize
+ * output:
+ *	 std::vector<std::vector<int>>& subInd
+=====================================================================
+*/
+void Utils::splitVec(const std::vector<unsigned char>& labels, std::vector<std::vector<int>>& subInd, int batchSize) {
+
+	// To regulate count of parts
+	if (batchSize > labels.size()) { batchSize = labels.size(); }
+	int partsCount = labels.size() / batchSize;
+
+	if (subInd.size() == 0) { subInd = std::vector<std::vector<int>>(partsCount); }
+
+	std::map<unsigned char, std::vector<int>> count;
+	for (int ind = 0; ind < labels.size(); ind++) {
+		count[labels[ind]].push_back(ind);
+	}
+
+	for (const auto& c : count) {
+		std::vector<int> inds = c.second;
+		// Variable to control size of non divided elements
+		int fullSize = inds.size();
+		int start = 0;
+		for (int i = 0; i < partsCount; ++i) {
+			int partSize = fullSize / (partsCount - i);
+			fullSize -= partSize;
+			for (int j = 0; j < partSize; j++) {
+				subInd[i].push_back(inds[start + j]);
+			}
+			start = start + partSize;
+		}
+	}
+
+	//shuffle the index
+	// obtain a time-based seed
+	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	std::default_random_engine e(seed);
+	for (auto i = 0; i < subInd.size(); i++) {
+		std::shuffle(subInd[i].begin(), subInd[i].end(), e);
+	}
+}
+
+/*===================================================================
+ * Function: featureDimReduction
+ *
+ * Summary:
+ *   randomly select feature samples from hdf5 file, reduce the feature dimension by T-SNE
+ *   check the KNN accuracy on dim reduced features
+ *	 save the results to txt file for plotting in matlab
+ * Arguments:
+ *   std::string& hdf5_fileName - hdf5 filename
+ *   std::string& feature_name - choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
+ *	 int numSamples - number of samples for each class
+ *   int filterSize
+ *	 int patchSize
+ *	 int batchSize
+ * Returns:
+ *   void
+=====================================================================
+*/
+ void Utils::featureDimReduction(const std::string& hdf5_fileName, const std::string& feature_name, int numSamples, int filterSize, int patchSize) {
+	 std::vector<std::string> dataset_name = { "/feature" ,"/patchLabel" };
+
+	 int totalrows = getRowSize(hdf5_fileName, feature_name, dataset_name[0], filterSize, patchSize);
+	 if (numSamples > totalrows) { numSamples = totalrows; }
+
+	 std::random_device random_device;
+	 std::mt19937 engine{ random_device() };
+	 std::uniform_int_distribution<int> rows(0, totalrows - 1);
+
+	 std::vector<cv::Mat> feature_temp(numSamples), patchLabels_temp(numSamples);
+	 for (int i = 0; i < numSamples; i++) {
+		 int offset_row = rows(engine);
+		 int counts_row = 1;
+		 std::vector<cv::Mat> data;
+		 Utils::readDataFromHDF(hdf5_fileName, feature_name, dataset_name, data, filterSize, patchSize, offset_row, counts_row);
+		 feature_temp[i] = data[0];
+		 patchLabels_temp[i] = data[1];
+	 }
+
+	 cv::Mat feature, patchLabels;
+	 cv::vconcat(feature_temp, feature);
+	 cv::vconcat(patchLabels_temp, patchLabels);
+
+	 int new_dims = 2;
+	 cv::Mat reduced_feature = featureProcess::featureDimReduction(feature, new_dims);
+
+	 //save dimension reduced features and labels to txt file
+	 std::cout << "save dimension reduced " << feature_name.substr(1) << " feature to txt" << std::endl;
+	 std::string dim_reduce = feature_name.substr(1) + "_dimReduced" + ".txt";
+	 std::ofstream fout(dim_reduce);
+	 for (int i = 0; i < reduced_feature.rows; i++) {
+		 fout << patchLabels.at<int>(i, 0) << "," << reduced_feature.at<float>(i, 0) << "," << reduced_feature.at<float>(i, 1) << std::endl;
+	 }
+
+	 //check the KNN accuracy of dim reduced features
+	 std::vector<cv::Mat> newfeatures(reduced_feature.rows);
+	 std::vector<unsigned char> labels(reduced_feature.rows);
+	 for (int i = 0; i < reduced_feature.rows; i++) {
+		 labels[i] = unsigned char(patchLabels.at<int>(i, 0));
+		 cv::Mat temp(1, 2, CV_32FC1);
+		 temp.at<float>(0, 0) = reduced_feature.at<float>(i, 0);
+		 temp.at<float>(0, 1) = reduced_feature.at<float>(i, 1);
+		 newfeatures[i] = temp;
+	 }
+	 std::vector<unsigned char> results;
+	 featureProcess::applyML(newfeatures, labels, 80, "opencvFLANN", results);
+	 std::map<unsigned char, std::string> className = Utils::getClassName(hdf5_fileName);
+	 featureProcess::calculatePredictionAccuracy("", results, labels, className);
+}
+
+ std::map<unsigned char, std::string> Utils::getClassName(const std::string& filename) {
+	 // get the class names from hdf5
+	 int N = 10000, n = 0;
+	 std::map<unsigned char, std::string> className;
+	 while (n < N) {
+		 std::string class_name;
+		 Utils::readAttrFromHDF(filename, "label_" + std::to_string(n), class_name);
+		 if (!class_name.empty()) { className[unsigned char(n)] = class_name; n = n + 1; }
+		 else { break; }
+	 }
+	 return className;
+ }
 
 
 void Utils::deleteDataFromHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, int filterSize, int patchSize) {
@@ -354,9 +658,6 @@ void Utils::readDataFromHDF(const std::string& filename, const std::string& pare
 	h5io->close();
 }
 
-void readDataFromHDF(const std::string& filename, const std::string& parent_name, const std::vector<std::string>& dataset_name, std::vector<cv::Mat>& data, int filterSize, int patchSize, int start_row , int total_rows) {
-
-}
 
 int Utils::getRowSize(const std::string& filename, const std::string& parent_name, const std::string& dataset_name, int filterSize, int patchSize) {
 	int rows;
@@ -538,158 +839,4 @@ bool Utils::insertDataToHDF(const std::string& filename, const std::string& pare
 		std::cout << "the size of dataset_name doesn't match that of data"<<std::endl;
 	}
 	return flag;
-}
-
-
-std::vector<cv::Point> Utils::generateSamplePoints(const cv::Mat& labelMap, const int& patchSize, const int& stride) {
-
-	std::vector<cv::Point> samplePoints;
-	for (int row = 0; row < labelMap.rows - patchSize; row += stride) {
-		for (int col = 0; col < labelMap.cols - patchSize; col += stride) {
-			cv::Rect cell = cv::Rect(col, row, patchSize, patchSize);
-
-			int halfsize = patchSize / 2;
-			
-			//record the central points of each patch
-			samplePoints.push_back(cv::Point(col + halfsize, row + halfsize));
-		}
-	}
-	return samplePoints;
-}
-
-void Utils::getRandomSamplePoint(const cv::Mat& labelMap, std::vector<cv::Point> & samplePoints, const unsigned char &sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass) {
-	 
-	std::vector<cv::Point> temp = generateSamplePoints(labelMap, sampleSize, stride);
-	std::map<unsigned char, std::vector<cv::Point> > count;
-	for (auto& p : temp) {
-		unsigned char label = labelMap.at<unsigned char>(p.y, p.x);
-		if (label == sampleLabel) {
-			count[sampleLabel].push_back(p);
-		}
-	}
-	std::vector<cv::Point> pts = count[sampleLabel];
-
-	if (numOfSamplePointPerClass > 0) {
-		std::random_device random_device;
-		std::mt19937 engine{ random_device() };
-		std::uniform_int_distribution<int> pt(0, pts.size() - 1);
-		size_t num = 0;
-		size_t iter = 0;
-
-		while (num < numOfSamplePointPerClass) {
-			cv::Point p = pts[pt(engine)];
-
-			// get samples in homogeneous areas 
-			// this is only for checking the accuracy of features
-			unsigned char label = labelMap.at<unsigned char>(p.y, p.x);
-			unsigned char sample_upcorner = labelMap.at<unsigned char>(p.y - sampleSize / 2, p.x - sampleSize / 2);
-			unsigned char sample_downcorner = labelMap.at<unsigned char>(p.y + sampleSize / 2, p.x + sampleSize / 2);
-			unsigned char sample_leftcorner = labelMap.at<unsigned char>(p.y + sampleSize / 2, p.x - sampleSize / 2);
-			unsigned char sample_rightcorner = labelMap.at<unsigned char>(p.y - sampleSize / 2, p.x + sampleSize / 2);
-			if ((label == sample_upcorner) && (label == sample_downcorner) &&
-				(label == sample_leftcorner) && (label == sample_rightcorner)) {
-				samplePoints.push_back(p);
-				++num;
-			}
-			 ++iter;
-			if (iter > pts.size()) { break; }
-		}
-	 }
-	 else {
-		 std::cout << "load all the sample points" << std::endl;
-		 copy(pts.begin(), pts.end(), back_inserter(samplePoints));
-	 }
-}
-
-
-
-
-
-
-void Utils::featureDimReduction(const std::string& hdf5_fileName, const std::string& feature_name, int numSamples, int filterSize, int patchSize) {
-	std::vector<std::string> dataset_name = { "/feature" ,"/patchLabel" };
-
-	int totalrows = getRowSize(hdf5_fileName, feature_name, dataset_name[0], filterSize, patchSize);
-	if (numSamples > totalrows) { numSamples = totalrows; }
-
-	std::random_device random_device;
-	std::mt19937 engine{ random_device() };
-	std::uniform_int_distribution<int> rows(0, totalrows - 1);
-
-	std::vector<cv::Mat> feature_temp(numSamples), patchLabels_temp(numSamples);
-	for(int i =0; i< numSamples; i++){
-		int offset_row = rows(engine);
-		int counts_row = 1;
-		std::vector<cv::Mat> data;
-		Utils::readDataFromHDF(hdf5_fileName, feature_name, dataset_name, data, filterSize, patchSize, offset_row, counts_row);
-		feature_temp[i] = data[0];
-		patchLabels_temp[i] = data[1];
-	}
-
-	cv::Mat feature, patchLabels;
-	cv::vconcat(feature_temp, feature);
-	cv::vconcat(patchLabels_temp, patchLabels);
-
-	int new_dims = 2;
-	cv::Mat reduced_feature = featureProcess::featureDimReduction(feature, new_dims);
-
-	//save dimension reduced features and labels to txt file
-	std::cout << "save dimension reduced "<< feature_name.substr(1)<<" feature to txt" << std::endl;
-	std::string dim_reduce =  feature_name.substr(1) + "_dimReduced" + ".txt";
-	std::ofstream fout(dim_reduce);
-	for(int i =0; i< reduced_feature.rows; i++){
-	   fout << patchLabels.at<int>(i, 0) << "," << reduced_feature.at<float>(i, 0) << "," << reduced_feature.at<float>(i, 1) << std::endl;
-	}
-	
-	//check the KNN accuracy of dim reduced features
-	std::vector<cv::Mat> newfeatures(reduced_feature.rows);
-	std::vector<unsigned char> labels(reduced_feature.rows);
-	for (int i = 0; i < reduced_feature.rows; i++) {
-		labels[i] = unsigned char(patchLabels.at<int>(i, 0));
-		cv::Mat temp(1, 2, CV_32FC1);
-		temp.at<float>(0, 0) = reduced_feature.at<float>(i, 0);
-		temp.at<float>(0, 1) = reduced_feature.at<float>(i, 1);
-		newfeatures[i] = temp;
-	}
-	std::vector<unsigned char> results;
-	featureProcess::applyML(newfeatures, labels, 80, "opencvFLANN", results);
-	featureProcess::calculatePredictionAccuracy("", results, labels);
-}
-
-
-void Utils::splitVec(const std::vector<unsigned char>& labels, std::vector<std::vector<int>>& subInd, int batchSize) {
-
-	// To regulate count of parts
-	if (batchSize > labels.size()) { batchSize = labels.size(); }
-	int partsCount = labels.size()/ batchSize;
-
-	if (subInd.size() == 0) { subInd = std::vector<std::vector<int>>(partsCount); }
-
-	std::map<unsigned char, std::vector<int>> count;
-	for (int ind = 0; ind < labels.size(); ind++) {
-		count[labels[ind]].push_back(ind);
-	}
-
-	for (const auto& c : count) {
-		std::vector<int> inds = c.second;
-		// Variable to control size of non divided elements
-		int fullSize = inds.size();
-		int start = 0;
-		for (int i = 0; i < partsCount; ++i) {
-			int partSize = fullSize / (partsCount - i);
-			fullSize -= partSize;
-			for (int j = 0; j < partSize; j++) {
-				subInd[i].push_back(inds[start + j]);
-			}
-			start = start + partSize;
-		}
-	}
-
-	//shuffle the index
-	// obtain a time-based seed
-	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-	std::default_random_engine e(seed);
-	for (auto i = 0; i < subInd.size(); i++) {
-		std::shuffle(subInd[i].begin(), subInd[i].end(), e);
-	}
 }
