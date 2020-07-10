@@ -1,8 +1,8 @@
-#include "mp.hpp"
+#include "morph.hpp"
 #include <opencv2/opencv.hpp>
 using namespace cv;
 
-auto* mp::matToArray(const Mat& image) {
+auto* morph::matToArray(const Mat& image) {
     Mat output;
     if (image.channels() != 1) {
         cvtColor(image, output, COLOR_BGR2GRAY);
@@ -26,7 +26,7 @@ auto* mp::matToArray(const Mat& image) {
 
 // compute opening-closing by reconstruction from image
 // example:https://de.Mathworks.com/help/images/marker-controlled-watershed-segmentation.html
-Mat mp::CaculateMP(const Mat& src, int morph_size) {
+Mat morph::CaculateMP(const Mat& src, int morph_size) {
     //convert img to grayscale
     Mat dst;
     if (src.channels() != 1) {
@@ -70,7 +70,7 @@ Mat mp::CaculateMP(const Mat& src, int morph_size) {
     return output;
 }
 
-cv::Mat mp::imReconstruct(const cv::Mat& marker, const cv::Mat& mask) {
+cv::Mat morph::imReconstruct(const cv::Mat& marker, const cv::Mat& mask) {
     
     Mat output;
     if(marker.size() == mask.size()){
@@ -83,7 +83,7 @@ cv::Mat mp::imReconstruct(const cv::Mat& marker, const cv::Mat& mask) {
     return output;
 }
 
-cv::Mat mp::imRegionalMax(const cv::Mat& src) {
+cv::Mat morph::imRegionalMax(const cv::Mat& src) {
     Mat temp,output;
     if (src.channels() != 1) {
         cvtColor(src, temp, COLOR_BGR2GRAY);

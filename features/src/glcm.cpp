@@ -363,7 +363,7 @@ void GLCM::CalcuEValue(Mat src, TextureEValues& EValue, bool ToCheckMat)
         for(int j = 0; j < src.cols; j++)
         {
             EValue.energy += powf(src.at<float>(j, i), 2);
-            EValue.contrast += (powf((i - j), 2) * src.at<float>(j, i) );
+            EValue.contrast += (powf(float(i - j), 2) * src.at<float>(j, i) );
             EValue.homogenity += (src.at<float>(j, i) / (1 + fabs((float)(i - j))) );
             if(src.at<float>(j, i) != 0)
                 EValue.entropy -= (src.at<float>(j, i) * log10(src.at<float>(j, i)) );

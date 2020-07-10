@@ -3,13 +3,15 @@
 #define  OBER_HPP_
 #include <opencv2/opencv.hpp>
 #include <filesystem>
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <random>
 #include "specklefilter.hpp"
-#include "sarFeatures.hpp"
-#include "cv_hdf5.hpp"
 #include "cvFeatures.hpp"
 #include "sarFeatures.hpp"
+#include "dataset_hdf5.hpp"
 #include "Utils.h"
-
 
 /*defining compiler versions for some
 compiler specific includes*/
@@ -25,8 +27,6 @@ private:
 
 	std::vector<cv::Point> samplePoints;
 	std::vector<unsigned char> sampleLabel;
-	 
-	std::string hdf5_file;
 
 public:
 	// data = complex mat with values [HH, VV, HV]
@@ -39,12 +39,10 @@ public:
 
 	// constructor
 	// input: rat file folder, label file folder 
-	ober(const std::string& RATfileFolder, const std::string& labelFolder, const std::string & hdf5_fileName) {
+	ober(const std::string& RATfileFolder, const std::string& labelFolder) {
 
 		samplePoints = std::vector<cv::Point>();
 		sampleLabel = std::vector<unsigned char>();
-
-		hdf5_file = hdf5_fileName;
 
 		// read rat data, can't save them directly to hdf5, it will lost precision
 		loadData(RATfileFolder);
@@ -53,20 +51,31 @@ public:
 		std::vector<cv::Mat> masks;
 		std::vector<std::string>  labelNames;
 		ReadClassLabels(labelFolder, labelNames, masks);
+		this->LabelMap = Utils::generateLabelMap(masks);
 
 		// read the labelNames to dict
 		classNames[unsigned char(0)] = "Unclassified";
+		std::cout << "Unclassified" << " label : " << std::to_string(0) << std::endl;
 		for (int i = 0; i < labelNames.size(); i++) {
 			classNames.insert(std::pair<unsigned char, std::string>(i + 1, labelNames[i]));
+			std::cout << labelNames[i] << " label : " << std::to_string(i+1) << std::endl;
 		}
-		 writeLabelMapToHDF(hdf5_file, masks, this->LabelMap);
 	}
 
+	// constructor
+	ober(const std::vector<cv::Mat>& sardata, const cv::Mat& labelmap, const std::map<unsigned char, std::string>& classnames) {
+		this->data = sardata;
+		this->LabelMap = labelmap;
+		this->classNames = classnames;
+
+	}
 	~ober() {
 		
 	}
 
-	void caculFeatures(std::string feature_name, unsigned char classlabel, int filterSize, int patchSize, int numOfSamplePoint,int batchSize =5000);
+	//shuffle the samplesand split them into batches with porper class distribution
+	//calulate featuresand save to hdf5 file
+	void caculFeatures(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize, int batchSize = 5000, int numOfSamplePoint =0, unsigned char classlabel =255);
 
 private:
 	void LoadSamplePoints(const int& sampleSize, const int& numOfSamplePoint, const unsigned char& classlabel, int stride = 1);
@@ -93,8 +102,8 @@ private:
 	// get polsar features on statistic of polsar parameters
 	cv::Mat caculPolStatistic(const cv::Mat& hh, const cv::Mat& vv, const cv::Mat& hv);
 
-	// generate labelmap and save to hdf5
-	void writeLabelMapToHDF(const std::string& hdf5_fileName, const std::vector<cv::Mat>& masks,cv::Mat& labelMap);
+	// write labelmap and classNames save to hdf5
+	void writeLabelMapToHDF(const std::string& hdf5_fileName, cv::Mat& labelMap, std::map<unsigned char, std::string>&classNames);
 
 	/***Author: Anupama Rajkumar***/
 	void loadData(std::string RATfolderPath);

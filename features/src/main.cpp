@@ -6,83 +6,64 @@
 using namespace std;
 using namespace cv;
 
-string CTelements = "/CTelements";
-string decomp = "/decomp";
-string MP = "/MP";
-string color = "/color";
-string texture = "/texture";
-string polStatistic = "/polStatistic";
-vector<string> dataset_name = { "/feature" ,"/patchLabel" };
+string ctelements = "ctelements";
+string decomp = "decomp";
+string mp = "mp";
+string color = "color";
+string texture = "texture";
+string polstatistic = "polstatistic";
+std::vector<std::string> feature_name = { mp,color,texture,polstatistic,decomp,ctelements };
+
  
 int main(int argc, char** argv) {
 
-    if (argc < 6) {
-        cout << "Usage: " << argv[0] << " <ratFolder> <labelFolder> <oberFile> <featureName>  <filterSize> \n" << endl;
-        cout << "e.g. " << argv[0] << " E:\\Oberpfaffenhofen\\sar-data E:\\Oberpfaffenhofen\\label E:\\MP.h5 /MP 0\n" << endl;
-        cout << "featureName choose from: \n" << MP << "," << decomp << "," << color << "," << texture << "," << polStatistic << "," << CTelements << endl;
+    if (argc < 7) {
+        cout << "Usage: " << argv[0] << " <ratFolder> <labelFolder> <Hdf5File> <featureName>  <filterSize><patchSize> \n" << endl;
+        cout << "e.g. " << argv[0] << " E:\\Oberpfaffenhofen\\sar-data E:\\Oberpfaffenhofen\\label E:\\mp.h5  mp 0 10\n" << endl;
+        cout << "featureName choose from: \n" << mp << "," << decomp << "," << color << "," << texture << "," << polstatistic << "," << ctelements << endl;
         cout << "filterSize choose from: \n" <<  "0,5,7,9,11 \n"  << endl;
+        cout << "mp stands for: \n" << "morphological profile features" << endl;
+        cout << "decomp stands for: \n" << "target decomposition features" << endl;
+        cout << "color stands for: \n" << "MPEG-7 CSD,DCD and HSV features" << endl;
+        cout << "texture stands for: \n" << "GLCM and LBP features" << endl;
+        cout << "polstatistic stands for: \n" <<  "the statistic of polsar parameters"  << endl;
+        cout << "ctelements stands for: \n" <<  "the 6 upcorner elements of covariance and coherence matrix"  << endl;
         return 0;
     }
 
     string ratfolder = argv[1];  
     string labelfolder = argv[2]; 
-    string oberfile = argv[3];  
+    string hdf5file = argv[3];  
     string feature_name = argv[4];  
     int filterSize = stoi(argv[5]);  
     if ((filterSize != 5) && (filterSize != 7) && (filterSize != 9) && (filterSize != 11)) { filterSize = 0;}
+    int patchSize = stoi(argv[6]);
+    if (feature_name == ctelements) { patchSize = 3; }
 
-    unsigned char classlabel = 255; 
-    int numOfSamplePoints = 0; 
     int batchSize = 5000;
-    int patchSize = 10;
-    if (feature_name == CTelements) { patchSize = 3; }
-    if (feature_name == MP) { batchSize = 3000; }
+    if (feature_name == mp) { batchSize = 3000; }
 
     cout << "Using following params:" << endl;
     cout << "ratfolder = " << ratfolder << endl;
     cout << "labelfolder = " << labelfolder << endl;
-    cout << "oberfile = " << oberfile << endl;
+    cout << "hdf5file = " << hdf5file << endl;
     cout << "feature_name = " << feature_name << endl;
     cout << "filterSize = " << filterSize << endl;
     cout << "patchSize = " << patchSize << "\n"<< endl;
 
-    ober* ob = new ober(ratfolder, labelfolder, oberfile);
-    ob->caculFeatures(feature_name, classlabel, filterSize, patchSize, numOfSamplePoints, batchSize);
+    ober* ob = new ober(ratfolder, labelfolder);
+    ob->caculFeatures(hdf5file,feature_name,filterSize, patchSize,batchSize);
     delete ob;
     
-    Utils::classifyFeaturesML(oberfile, feature_name, "opencvFLANN", 80, filterSize, patchSize, batchSize);
+    Utils::classifyFeaturesML(hdf5file, feature_name, "opencvFLANN", 80, filterSize, patchSize, batchSize);
     
-    Utils::generateColorMap(oberfile, feature_name, "opencvFLANN", filterSize, patchSize, batchSize);
+    Utils::generateColorMap(hdf5file, feature_name, "opencvFLANN", filterSize, patchSize, batchSize);
 
-    Utils::featureDimReduction(oberfile, feature_name, 3000,filterSize, patchSize);
+    Utils::featureDimReduction(hdf5file, feature_name, filterSize, patchSize, batchSize);
 
     return 0;
    
 }
    
 
-//int main() {
-//
-//    string ratfolder =   "E:\\Oberpfaffenhofen\\sar-data";
-//    string labelfolder =   "E:\\Oberpfaffenhofen\\label";
-//    string oberfile =  "E:\\CTelements.h5";
-//
-//    // test features
-//    string feature_name = CTelements;
-//    unsigned char classlabel = 255;
-//    int numOfSamplePoints = 0;
-//    int patchSize = 3;
-//    int filterSize = 0;
-//    int batchSize = 5000;
-//
-//    //ober* ob = new ober(ratfolder, labelfolder, oberfile);
-//    //ob->caculFeatures(feature_name, classlabel, filterSize, patchSize, numOfSamplePoints, batchSize);
-//    //delete ob;
-//    
-//    //Utils::classifyFeaturesML(oberfile, feature_name, "opencvFLANN", 80, filterSize, patchSize,batchSize);
-//    
-//    Utils::generateColorMap(oberfile, feature_name, "opencvFLANN", filterSize, patchSize, batchSize);
-//    Utils::featureDimReduction(oberfile, feature_name, 3000,filterSize, patchSize);
-//
-//    return 0;
-//}
+

@@ -1,5 +1,5 @@
-#ifndef MP_HPP_
-#define MP_HPP_
+#ifndef MORPH_HPP_
+#define MORPH_HPP_
 
 # include <iostream>
 # include <vector>
@@ -11,7 +11,7 @@
 
 
 // source:https://sites.google.com/site/alexzaitsevcodesamples/home/image-processing/extendedmax-reconstruct-regmax-c-implementation 
-namespace mp {
+namespace morph {
     enum { LEADING = 1, TRAILING = 2, CENTER = 4 };
     struct PTS {
         int x = 0;

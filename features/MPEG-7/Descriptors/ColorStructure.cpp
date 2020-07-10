@@ -129,7 +129,7 @@ float ColorStructureDescriptor::distance(ColorStructureDescriptor* csd)
 //	for( int i = 0; i < size; i ++)
 //		dist += abs( this->GetElement(i) - csd->GetElement(i));
 
-    for( int i = 0; i < m_Size; i ++)
+    for( auto i = 0; i < m_Size; i ++)
         dist += abs( (int)this->m_Data[i] - (int)csd->m_Data[i]);
 
 	return dist/CSD_MAX_DIST;

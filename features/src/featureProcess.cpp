@@ -129,13 +129,13 @@ float featureProcess::calculatePredictionAccuracy(const std::string& feature_nam
 	std::string overall_accuracy;
 	std::ofstream fout;
 	if (!feature_name.empty()) { 
-		overall_accuracy = "oa_" + feature_name.substr(1) + ".txt";
+		overall_accuracy = "oa_" + feature_name+ ".txt";
 		fout.open(overall_accuracy);
 	}
 	
 	float accuracy = 0.0;
 	if (classResult.size() != groundtruth.size()) {
-		std::cerr << "Predicted and actual label vectors differ in length. Somethig doesn't seem right." << std::endl;
+		std::cerr << "Predicted and actual label vectors differ in length. Something doesn't seem right." << std::endl;
 		exit(-1);
 	}
 	else {
@@ -336,7 +336,7 @@ void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector
  * Function: featureDimReduction
  *
  * Summary:
- *   calculate the ConfusionMatrix from class results and groundtruth
+ *   descrease the dimension by t-sne
  *
  * Arguments:
  *   const cv::Mat& features - each row is a sample

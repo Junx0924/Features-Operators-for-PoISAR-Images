@@ -1,9 +1,3 @@
-#include <opencv2/opencv.hpp>
-#include <complex>
-#include <string>
-#include <iostream>
-#include <fstream>
-#include <random>
 #ifdef VC
 #include <filesystem>
 #endif // VC
@@ -27,20 +21,24 @@ namespace fs = std::filesystem;
  *	 calulate features and save to hdf5 file
  *
  * Arguments:
- *   std::string feature_name - choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
- *   unsigned char classlabel  -  choose which class to load, 255 means to load all the classes
+ *   const std::string& hdf5_fileName
+ *   std::string feature_name - choose from { "texture", "color", "ctelements","polstatistic","decomp", "mp"}
  *   int filterSize - apply refined Lee despeckling filter, choose from (0, 5, 7, 9, 11)
  *	 int patchSize
- *	 int numOfSamplePoint - the number of samples for one type of class, 0 means load all the possible sample points
+ *   unsigned char classlabel  -  choose which class to load, default 255 means to load all the classes
+ *	 int numOfSamplePoint - the number of samples for one type of class, default 0 means to load all the possible sample points
  *	 int batchSize - default 5000
  * output:
- *
+ *   
 =====================================================================
 */
-void ober::caculFeatures(std::string feature_name, unsigned char classlabel, int filterSize, int patchSize, int numOfSamplePoint, int batchSize) {
+void ober::caculFeatures(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize, int batchSize,int numOfSamplePoint, unsigned char classlabel) {
 	
-	std::map<string, int> feature_type = { {"/texture",1},{"/color",2},{"/CTelements",3},{"/polStatistic",4},{"/decomp",5},{"/MP",6} };
-	vector<string> dataset_name = { "/feature" ,"/patchLabel" };
+	std::map<string, int> feature_type = { {"texture",1},{"color",2},{"ctelements",3},{"polstatistic",4},{"decomp",5},{"mp",6} };
+	vector<string> dataset_name = { "/feature" ,"/groundtruth" };
+	std::string parent = "/" + feature_name + "_filterSize_" + std::to_string(filterSize) + "_patchSize_" + std::to_string(patchSize);
+
+	writeLabelMapToHDF(hdf5_fileName, this->LabelMap, this->classNames);
 
 	LoadSamplePoints(patchSize, numOfSamplePoint, classlabel, 1);
 
@@ -98,10 +96,12 @@ void ober::caculFeatures(std::string feature_name, unsigned char classlabel, int
 		cv::Mat temp_feature, temp_pts;
 		cv::vconcat(feature, temp_feature);
 		cv::vconcat(pts, temp_pts);
-		Utils::insertDataToHDF(this->hdf5_file, feature_name, dataset_name, { temp_feature, temp_pts }, filterSize, patchSize);
+
+		hdf5::insertData(hdf5_fileName, parent, dataset_name[0], temp_feature);
+		hdf5::insertData(hdf5_fileName, parent, dataset_name[1], temp_pts);
 		feature.clear();
 		pts.clear();
-		std::cout << "calculate "<<feature_name.substr(1)<<" progress: " << float(i+1) / float(subInd.size()) * 100.0 << "% \n" << std::endl;
+		std::cout << "calculate "<<feature_name<<" progress: " << float(i+1) / float(subInd.size()) * 100.0 << "% \n" << std::endl;
 	}
 }
 
@@ -163,7 +163,7 @@ void ober::LoadSamplePoints(const int& patchSize, const int& numOfSamplePoint, c
  * Function: getSample
  *
  * Summary:
- *   get sample mat at sample point
+ *   get sample mat centered at sample point
  *   apply refined Lee filter to the sample mat if filtersize is not 0
  *
  * Arguments:
@@ -359,33 +359,22 @@ Mat ober::caculPolStatistic(const Mat& hh, const Mat& vv, const Mat& hv) {
 }
 
 
-void ober::writeLabelMapToHDF(const string& hdf5_fileName, const vector<Mat>&masks, Mat& labelMap) {
+void ober::writeLabelMapToHDF(const string& hdf5_fileName,  Mat& labelmap, std::map<unsigned char, std::string>& classnames) {
 
 	string parent_name = "/masks";
 	
-	if(!Utils::checkExistInHDF(hdf5_fileName,parent_name, "/labelMap")){
-		labelMap = Utils::generateLabelMap(masks);
+	if(!hdf5::checkExist(hdf5_fileName,parent_name, "/labelMap")){
 		// save labelMap to hdf5
-		Utils::writeDataToHDF(hdf5_fileName, parent_name, "/labelMap", labelMap);
+		hdf5::writeData(hdf5_fileName, parent_name, "/labelMap", labelmap);
 		cout << " write labelMap to hdf5 success " << endl;
 
 		// save the class name to hdf5
-		for (auto& name : this->classNames) {
-			Utils::writeAttrToHDF(hdf5_fileName, "label_" + to_string(name.first), name.second);
-			cout <<name.second<< " label : "<<to_string(name.first) << endl;
+		cv::Mat classlabels;
+		for (auto& name : classnames) {
+			classlabels.push_back(name.first);
+			hdf5::writeAttr(hdf5_fileName,to_string(name.first), name.second);
 		}
-
-		
-	}
-	else {
-		cout << "load labelMap to memory" << endl;
-		Utils::readDataFromHDF(hdf5_fileName, parent_name, "/labelMap", labelMap);
-		for (size_t i = 0; i < masks.size()+1; i++) {
-			string class_name;
-			Utils::readAttrFromHDF(hdf5_fileName, "label_" + to_string(i), class_name);
-			cout << class_name << " label : " << to_string(i) << endl;
-
-		}
+		hdf5::writeAttr(hdf5_fileName, "classlabels", classlabels.reshape(1,1));
 	}
 }
 
@@ -404,7 +393,7 @@ void ober::getSampleInfo(const string& hdf5_fileName,const Mat& pts, int patchSi
 		int label = c.first;
 		int sampleNum = c.second;
 		string class_name;
-		Utils::readAttrFromHDF(hdf5_fileName, "label_" + to_string(label), class_name);
+		hdf5::readAttr(hdf5_fileName, "label_" + to_string(label), class_name);
 		cout << class_name <<" : "<< to_string(label) <<" : number of samples: " << sampleNum << endl;
 	}
 }
@@ -855,7 +844,7 @@ Size ober::loadRAT(string fname, vector<Mat>& data, bool metaOnly) {
 	}
 
 	imgSize.resize(dim);
-	for (int i = 0; i < dim; i++) {
+	for (auto i = 0; i < dim; i++) {
 		file.read((char*)(&imgSize[i]), sizeof(imgSize[i]));
 		imgSize[i] = (imgSize[i] >> 24) | ((imgSize[i] << 8) & 0x00FF0000) | ((imgSize[i] >> 8) & 0x0000FF00) | (imgSize[i] << 24);
 	}
@@ -872,7 +861,7 @@ Size ober::loadRAT(string fname, vector<Mat>& data, bool metaOnly) {
 	if (verbose) {
 		cout << "Number of image dimensions:\t" << dim << endl;
 		cout << "Image dimensions:\t";
-		for (int i = 0; i < dim - 1; i++) cout << imgSize[i] << " x ";
+		for (auto i = 0; i < dim - 1; i++) cout << imgSize[i] << " x ";
 		cout << imgSize[dim - 1] << endl;
 		cout << "Data type:\t" << var << endl;
 		cout << "Type:\t" << type << endl;

@@ -26,9 +26,9 @@ Mat cvFeatures::GetMP(const Mat &src, const array<int,3> & morph_size) {
     }
 
     
-    Mat result1 = mp::CaculateMP(dst, morph_size[0]);
-    Mat result2 = mp::CaculateMP(dst, morph_size[1]);
-    Mat result3 = mp::CaculateMP(dst, morph_size[2]);
+    Mat result1 = morph::CaculateMP(dst, morph_size[0]);
+    Mat result2 = morph::CaculateMP(dst, morph_size[1]);
+    Mat result3 = morph::CaculateMP(dst, morph_size[2]);
    
     
     Mat output;
@@ -258,8 +258,8 @@ Mat cvFeatures::GetStatistic(const Mat& src) {
 
         Scalar mean, stddev; //0:1st channel, 1:2nd channel and 2:3rd channel
         meanStdDev(vec, mean, stddev);
-        output.at<float>(0, 3) = mean[0];
-        output.at<float>(0, 4) = stddev[0];
+        output.at<float>(0, 3) = float(mean[0]);
+        output.at<float>(0, 4) = float(stddev[0]);
 
         return output;
  }

@@ -24,7 +24,6 @@ file(GLOB HDF_LIBS "D:/Anaconda/Library/lib/hdf*.lib")
 add_subdirectory(MPEG-7)
 
  
-
 add_library(feature
 src/glcm.cpp
 src/glcm.hpp
@@ -34,8 +33,8 @@ src/cvFeatures.cpp
 src/cvFeatures.hpp
 src/ober.hpp
 src/ober.cpp
-src/mp.cpp
-src/mp.hpp
+src/morph.cpp
+src/morph.hpp
 src/sarFeatures.hpp
 src/sarFeatures.cpp
 src/Utils.cpp
@@ -46,6 +45,8 @@ src/KNN.hpp
 src/KNN.cpp
 src/cv_hdf5.cpp
 src/cv_hdf5.hpp
+src/dataset_hdf5.hpp
+src/dataset_hdf5.cpp
 src/featureProcess.hpp
 src/featureProcess.cpp
 
@@ -79,4 +80,3 @@ target_link_libraries(main feature)
 	
     
  endif (MSVC)
- 

@@ -4,7 +4,7 @@
 #include "glcm.hpp"
 #include "elbp.hpp"
 #include "../MPEG-7/Feature.h"
-#include "mp.hpp"
+#include "morph.hpp"
 
 namespace cvFeatures {
 

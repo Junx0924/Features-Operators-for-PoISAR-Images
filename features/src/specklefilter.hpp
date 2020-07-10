@@ -40,7 +40,7 @@ public:
 			exit(-1);
 		}
 
-		float sigmaV = 1.0f / std::sqrt(numLooks);
+		float sigmaV = 1.0f / float(std::sqrt(numLooks));
 		sigmaVSqr = sigmaV * sigmaV;
 	}
 
