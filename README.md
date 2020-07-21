@@ -1,4 +1,6 @@
 Done:
+* Vanilla Autoencoder 
+* Feature-map Visualisation
 * use t-NSE to reduce feature dimensions
 * generate colormap of KNN class results
 * use HDF5 to store features and class results
@@ -13,6 +15,7 @@ Done:
 * KNN - right now tested with Obf datasets. To be extended to Sen12ms
 
 
+
 Notes:
 KNNTest in KNN.h Function : classifies the test samples based on training data Arguments: Trained samples, labels and testing samples and labels
 
@@ -21,3 +24,7 @@ DivideTrainTestData in main.cpp Function: Splits the training and test data sets
 calculatePredictionAccuracy in Performance.cpp Function: Calculates accuracy percentage Arguments: Predicted and true labels
 
 Feature.cpp Contains feature extractors
+
+Visualisation.cpp contains the functions for visualising the feature maps
+
+Autoencoder menu for various AE reading, calculation and classification
