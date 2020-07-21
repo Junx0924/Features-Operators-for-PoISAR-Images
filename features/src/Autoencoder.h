@@ -5,6 +5,9 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
+
+#include "Data.h"
+
 using namespace std;
 using namespace cv;
 
@@ -15,27 +18,33 @@ using namespace cv;
 class Autoencoder {
 
 public:
+	Autoencoder();
 	Autoencoder(int inputDim, int hiddenDim, double learningRate, double momentum);
 	~Autoencoder();
 
-	void train(vector<float>& data, vector<vector<float>>& m_OutputValuesF, int& epoch, int& cnt);
+	void train(vector<float>& data, int& cnt, int& epoch);
 	void test(vector<float>& data);
-
 	void PrintVector(vector<float>& data);
 	void InitializeWts();
 	void InitializeBias();
+	void AutoencoderUserMenu(vector<vector<float>>& coherenceVec, Data& data);
+	void SaveParameters(vector<vector<float>>& encoderWt, vector<float>& outputBias);
+	void ReconstructOutput(vector<vector<float>>& encoderWt, vector<float>& outputBias, vector<float>& input, vector<float>& output);
 
 	vector<float> random(size_t elementSize);
 	float sigmoid(float value);
 	float sigmoidDerivation(float value);
 	float reLU(float value);
 	float reLUDerivation(float value);
+	vector<vector<float>> m_featureVector;
+	vector<vector<float>> m_outputVector;
 
 private:
 	int m_dataDimension;				// #of output neurons = #of input neurons
 	int m_hiddenDimension;
 	double m_learningRate;
 	double m_momentum;
+	double v;
 
 	vector<float> m_inputValues;
 	vector<float> m_hiddenBias;
@@ -49,12 +58,8 @@ private:
 
 	vector<vector<float>> m_encoderWt;
 	vector<vector<float>> m_encoderWtInit;
-	vector<vector<float>> m_decoderWt;
-	vector<vector<float>> m_decoderWtInit;
 	vector<vector<float>> m_updatedWt;
 	vector<vector<float>> m_encoderWtChanges;
-	vector<vector<float>> m_decoderWtChanges;
-	vector<vector<float>> m_OutputValuesF;
 
 
 	void feedforward(vector<float>& m_hiddenValues, vector<float>& m_outputValues);

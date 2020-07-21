@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <opencv2/opencv.hpp>
+#include <random>
 
 using namespace std;
 using namespace cv;
@@ -27,6 +28,7 @@ void Utils::WriteToFile(int k, double accuracy, int trainSize, int testSize, str
 	performance_log << featureName << "," << k << "," << trainSize << "," << testSize << " " << accuracy <<  endl;
 	performance_log.close();
 }
+
 
 
 
@@ -75,7 +77,7 @@ Mat_<Vec3f> Utils::visualiseLabels(Mat &image, string& imageName)
 		for (int col = 0; col < image.cols; col++) {
 			Vec3f color;
 			// Take every point and assign the right color in the result Mat
-			int val = image.at<float>(row, col);
+			int val = image.at<int>(row, col);
 			switch (val) {
 			case 0:
 				color = colors["unclassified"];
@@ -107,6 +109,47 @@ Mat_<Vec3f> Utils::visualiseLabels(Mat &image, string& imageName)
 	return result;
 }
 
+
+void Utils::visualiseLabelsF(Mat &image, string& imageName)
+{
+	map<string, Vec3f> colors = loadLabelsMetadata();
+
+	Mat result = Mat(image.rows, image.cols, CV_32FC3, Scalar(255.0f, 255.0f, 255.0f));
+	// Create the output result;
+	for (int row = 0; row < image.rows; row++) {
+		for (int col = 0; col < image.cols; col++) {
+			Vec3f color;
+			// Take every point and assign the right color in the result Mat
+			int val = image.at<float>(row, col);
+			switch (val) {
+			case 0:
+				color = colors["unclassified"];
+				break;
+			case 1:
+				color = colors["city"];
+				break;
+			case 2:
+				color = colors["field"];
+				break;
+			case 3:
+				color = colors["forest"];
+				break;
+			case 4:
+				color = colors["grassland"];
+				break;
+			case 5:
+				color = colors["street"];
+				break;
+			default:
+				cout << "Wrong value" << endl;
+				break;
+			}
+			result.at<Vec3f>(row, col) = color;
+		}
+	}
+	imwrite(imageName, result);
+}
+
 /***********************************************************************
 A helper function to visualize the maps (label or classified)
 Author : Anupama Rajkumar
@@ -121,14 +164,23 @@ void Utils::Visualization(string& fileName, string& imageName, Size size) {
 	//reading data from csv
 	cv::Ptr<cv::ml::TrainData> raw_data = cv::ml::TrainData::loadFromCSV(fileName, 0, -1, -1);
 	cv::Mat data = raw_data->getSamples();
+#if 0 
+	for (int row = 0; row < data.rows; row++) {
+		for (int col = 0; col < data.cols; col++) {
+			cout << data.at<float>(row, col) << " ";
+		}
+		cout << endl;
+	}
+#endif
 	// optional if you have a color image and not just raw data
 	data.convertTo(img, CV_32FC1);
 	// set the image size
 	cv::resize(img, img, size);
 	//visualize the map
-	visualiseLabels(img, imageName);
+	visualiseLabelsF(img, imageName);
 	cv::waitKey(0);
 }
+
 
 
 /***********************************************************************
@@ -274,7 +326,7 @@ label classes. This map serves as points of reference when trying to classify
 patches
 *************************************************************************/
 
-void Utils::generateLabelMap(vector<Mat>& label, vector<string>& labelName, Mat& labelMap) {
+void Utils::generateLabelMap(vector<Mat>& label, Mat& labelMap) {
 	/**********************************
 	Oberpfaffenhofen
 	0 : Unclassified
@@ -290,9 +342,9 @@ void Utils::generateLabelMap(vector<Mat>& label, vector<string>& labelName, Mat&
 		;
 		for (int row = 0; row < label[cnt].rows; row++) {
 			for (int col = 0; col < label[cnt].cols; col++) {
-				if (labelMap.at<float>(row, col) == 0.0f) {
+				if (labelMap.at<unsigned char>(row, col) == 0) {
 					if (label[cnt].at<float>(row, col) > 0.0f) {
-						labelMap.at<float>(row, col) = cnt + 1;		    //class of label
+						labelMap.at<unsigned char>(row, col) = unsigned char(cnt + 1);		    //class of label
 					}
 				}
 			}
@@ -329,122 +381,220 @@ void Utils::VisualizationImages(Size size) {
 }
 
 
-/**
- * @brief Convolution in spatial domain.
- * @details Performs spatial convolution of image and filter kernel.
- * @params src Input image
- * @params kernel Filter kernel
- * @returns Convolution result
- */
+void Utils::calculateMeanFeatureVector(vector<vector<float>>& featureVector, Mat& outPut) {
+	vector<float> outVec;
+	for (int cnt = 0; cnt < featureVector.size(); cnt++) {
+		float mean = 0.;
+		for (int s = 0; s < featureVector[cnt].size(); s++) {
+			mean += featureVector[cnt][s];
+			mean /= featureVector[cnt].size();
+		}
+		outVec.push_back(mean);
+	}
+	/*convert vector to Mat*/
+	Mat OutMat;
+	OutMat = Mat::zeros(outPut.rows, outPut.cols, CV_32FC1);
+	if (outVec.size() == outPut.rows * outPut.cols) {
+		memcpy(OutMat.data, outVec.data(), outVec.size() * sizeof(float));
+	}
 
-vector<Mat> spatialConvolution( vector<Mat>& src, const cv::Mat_<float>& kernel)
-{
-	vector<Mat> result;
-	result.reserve(src.size());
-	/*for (int cnt = 0; cnt < result.size(); cnt++) {
-		result[cnt] = Mat::zeros(src[cnt].size(), src[cnt].type());
-	}*/
-	cv::Mat_<float> tempKernel = cv::Mat::zeros(kernel.size(), kernel.type());
-	int colMiddle, rowMiddle;
-	int row, col, i, j;
-	double sum = 0;
-	colMiddle = ((kernel.cols - 1) / 2);
-	rowMiddle = ((kernel.rows - 1) / 2);
-
-	/*flip columns*/
-	for (row = 0; row < kernel.rows; row++) {
-		for (col = 0; col < kernel.cols; col++) {
-			if ((col != colMiddle) && (col < colMiddle))
-			{
-				tempKernel[row][col] = kernel[row][kernel.cols - 1 - col];
-				tempKernel[row][kernel.cols - 1 - col] = kernel[row][col];
-			}
-			else if (col == colMiddle)
-			{
-				tempKernel[row][col] = kernel[row][col];
-			}
-			else
-			{
-
-			}
+	/*scale values of outMat to outPut*/
+	for (int row = 0; row < OutMat.rows; row++) {
+		for (int col = 0; col < OutMat.cols; col++) {
+			float val = OutMat.at<float>(row, col) * 255.0;
+			outPut.at<float>(row, col) = val;
 		}
 	}
 
-	/*flip rows*/
-	for (col = 0; col < kernel.cols; col++) {
-		for (row = 0; row < kernel.rows; row++) {
-			if ((row != rowMiddle) && (row < rowMiddle))
-			{
-				tempKernel[row][col] = tempKernel[kernel.rows - 1 - row][col];
-				tempKernel[kernel.rows - 1 - row][col] = tempKernel[row][col];
-			}
-			else if (row == rowMiddle)
-			{
-				tempKernel[row][col] = tempKernel[row][col];
-			}
-			else
-			{
+}
 
+void Utils::ConvertToCoherenceVector(vector<vector<float>>& result, vector<vector<float>>& coherenceVec) {
+	unsigned int maxLen = result[0].size();
+	for (int len = 0; len < maxLen; len++) {
+		vector<float> cohVec;
+		for (int cnt = 0; cnt < result.size(); cnt++) {
+			float val = result[cnt].at(len);
+			cohVec.push_back(val);
+		}
+		coherenceVec.push_back(cohVec);
+	}
+}
+
+void Utils::WriteCoherenceMatValues(vector<vector<float>>& featureVector, string& fileName, bool isApp) {
+	ofstream coherenceFPtr;
+	if (!isApp) {
+		coherenceFPtr.open(fileName, ofstream::out);
+	}
+	else {
+		coherenceFPtr.open(fileName, ofstream::out | ofstream::app);
+	}
+
+	for (int cnt = 0; cnt < featureVector.size(); cnt++) {
+		for (int len = 0; len < featureVector[cnt].size(); len++) {
+			coherenceFPtr << featureVector[cnt].at(len) << ",";
+		}
+		coherenceFPtr << endl;
+	}
+	coherenceFPtr.close();
+}
+
+/*override*/
+void Utils::WriteCoherenceMatValues(vector<pair<vector<float>, unsigned char>>& imgData, string& fileName, bool isApp) {
+	ofstream coherenceFPtr;
+	if (!isApp) {
+		coherenceFPtr.open(fileName, ofstream::out);
+	}
+	else {
+		coherenceFPtr.open(fileName, ofstream::out | ofstream::app);
+	}
+
+	for (int cnt = 0; cnt < imgData.size(); cnt++) {
+		coherenceFPtr << (int)imgData[cnt].second << ",";
+		for (int len = 0; len < imgData[cnt].first.size(); len++) {
+			coherenceFPtr << imgData[cnt].first.at(len) << ",";
+		}
+		coherenceFPtr << endl;
+	}
+	coherenceFPtr.close();
+
+}
+
+vector<pair<vector<Point2i>, uint>> Utils::GetPatchPoints(int patchIdx, Data& data) {
+	int offset = int(data.labelImages[0].cols / MAXNUMOFPATCHES);
+	int start_idx = int((patchIdx)*offset);
+	int end_idx = int((patchIdx + 1)*offset);
+
+
+	vector<pair<vector<Point2i>, uint>> patchPoint;
+
+	for (int cnt = 0; cnt < data.numOfPoints.size(); cnt++) {
+		/*for each point in each class*/
+		//cout << "cnt :" << cnt << endl;
+		vector<Point2i> point;
+		pair<vector<Point2i>, uint> pPt;
+		for (int len = 0; len < data.numOfPoints[cnt].size(); len++) {
+			/*if the point lies within the patch*/			
+			Point2i newPoint(data.numOfPoints[cnt][len].x, data.numOfPoints[cnt][len].y);
+			if ((newPoint.y > start_idx) && (newPoint.y <= end_idx)) {	
+				point.push_back(newPoint);
+			}
+		}
+		pPt.first = point;
+		pPt.second = cnt + 1;
+		patchPoint.push_back(pPt);
+		cout << cnt + 1 << ": "<< patchPoint[cnt].first.size() << endl;
+	}
+	return patchPoint;
+}
+
+void Utils::DivideTrainTestData2(Data& data, int fold) {
+	int offset = int(data.labelImages[0].cols / 5);
+	int start_idx = int((fold)*offset);
+	int end_idx = int((fold + 1)*offset);
+
+	/*for each class*/
+	data.trainSamples.Samples.clear();
+	data.trainSamples.labelName.clear();
+	data.testSamples.Samples.clear();
+	data.testSamples.labelName.clear();
+
+	for (int cnt = 0; cnt < data.numOfPoints.size(); cnt++) {
+		/*for each point in each class*/
+		//cout << "cnt :" << cnt << endl;
+		for (int len = 0; len < data.numOfPoints[cnt].size(); len++) {
+			/*if the point lies within the patch*/
+			Point2i newPoint(data.numOfPoints[cnt][len].x, data.numOfPoints[cnt][len].y);
+			if ((newPoint.y >= start_idx) && (newPoint.y < end_idx)) {
+				data.testSamples.Samples.push_back(newPoint);
+				data.testSamples.labelName.push_back(cnt + 1);
+			}
+			else {
+				data.trainSamples.Samples.push_back(newPoint);
+				data.trainSamples.labelName.push_back(cnt + 1);
 			}
 		}
 	}
-	int border_size = kernel.rows / 2;
-	/*vector<Mat> bordered_src;
-	bordered_src.reserve(src.size());
-	// 1. Border handling.
-	int border_size = kernel.rows / 2;
-	for (int cnt = 0; cnt < src.size(); cnt++) {
-		bordered_src.push_back(getBorderedImage(src[cnt], border_size));
-	}*/
-	
+}
 
-	//cv::Mat_<float> result = cv::Mat(src);
-//	float sum;
-	// Go through the image
-	//row = src.data[0].size();
-	//col = src.data[0][0].size();
-	for (int cnt = 0; cnt < src.size(); cnt++) {
-		for (unsigned i = 0; i < src[cnt].rows; i++)
-		{
-			Mat v1;
-			v1.reserve(col);
-			for (unsigned j = 0; j < src[cnt].cols; j++)
-			{
-				// Convolve
-				Mat sum = Mat::zeros(kernel.size(), kernel.type());
-				for (unsigned r = i; r <= i + tempKernel.rows; r++) {
-					for (unsigned c = j; c <= j + tempKernel.cols; c++) {
-						//if out of bounds, ignore
-						if (r < 0 || r >= src[cnt].rows || c < 0 || c >= src[cnt].cols) {
-							continue;
-						}
-							
-						sum += sum += src[cnt].at<float>(r, c) * tempKernel(r - i + border_size, c - j + border_size);
-					}
+
+/************************************************************
+Dividing the data samples into training and test samples
+Take some training samples for each class and same for
+test samples
+Date: 11.06.2020
+Author: Anupama Rajkumar
+*************************************************************/
+void Utils::DivideTrainTestData(Data& data, int fold, int patchIdx) {
+	int patchOffset = int(data.labelImages[0].cols / MAXNUMOFPATCHES);
+	int pStartIdx = int((patchIdx)*patchOffset);
+	int pEndIdx = int((patchIdx + 1)*patchOffset);
+
+	int trainCnt, testCnt;
+	int start_idx = 0;
+	int end_idx = 0;
+	int offset = 0; 
+
+	offset = int(patchOffset / 5);
+	start_idx = int(fold * offset) + pStartIdx;
+	end_idx = int((fold + 1)*offset) + pStartIdx;
+
+	/*for each class*/
+	data.trainSamples.Samples.clear();
+	data.trainSamples.labelName.clear();
+	data.testSamples.Samples.clear();
+	data.testSamples.labelName.clear();
+
+	cout << pStartIdx << "," << pEndIdx << "," << start_idx << ","  << end_idx << endl;
+
+	for (int cnt1 = 0; cnt1 < data.numOfPoints.size(); cnt1++) {
+		/*for each point in each class*/
+		for (int len = 0; len < data.numOfPoints[cnt1].size(); len++) {
+			/*if the point lies within the patch*/
+			Point2i newPoint(data.numOfPoints[cnt1][len].x, data.numOfPoints[cnt1][len].y);
+			if ((newPoint.y >= pStartIdx) && (newPoint.y < pEndIdx)) {
+				if ((newPoint.y >= start_idx) && (newPoint.y < end_idx)) {
+					data.testSamples.Samples.push_back(newPoint);
+					data.testSamples.labelName.push_back(cnt1+1);
 				}
-				v1.push_back(sum);
+				else {
+					data.trainSamples.Samples.push_back(newPoint);
+					data.trainSamples.labelName.push_back(cnt1+1);
+				}					
 			}
-			result.push_back(v1);
 		}
 	}
-	return result;
 }
 
-/**
- * @brief Moving average filter (aka box filter)
- * @note: you might want to use Dip2::spatialConvolution(...) within this function
- * @param src Input image
- * @param kSize Window size used by local average
- * @returns Filtered image
- */
+void Utils::DivideTrainTestData(Data& data, int fold, vector<pair<vector<Point2i>, uint>> patchPoint) {
+	int trainCnt, testCnt;
+	int start_idx = 0;
+	int end_idx = 0;
+	int offset = 0;
 
-void Utils::getAverageFilter(vector<Mat>& trainTexture, vector<Mat>& filtTrainText, int kSize) {
-	
-	/*vector<Mat> result; 
-	for (int cnt = 0; cnt < result.size(); cnt++) {
-		result[cnt] = Mat::zeros(trainTexture[cnt].size(), trainTexture[cnt].type());
-	}*/
-	cv::Mat kernel = cv::Mat(kSize, kSize, CV_32FC1, 1.0 / (kSize*kSize));
-	filtTrainText = spatialConvolution(trainTexture, kernel);
+	/*for each class*/
+	data.trainSamples.Samples.clear();
+	data.trainSamples.labelName.clear();
+	data.testSamples.Samples.clear();
+	data.testSamples.labelName.clear();
 
+	/*4/5th in training set, 1/5th in test set*/
+	for (int cnt1 = 0; cnt1 < patchPoint.size(); cnt1++) {
+		/*for each point in each class*/
+		for (int len = 0; len < patchPoint[cnt1].first.size(); len++) {
+			offset = patchPoint[cnt1].first.size() / 5;
+			start_idx = int(fold*offset);
+			end_idx = int((fold + 1)*offset);
+			//cout << start_idx << "," << end_idx << endl;
+			Point2i newPoint(patchPoint[cnt1].first[len].x, patchPoint[cnt1].first[len].y);
+			if ((len >= start_idx) && (len < end_idx)) {
+				data.testSamples.Samples.push_back(newPoint);
+				data.testSamples.labelName.push_back(patchPoint[cnt1].second);
+			}
+			else {
+				data.trainSamples.Samples.push_back(newPoint);
+				data.trainSamples.labelName.push_back(patchPoint[cnt1].second);
+			}
+		}
+	}
 }
+
