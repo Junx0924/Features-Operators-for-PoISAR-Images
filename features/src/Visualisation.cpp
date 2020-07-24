@@ -70,13 +70,17 @@ void Visual::GenerateFeatureMap(vector<vector<float>>& m_featureVector) {
 	meanMat.convertTo(meanMat, CV_8UC1);
 	outMat = meanMat.clone();
 	/*apply color map*/
+#if 0
 	cv::Mat mlookUpTable_8UC1(1, 256, CV_8UC1);
 	for (int i = 0; i < 256; ++i)
 	{
 		mlookUpTable_8UC1.at<uchar>(0, i) = uchar(255 - i);
 	}
 	cv::LUT(meanMat, mlookUpTable_8UC1, outMat);
+#endif
 	/*equalising histogram for better contrast*/
 	cv::equalizeHist(outMat, outMat);
-	cv::imwrite("PatchColorMap_AE.png", outMat);
+	applyColorMap(outMat, outMat, COLORMAP_JET);
+	cv::imwrite("PatchColorMap_color.png", outMat);
+
 }
