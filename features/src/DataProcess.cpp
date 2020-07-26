@@ -1,4 +1,4 @@
-#include "featureProcess.hpp"
+#include "DataProcess.hpp"
 
 /*===================================================================
  * Function: DivideTrainTestData
@@ -19,7 +19,7 @@
  *	std::vector<unsigned char>& test_label
 =====================================================================
 */
-std::vector<int> featureProcess::DivideTrainTestData(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_label, int percentOfTrain,
+std::vector<int> DataProcess::DivideTrainTestData(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_label, int percentOfTrain,
 	std::vector<cv::Mat>& train_img, std::vector<unsigned char>& train_label, std::vector<cv::Mat>& test_img, std::vector<unsigned char>& test_label, int fold) {
 
 	std::map<unsigned char, std::vector<int>> numPerClass;
@@ -85,7 +85,7 @@ std::vector<int> featureProcess::DivideTrainTestData(const std::vector<cv::Mat>&
  *	std::vector<int> original index of the shuffled data
 =====================================================================
 */
-std::vector<int> featureProcess::shuffleDataSet(std::vector<cv::Mat>& data, std::vector<unsigned char>& data_label) {
+std::vector<int> DataProcess::shuffleDataSet(std::vector<cv::Mat>& data, std::vector<unsigned char>& data_label) {
 	int size = data.size();
 	std::vector<int> ind(size);
 	std::random_device random_device;
@@ -124,7 +124,7 @@ std::vector<int> featureProcess::shuffleDataSet(std::vector<cv::Mat>& data, std:
  *	float accuracy
 =====================================================================
 */
-float featureProcess::calculatePredictionAccuracy(const std::string& feature_name, const std::vector<unsigned char>& classResult, const std::vector<unsigned char>& groundtruth, const std::map<unsigned char, std::string>& className)
+float DataProcess::calculatePredictionAccuracy(const std::string& feature_name, const std::vector<unsigned char>& classResult, const std::vector<unsigned char>& groundtruth, const std::map<unsigned char, std::string>& className)
 {
 	std::string overall_accuracy;
 	std::ofstream fout;
@@ -189,7 +189,7 @@ float featureProcess::calculatePredictionAccuracy(const std::string& feature_nam
  *	cv::Mat 
 =====================================================================
 */
-cv::Mat featureProcess::getConfusionMatrix(const std::map<unsigned char, std::string>& className, std::vector<unsigned char>& classResult, std::vector<unsigned char>& groundtruth) {
+cv::Mat DataProcess::getConfusionMatrix(const std::map<unsigned char, std::string>& className, std::vector<unsigned char>& classResult, std::vector<unsigned char>& groundtruth) {
 	std::map<std::pair<unsigned char, signed char>, int> testCount;
 
 	for (int i = 0; i < groundtruth.size(); ++i) {
@@ -232,7 +232,7 @@ cv::Mat featureProcess::getConfusionMatrix(const std::map<unsigned char, std::st
  *	std::vector<unsigned char>& results
 =====================================================================
 */
-void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_labels, int trainPercent, const std::string& classifier_type, std::vector<unsigned char>& results,int K) {
+void DataProcess::applyML(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_labels, int trainPercent, const std::string& classifier_type, std::vector<unsigned char>& results,int K) {
 
 	std::cout << "start to classify data with classifier :" << classifier_type << std::endl;
 	std::cout << "data size :" << data.size() << std::endl;
@@ -250,7 +250,7 @@ void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector
 
 	int total_folds = 100 / (100 - trainPercent);
 	for (int fold = 1; fold < total_folds + 1; ++fold) {
-		std::vector<int> test_ind = featureProcess::DivideTrainTestData(temp, temp_labels, trainPercent, train, train_labels, test, test_labels, fold);
+		std::vector<int> test_ind = DataProcess::DivideTrainTestData(temp, temp_labels, trainPercent, train, train_labels, test, test_labels, fold);
 		std::vector<unsigned char> test_result;
 		cv::Mat traindata, traindata_label, testdata;
 		vconcat(train, traindata);
@@ -345,14 +345,14 @@ void featureProcess::applyML(const std::vector<cv::Mat>& data, const std::vector
  *	cv::Mat size( features.rows, new_dims)
 =====================================================================
 */
-cv::Mat featureProcess::featureDimReduction(const cv::Mat& features, int new_dims) {
+cv::Mat DataProcess::featureDimReduction(const cv::Mat& features, int new_dims) {
 	cv::Mat feature;
 	features.convertTo(feature, CV_64FC1);
 	// Define some variables
 	int N = feature.rows;
 	int D = feature.cols;
 	int perplexity = 40;
-	int max_iter = 1200;
+	int max_iter = 1000;
 	double* X = (double*)malloc(feature.total() * sizeof(double)); // data
 	double* Y = (double*)malloc(N * new_dims * sizeof(double));//output
 

@@ -73,8 +73,8 @@ public:
 		
 	}
 
-	//shuffle the samplesand split them into batches with porper class distribution
-	//calulate featuresand save to hdf5 file
+	//shuffle the samples and split them into batches with proper class distribution
+	//calulate features and save to hdf5 file
 	void caculFeatures(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize, int batchSize = 5000, int numOfSamplePoint =0, unsigned char classlabel =255);
 
 private:

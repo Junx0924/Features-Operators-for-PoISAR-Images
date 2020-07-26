@@ -42,22 +42,26 @@ Mat morph::CaculateMP(const Mat& src, int morph_size) {
     //openning
     Mat open;
     cv::morphologyEx(dst, open, cv::MORPH_OPEN, element);
+    //cv::imwrite("opening.png", open);
 
     //erode and reconstruct ( opening-by-reconstruction )
     Mat erosion = Mat(Size(dst.size()), dst.type());
     erode(dst, erosion, element);
     Mat  Iobr = imReconstruct(erosion, dst);
-     
+    //cv::imwrite("opening_by_reconstruction.png", Iobr);
+
     //closing
     Mat close;
     cv::morphologyEx(dst, close, cv::MORPH_CLOSE, element);
+    //cv::imwrite("closing.png", close);
 
      //closing-by-Reconstruction
     Mat dilation = Mat(Size(dst.size()), dst.type());
     dilate(dst, dilation,element);
     Mat Icbr = imReconstruct(255-dilation, 255-dst);
     Icbr = 255 - Icbr;
-   
+    //cv::imwrite("closing_by_reconstruction.png", Icbr);
+
     Mat output;
     output.push_back(open);
     output.push_back(Iobr);

@@ -123,20 +123,81 @@ void Utils::generateColorMap(const std::string& hdf5_fileName, const std::string
 
 		std::cout << std::endl;
 		std::cout << "classifier: " << classifier_type << std::endl;
-		std::cout << "generate " << feature_name + "_colormap.png" << std::endl;
+		std::cout << "generate " << feature_name + "_classresult.png" << std::endl;
 
 		cv::imwrite(feature_name + "_colormap.png", colorResultMap);
 		cv::imwrite("groundTruthMap.png", groundTruthMap);
 
 		std::map<unsigned char, std::string> className = Utils::getClassName(hdf5_fileName);
-		featureProcess::calculatePredictionAccuracy(feature_name, class_results, ground_truth_labels, className);
+		DataProcess::calculatePredictionAccuracy(feature_name, class_results, ground_truth_labels, className);
 	}
 	else {
 		std::cout << "can't find " << parent + "/" + classifier_type << " in " << hdf5_fileName << std::endl;
 	}
 }
 
+/*===================================================================
+ * Function: generateFeatureMap
+ *
+ * Summary:
+ *   Get the visulization of dimension reduced features
+ *
+ * Arguments:
+ *   std::string& hdf5_fileName - hdf5 filename
+ *   std::string& feature_name - choose from { "texture", "color", "ctelements","polstatistic","decomp", "mp"}
+ *   int filterSize
+ *	 int patchSize
+ *	 int batchSize
+ * Returns:
+ *   void
+=====================================================================
+*/
+void Utils::generateFeatureMap(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize, int batchSize) {
+	std::string parent = "/" + feature_name + "_filterSize_" + std::to_string(filterSize) + "_patchSize_" + std::to_string(patchSize);
+	std::vector<std::string> dataset_name = {"/labelMap", "/groundtruth" ,"/feature_dimReduced" };
 
+	int totalrows = hdf5::getRowSize(hdf5_fileName, parent, "/feature_dimReduced");
+
+	cv::Mat labelMap;
+	hdf5::readData(hdf5_fileName, "/masks", dataset_name[0], labelMap);
+	cv::Mat featureMap = cv::Mat(cv::Size(labelMap.size()), CV_32FC3); 
+	if (totalrows > 0) {
+		int offset_row = 0;
+		int partSize;
+		if (batchSize > totalrows) { batchSize = totalrows; }
+		int partsCount = totalrows / batchSize;
+		for (int i = 0; i < partsCount; ++i) {
+			partSize = totalrows / (partsCount - i);
+			totalrows -= partSize;
+			if (totalrows < 0) { break; }
+			cv::Mat pts,reduced_feature;
+			hdf5::readData(hdf5_fileName, parent, dataset_name[1], pts, offset_row, partSize);
+			hdf5::readData(hdf5_fileName, parent, dataset_name[2], reduced_feature, offset_row, partSize);
+			reduced_feature.convertTo(reduced_feature, CV_32FC1);
+
+			for (int j = 0; j < pts.rows; j++) {
+				int row = pts.at<int>(j, 1);
+				int col = pts.at<int>(j, 2);
+				featureMap.at<cv::Vec3f>(row, col)[0] = reduced_feature.at<float>(j, 0);
+				featureMap.at<cv::Vec3f>(row, col)[1]  = reduced_feature.at<float>(j, 1) ;
+				featureMap.at<cv::Vec3f>(row, col)[2] =  reduced_feature.at<float>(j, 2);
+			}
+			offset_row = offset_row + partSize;
+		}
+		// normalize featureMap to 8UC3
+		cv::normalize(featureMap, featureMap, 0, 255, cv::NORM_MINMAX, CV_8UC3);
+
+		cv::applyColorMap(featureMap, featureMap, cv::COLORMAP_JET); 
+		std::cout << "generate " << feature_name + "_featureMap.png" << std::endl;
+
+		cv::imwrite(feature_name + "_featureMap.png", featureMap);
+
+	}
+	else {
+		std::cout << "can't find " << parent + "/feature_dimReduced" << " in " << hdf5_fileName << std::endl;
+	}
+}
+ 
 /*===================================================================
  * Function: classifyFeaturesML
  *
@@ -184,8 +245,8 @@ void Utils::classifyFeaturesML(const std::string& hdf5_fileName, const std::stri
 			std::cout << "get " << features.size() << " rows for " << feature_name << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << std::endl;
 
 			std::vector<unsigned char> class_results;
-			featureProcess::applyML(features, labels, 80, classifier_type, class_results);
-			featureProcess::calculatePredictionAccuracy("", class_results, labels, className);
+			DataProcess::applyML(features, labels, 80, classifier_type, class_results);
+			DataProcess::calculatePredictionAccuracy("", class_results, labels, className);
 			saveClassResultToHDF(hdf5_fileName, parent, classifier_type, class_results, labelPoints);
 			offset_row = offset_row + partSize;
 			std::cout << "classifiy " << feature_name << " progress: " << float(i + 1) / float(partsCount) * 100.0 << "% \n" << std::endl;
@@ -428,36 +489,34 @@ void Utils::splitVec(const std::vector<unsigned char>& labels, std::vector<std::
 */
 void Utils::featureDimReduction(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize,int batchSize) {
 	
-	std::vector<std::string> dataset_name = { "/feature" ,"/groundtruth","/dimReduced_feature" };
+	std::vector<std::string> dataset_name = { "/feature" ,"/groundtruth" };
 	std::string parent = "/" + feature_name + "_filterSize_" + std::to_string(filterSize) + "_patchSize_" + std::to_string(patchSize);
-	cv::Mat  feature, groundtruths;
-	hdf5::readData(hdf5_fileName, parent, dataset_name[0], feature, 0, batchSize);
-	hdf5::readData(hdf5_fileName, parent, dataset_name[1], groundtruths, 0, batchSize);
-	std::cout << "get " << feature.rows<< " rows for "<< feature_name << " feature" << std::endl;
+	int fullSize = hdf5::getRowSize(hdf5_fileName, parent, dataset_name[0]);
+	std::cout << "get " << fullSize << " rows for " << feature_name << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << std::endl;
 
-	cv::Mat reduced_feature = featureProcess::featureDimReduction(feature, 2);
+	int offset_row = 0;
+	int partSize;
+	if (batchSize > fullSize) { batchSize = fullSize; }
+	int partsCount = fullSize / batchSize;
+	cv::Mat  feature, groundtruths, reduced_feature;
 
-	std::string dim_reduce = "dimReduced_" + feature_name + ".txt";
-	std::cout << "save dimension reduced feature to " << dim_reduce << std::endl;
-	std::ofstream fout(dim_reduce);
+	if (fullSize != 0) {
+		for (int i = 0; i < partsCount; ++i) {
+			partSize = fullSize / (partsCount - i);
+			fullSize -= partSize;
+			if (fullSize < 0) { break; }
+			hdf5::readData(hdf5_fileName, parent, dataset_name[0], feature, offset_row, partSize);
+			std::cout << "get " << feature.rows << " rows for " << feature_name << " feature" << std::endl;
+			reduced_feature = DataProcess::featureDimReduction(feature, 3);
+			hdf5::insertData(hdf5_fileName, parent, "/feature_dimReduced", reduced_feature);
 
-	std::vector<cv::Mat> newfeatures(reduced_feature.rows);
-	std::vector<unsigned char> labels(reduced_feature.rows);
-	for (int i = 0; i < reduced_feature.rows; i++) {
-		//dump this batch to txt file for ploting
-		fout << groundtruths.at<int>(i, 0) << "," << reduced_feature.at<float>(i, 0) << "," << reduced_feature.at<float>(i, 1) << std::endl;
-
-		cv::Mat temp(1, 2, CV_32FC1);
-		temp.at<float>(0, 0) = reduced_feature.at<float>(i, 0);
-		temp.at<float>(0, 1) = reduced_feature.at<float>(i, 1);
-		newfeatures[i] = temp;
-		labels[i] = groundtruths.at<int>(i, 0);
+			offset_row = offset_row + partSize;
+			std::cout << "classifiy " << feature_name << " progress: " << float(i + 1) / float(partsCount) * 100.0 << "% \n" << std::endl;
+		}
 	}
-	std::vector<unsigned char> results;
-	//check the KNN accuracy of dim reduced features
-	featureProcess::applyML(newfeatures, labels, 80, "opencvFLANN", results);
-	std::map<unsigned char, std::string> className = Utils::getClassName(hdf5_fileName);
-	featureProcess::calculatePredictionAccuracy("", results, labels, className);
+	else {
+		std::cout << feature_name << " with filterSize " << filterSize << " , patchSize " << patchSize << " is not existed in hdf5 file " << std::endl;
+	}
 }
 
 

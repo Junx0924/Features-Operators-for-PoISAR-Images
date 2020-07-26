@@ -1,6 +1,6 @@
 #pragma once
-#ifndef FEATUREPROCESS_HPP_
-#define FEATUREPROCESS_HPP_
+#ifndef DATAPROCESS_HPP_
+#define DATAPROCESS_HPP_
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/cvdef.h>
@@ -13,7 +13,7 @@
 #include "KNN.hpp"
 #include "../tsne/tsne.h"
 
-namespace featureProcess{
+namespace DataProcess{
 
 	// split the data into train/test set balancely in different classes
 	// return the index of the test data in original data

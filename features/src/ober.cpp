@@ -281,7 +281,6 @@ Mat ober::caculDecomp(const Mat& hh, const Mat& vv, const Mat& hv) {
 	polsar::GetFreemanDurdenDecomp(coherency, decomposition); //3  
 	polsar::GetKrogagerDecomp(circ, decomposition); // 3  
 	polsar::GetPauliDecomp(pauli, decomposition); // 3  
-	polsar::GetYamaguchi4Decomp(coherency, covariance, decomposition); //4 
 
 	vconcat(decomposition, result);
 	return result.reshape(1, 1);

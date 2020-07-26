@@ -47,8 +47,8 @@ src/cv_hdf5.cpp
 src/cv_hdf5.hpp
 src/dataset_hdf5.hpp
 src/dataset_hdf5.cpp
-src/featureProcess.hpp
-src/featureProcess.cpp
+src/DataProcess.hpp
+src/DataProcess.cpp
 
 tsne/sptree.cpp
 tsne/sptree.h

@@ -3,7 +3,7 @@
 #define UTILS_H
 
 
-#include "featureProcess.hpp"
+#include "DataProcess.hpp"
 #include "sarFeatures.hpp"
 #include "dataset_hdf5.hpp"
 
@@ -19,6 +19,9 @@ namespace Utils {
 		//Generate the colormap of classified results
 		void generateColorMap(const std::string& hdf5_fileName, const std::string& feature_name, const std::string& classifier_type, int filterSize,int patchSize, int batchSize);
 	    
+		//Get the visulization of dim reduced feature map
+		void generateFeatureMap(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize, int batchSize);
+
 		cv::Vec3b getLabelColor(unsigned char class_label);
 	
 		//get features data and its groundtruth from hdf5
