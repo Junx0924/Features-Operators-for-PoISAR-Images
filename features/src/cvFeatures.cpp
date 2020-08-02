@@ -26,10 +26,13 @@ Mat cvFeatures::GetMP(const Mat &src, const array<int,3> & morph_size) {
     }
 
     
-    Mat result1 = morph::CaculateMP(dst, morph_size[0]);
-    Mat result2 = morph::CaculateMP(dst, morph_size[1]);
-    Mat result3 = morph::CaculateMP(dst, morph_size[2]);
-   
+    std::vector<Mat> temp1 = morph::CaculateMP(dst, morph_size[0]);
+    std::vector<Mat> temp2 = morph::CaculateMP(dst, morph_size[1]);
+    std::vector<Mat> temp3 = morph::CaculateMP(dst, morph_size[2]);
+    cv::Mat result1, result2, result3;
+    cv::merge(temp1, result1);
+    cv::merge(temp2, result2);
+    cv::merge(temp3, result3);
     
     Mat output;
     output.push_back(result1);
@@ -122,15 +125,15 @@ Mat cvFeatures::GetGLCM(const Mat& src, int winsize, GrayLevel level, int histsi
 *
 * Arguments:
 *   const Mat& src -  BGR img
-*   int numOfColor - default 1
+*   int numOfColor - number of dominant colors, default 1
 *
 * Returns:
-*    return the weights and color value of each dominant color,size 4
+*    return the weight and color value of each dominant color
 =====================================================================
 */
 Mat cvFeatures::GetMPEG7DCD(const Mat& src, int numOfColor) {
     Mat dst = src.clone();
-    Mat output = Mat(1,4,CV_8UC1);
+    Mat output = Mat(numOfColor,4,CV_8UC1);
 
     if( src.channels()== 3 && src.type() == CV_8UC3){
         Frame* frame = new Frame(dst.cols, dst.rows, true, true, true);
@@ -149,10 +152,10 @@ Mat cvFeatures::GetMPEG7DCD(const Mat& src, int numOfColor) {
             }
 
             for (int w = 0; w < numOfColor; w++) {
-                output.at<unsigned char>(0, 0) =static_cast<unsigned char>(domcol[w].m_ColorValue[0]);
-                output.at<unsigned char>(0, 1) = static_cast<unsigned char>(domcol[w].m_ColorValue[1]);
-                output.at<unsigned char>(0, 2) = static_cast<unsigned char>(domcol[w].m_ColorValue[2]);
-                output.at<unsigned char>(0, 3) = static_cast<unsigned char>(domcol[w].m_Percentage / weight);
+                output.at<unsigned char>(w, 0) =static_cast<unsigned char>(domcol[w].m_ColorValue[0]);
+                output.at<unsigned char>(w, 1) = static_cast<unsigned char>(domcol[w].m_ColorValue[1]);
+                output.at<unsigned char>(w, 2) = static_cast<unsigned char>(domcol[w].m_ColorValue[2]);
+                output.at<unsigned char>(w, 3) = static_cast<unsigned char>(domcol[w].m_Percentage / weight);
             }
         }
         // release descriptor
@@ -162,7 +165,7 @@ Mat cvFeatures::GetMPEG7DCD(const Mat& src, int numOfColor) {
         exit(-1);
         cout << "src should be CV_8UC3" << endl;
     }
-    return output;
+    return output.reshape(1,1);
  }
 
 /*===================================================================

@@ -145,7 +145,7 @@ float DataProcess::calculatePredictionAccuracy(const std::string& feature_name, 
 		int dim = classResult.size();
 
 		for (int i = 0; i < dim; ++i) {
-			if (classResult[i] == groundtruth[i]) {
+			if ((classResult[i] == groundtruth[i])&& (groundtruth[i] != unsigned char(0))) {
 				hit[classResult[i]]++;
 			}
 			total[groundtruth[i]]++;

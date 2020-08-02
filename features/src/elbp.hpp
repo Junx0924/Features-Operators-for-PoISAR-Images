@@ -8,6 +8,8 @@
 
 
 // caculate elbp features
+// reference: https://github.com/bytefish/opencv/tree/master/lbp
+
 namespace elbp{
 
     std::string type2str(int type);

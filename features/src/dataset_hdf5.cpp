@@ -126,6 +126,31 @@ int hdf5::getRowSize(const std::string& filename, const std::string& parent_name
 	return rows;
 }
 
+int hdf5::getColSize(const std::string& filename, const std::string& parent_name, const std::string& dataset_name) {
+	int cols;
+
+	std::vector<int> data_size;
+	cv::Ptr<hdf::HDF5> h5io = hdf::open(filename);
+
+	std::string datasetName = parent_name + dataset_name;
+
+	if (!h5io->hlexists(parent_name)) {
+		//std::cout << parent_name << " is not existed" << std::endl;
+		cols = 0;
+	}
+	else if (!h5io->hlexists(datasetName)) {
+		//std::cout << datasetName << " is not existed" << std::endl;  
+		cols = 0;
+	}
+	else {
+
+		data_size = h5io->dsgetsize(datasetName);
+		cols = data_size[1];
+	}
+
+	h5io->close();
+	return cols;
+}
 
 void hdf5::writeAttr(const std::string& filename, const std::string& attribute_name, const int& attribute_value) {
 	cv::Ptr<hdf::HDF5> h5io = hdf::open(filename);

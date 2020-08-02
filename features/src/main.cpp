@@ -2,9 +2,11 @@
 #include "ober.hpp"
 #include "Utils.h"
 #include <string> 
+ 
 
 using namespace std;
 using namespace cv;
+ 
 
 string ctelements = "ctelements";
 string decomp = "decomp";
@@ -12,7 +14,7 @@ string mp = "mp";
 string color = "color";
 string texture = "texture";
 string polstatistic = "polstatistic";
-std::vector<std::string> feature_name = { mp,color,texture,polstatistic,decomp,ctelements };
+std::vector<std::string> features = { color,texture,polstatistic,mp,decomp,ctelements };
 
  
 int main(int argc, char** argv) {
@@ -39,9 +41,9 @@ int main(int argc, char** argv) {
     if ((filterSize != 5) && (filterSize != 7) && (filterSize != 9) && (filterSize != 11)) { filterSize = 0;}
     int patchSize = stoi(argv[6]);
     if (feature_name == ctelements) { patchSize = 3; }
-
-    int batchSize = 5000;
-    if (feature_name == mp) { batchSize = 3000; }
+    if (feature_name == decomp) { patchSize = 3; }
+    int batchSize = 3000;
+     
 
     cout << "Using following params:" << endl;
     cout << "ratfolder = " << ratfolder << endl;
@@ -51,9 +53,10 @@ int main(int argc, char** argv) {
     cout << "filterSize = " << filterSize << endl;
     cout << "patchSize = " << patchSize << "\n"<< endl;
 
-    ober* ob = new ober(ratfolder, labelfolder);
-    ob->caculFeatures(hdf5file,feature_name,filterSize, patchSize,batchSize);
-    delete ob;
+     ober* ob = new ober(ratfolder, labelfolder);
+     
+     ob->caculFeatures(hdf5file,feature_name,filterSize, patchSize,batchSize);
+     delete ob;
     
     Utils::classifyFeaturesML(hdf5file, feature_name, "opencvFLANN", 80, filterSize, patchSize, batchSize);
     
@@ -61,9 +64,9 @@ int main(int argc, char** argv) {
 
     Utils::featureDimReduction(hdf5file, feature_name, filterSize, patchSize, batchSize);
 
+    Utils::generateFeatureMap(hdf5file, feature_name, filterSize, patchSize, batchSize);
+
     return 0;
-   
 }
-   
 
 

@@ -10,20 +10,20 @@
 
 namespace Utils {
 
-	   //reduced the feature dimension by T - SNE,,dump the first batch to txt file for plotting, check the KNN accuracy on reduced feature data
-		void featureDimReduction(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize, int batchSize);
-
 		//Read the features from hdf5 file, classify them and write the classifiy results into hdf5 file
 		void classifyFeaturesML(const std::string& hdf5_fileName, const std::string& feature_name, const std::string classifier_type, int trainPercent, int filterSize, int patchSize, int batchSize);
 
 		//Generate the colormap of classified results
 		void generateColorMap(const std::string& hdf5_fileName, const std::string& feature_name, const std::string& classifier_type, int filterSize,int patchSize, int batchSize);
 	    
-		//Get the visulization of dim reduced feature map
+		//Get the visulization of feature map for single feature
 		void generateFeatureMap(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize, int batchSize);
 
 		cv::Vec3b getLabelColor(unsigned char class_label);
-	
+	    
+		//reduced the feature dimension by T-SNE, dump to txt for plotting
+		void featureDimReduction(const std::string& hdf5_fileName, const std::string& feature_name, int numSamples, int filterSize, int patchSize);
+
 		//get features data and its groundtruth from hdf5
 		void getFeaturesFromHDF(const std::string& hdf5_fileName, const std::string& feature_name, 
 			std::vector<cv::Mat>& features, std::vector<unsigned char>& featureLabels, std::vector<cv::Point>& labelPoints,  int offset_row = 0, int counts_rows = 0);

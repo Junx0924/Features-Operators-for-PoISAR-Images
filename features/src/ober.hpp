@@ -73,11 +73,16 @@ public:
 		
 	}
 
+	
+
 	//shuffle the samples and split them into batches with proper class distribution
 	//calulate features and save to hdf5 file
 	void caculFeatures(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize, int batchSize = 5000, int numOfSamplePoint =0, unsigned char classlabel =255);
-
+	
 private:
+	// write labelmap and classNames save to hdf5
+	void writeLabelMapToHDF(const std::string& hdf5_fileName, cv::Mat& labelMap, std::map<unsigned char, std::string>& classNames);
+
 	void LoadSamplePoints(const int& sampleSize, const int& numOfSamplePoint, const unsigned char& classlabel, int stride = 1);
 
 	void getSample(const cv::Point& p, int patchSize, int filtersize, cv::Mat& hh, cv::Mat& vv, cv::Mat& hv);
@@ -102,8 +107,7 @@ private:
 	// get polsar features on statistic of polsar parameters
 	cv::Mat caculPolStatistic(const cv::Mat& hh, const cv::Mat& vv, const cv::Mat& hv);
 
-	// write labelmap and classNames save to hdf5
-	void writeLabelMapToHDF(const std::string& hdf5_fileName, cv::Mat& labelMap, std::map<unsigned char, std::string>&classNames);
+	
 
 	/***Author: Anupama Rajkumar***/
 	void loadData(std::string RATfolderPath);

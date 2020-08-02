@@ -19,6 +19,8 @@ namespace hdf5 {
 	void writeData(const std::string& filename, const std::string& parent_name, const std::string& dataset_name, const cv::Mat& data);
 	
 	int getRowSize(const std::string& filename, const std::string& parent_name, const std::string& dataset_name);
+
+	int getColSize(const std::string& filename, const std::string& parent_name, const std::string& dataset_name);
 	
 	//write attribute to the root group
 	void writeAttr(const std::string& filename, const std::string& attribute_name, const int& attribute_value);

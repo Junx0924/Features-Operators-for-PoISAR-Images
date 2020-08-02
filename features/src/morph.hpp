@@ -308,7 +308,7 @@ namespace morph {
     };
 
 
-    cv::Mat CaculateMP(const cv::Mat& src, int morph_size = 3);
+    std::vector<cv::Mat>  CaculateMP(const cv::Mat& src, int morph_size =3);
 
     // data type requried by imreconstruct.cpp
     auto* matToArray(const cv::Mat& image);

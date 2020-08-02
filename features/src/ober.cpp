@@ -146,16 +146,14 @@ void ober::LoadSamplePoints(const int& patchSize, const int& numOfSamplePoint, c
 		else {
 			continue;
 		}
-
-		if (label != unsigned char(0)) {
-			Utils::getRandomSamplePoint(this->LabelMap, pts, label, patchSize, stride, numOfSamplePoint);
-			cout << "Get " << pts.size() << " sample points for class " << name << endl;
-			for (size_t i = 0; i < pts.size(); i++) {
-				this->sampleLabel.push_back(label);
-			}
-			copy(pts.begin(), pts.end(), back_inserter(this->samplePoints));
-			pts.clear();
+		 
+		Utils::getRandomSamplePoint(this->LabelMap, pts, label, patchSize, stride, numOfSamplePoint);
+		cout << "Get " << pts.size() << " sample points for class " << name << endl;
+		for (size_t i = 0; i < pts.size(); i++) {
+			this->sampleLabel.push_back(label);
 		}
+		copy(pts.begin(), pts.end(), back_inserter(this->samplePoints));
+		pts.clear();
 	}
 }
 
@@ -244,7 +242,7 @@ Mat ober::caculTexture(const Mat& hh, const Mat& vv, const Mat& hv) {
 Mat ober::caculColor(const Mat& hh, const Mat& vv, const Mat& hv) {
 	Mat colorImg = polsar::GetPauliColorImg(hh, vv, hv);
 	Mat result;
-	cv::hconcat(cvFeatures::GetMPEG7CSD(colorImg, 32), cvFeatures::GetMPEG7DCD(colorImg, 3), result);
+	cv::hconcat(cvFeatures::GetMPEG7CSD(colorImg, 32), cvFeatures::GetMPEG7DCD(colorImg, 1), result);
 	return result;
 }
 
@@ -277,11 +275,10 @@ Mat ober::caculDecomp(const Mat& hh, const Mat& vv, const Mat& hv) {
 	polsar::GetCovarianceC(lexi, covariance);
 
 	vector<Mat> decomposition;
-	polsar::GetCloudePottierDecomp(coherency, decomposition); //8  
+	polsar::GetCloudePottierDecomp(coherency, decomposition); //5  
 	polsar::GetFreemanDurdenDecomp(coherency, decomposition); //3  
 	polsar::GetKrogagerDecomp(circ, decomposition); // 3  
 	polsar::GetPauliDecomp(pauli, decomposition); // 3  
-
 	vconcat(decomposition, result);
 	return result.reshape(1, 1);
 }
@@ -365,7 +362,7 @@ void ober::writeLabelMapToHDF(const string& hdf5_fileName,  Mat& labelmap, std::
 	if(!hdf5::checkExist(hdf5_fileName,parent_name, "/labelMap")){
 		// save labelMap to hdf5
 		hdf5::writeData(hdf5_fileName, parent_name, "/labelMap", labelmap);
-		cout << " write labelMap to hdf5 success " << endl;
+		cout << "write labelMap to hdf5 success " << endl;
 
 		// save the class name to hdf5
 		cv::Mat classlabels;
@@ -374,6 +371,17 @@ void ober::writeLabelMapToHDF(const string& hdf5_fileName,  Mat& labelmap, std::
 			hdf5::writeAttr(hdf5_fileName,to_string(name.first), name.second);
 		}
 		hdf5::writeAttr(hdf5_fileName, "classlabels", classlabels.reshape(1,1));
+	}
+
+	// save the intensity of HH,VV,HV to hdf5
+	if (!hdf5::checkExist(hdf5_fileName, parent_name, "/hh_intensity")) {
+		cout << "write the intensity of HH, VV, HV to hdf5 success " << endl;
+		Mat hh = polsar::logTransform(this->data[0]);
+		Mat vv = polsar::logTransform(this->data[1]);
+		Mat hv = polsar::logTransform(this->data[2]);
+		hdf5::writeData(hdf5_fileName, parent_name, "/hh_intensity", hh);
+		hdf5::writeData(hdf5_fileName, parent_name, "/vv_intensity", vv);
+		hdf5::writeData(hdf5_fileName, parent_name, "/hv_intensity", hv);
 	}
 }
 

@@ -336,7 +336,12 @@ void polsar::GetKrogagerDecomp(const vector<Mat>& circ, vector<Mat>& decompositi
 	k_s = logTransform( s_lr_amp);
 
 	// k_d = min( |s_ll|, |s_rr| )
-	min(s_ll_amp, s_rr_amp, k_d);
+	k_d = Mat(Size(s_ll_amp.size()), s_ll_amp.type());
+	for (int i = 0; i < s_ll_amp.rows; i++) {
+		for (int j = 0; j < s_ll_amp.cols; j++) {
+			k_d.at<float>(i, j) = std::min(s_ll_amp.at<float>(i, j), s_rr_amp.at<float>(i, j));
+		}
+	}
 	k_d = logTransform(k_d);
 
 	// k_h = | |s_ll| - |s_rr| |
@@ -490,9 +495,9 @@ void polsar::cloudePottierDecomp(Mat_<Complexf>& coherence, vector<float>& resul
 	result.push_back(alpha[0]);
 	result.push_back(alpha[1]); 
 	result.push_back(alpha[2]);
-	result.push_back(lambda[0]);
-	result.push_back(lambda[1]);
-	result.push_back(lambda[2]);
+	//result.push_back(lambda[0]);
+	//result.push_back(lambda[1]);
+	//result.push_back(lambda[2]);
 }
 
  
@@ -605,7 +610,7 @@ void polsar::GetCloudePottierDecomp(const vector<Mat>& upcorner_coherence, vecto
 	int rows = upcorner_coherence[0].rows;
 	int cols = upcorner_coherence[0].cols;
 
-	decomposition = vector<Mat>(8);
+	decomposition = vector<Mat>(5);
 	for (auto& d : decomposition) {
 		d = Mat(rows, cols, CV_32FC1);
 	}
