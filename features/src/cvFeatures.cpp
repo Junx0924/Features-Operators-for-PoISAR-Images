@@ -30,9 +30,9 @@ Mat cvFeatures::GetMP(const Mat &src, const array<int,3> & morph_size) {
     std::vector<Mat> temp2 = morph::CaculateMP(dst, morph_size[1]);
     std::vector<Mat> temp3 = morph::CaculateMP(dst, morph_size[2]);
     cv::Mat result1, result2, result3;
-    cv::merge(temp1, result1);
-    cv::merge(temp2, result2);
-    cv::merge(temp3, result3);
+    cv::hconcat(temp1, result1);
+    cv::hconcat(temp2, result2);
+    cv::hconcat(temp3, result3);
     
     Mat output;
     output.push_back(result1);
