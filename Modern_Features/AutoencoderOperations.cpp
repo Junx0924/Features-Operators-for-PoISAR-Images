@@ -204,12 +204,9 @@ void Autoencoder::AutoencoderUserMenu(vector<vector<float>>& coherenceVec, Data&
 		gamma = Mat::zeros(row, col, CV_32FC1);
 		vector<float> alVec, beVec, gaVec;
 		vector<Mat> reconstData;
-		string fileName = "CoherenceVectorList.csv";
 
 		cv::Ptr<cv::ml::TrainData> raw_data = cv::ml::TrainData::loadFromCSV(recostructedFile, 0, -2, 0);		
 		Mat recData = raw_data->getSamples();
-		cv::Ptr<cv::ml::TrainData> in_data = cv::ml::TrainData::loadFromCSV(fileName, 0, -2, 0);
-		Mat inputData = in_data->getSamples();
 
 		for (int row = 0; row < recData.rows; row++) {
 			float alVal, beVal, gaVal;
