@@ -37,7 +37,7 @@ std::vector<cv::Mat> morph::CaculateMP(const Mat& src, int morph_size) {
         dst.convertTo(dst, CV_8UC1);
     }
 
-    Mat element = getStructuringElement(MORPH_ELLIPSE, cv::Size(morph_size ,morph_size ));
+    Mat element = getStructuringElement(MORPH_ELLIPSE, cv::Size(morph_size*2+1 , morph_size * 2 + 1));
 
     //openning
     Mat open;
