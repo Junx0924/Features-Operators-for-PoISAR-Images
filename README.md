@@ -1,4 +1,4 @@
-1 Handcrafted_Features:\
+1 Handcrafted_Features:
 1) Calculate handcrafted features from polsar files, store them in HDF5 file
 2) Apply KNN to classifiy these features.
 3) Generate the colormap of class results, and the classification overall accuracy.
