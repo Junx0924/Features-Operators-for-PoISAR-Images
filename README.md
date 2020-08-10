@@ -1,16 +1,13 @@
 1) Handcrafted_Features:
 
-Dependencies:
-MPEG-7
-T-SNE
-HDF5 (installed by Anaconda)
+Dependencies: MPEG-7, T-SNE, HDF5 (installed by Anaconda)
 
 How-to-use:
-main.exe <ratFolder> <labelFolder> <Hdf5File> <featureName> <filterSize> <patchSize>
+main.exe \<ratFolder\> \<labelFolder\> \<Hdf5File\> \<featureName\> \<filterSize\> \<patchSize\>
 
- <filterSize> choose from: 0,5,7,9,11
+\<filterSize\> choose from: 0,5,7,9,11
 
-<featureName> choose from: mp, decomp, color, texture, polstatistic, ctelements
+\<featureName\> choose from: mp, decomp, color, texture, polstatistic, ctelements
 
 mp stands for: morphological profile features
 
