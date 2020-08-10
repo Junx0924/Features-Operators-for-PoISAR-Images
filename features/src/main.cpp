@@ -20,16 +20,16 @@ std::vector<std::string> features = { color,texture,polstatistic,mp,decomp,ctele
 int main(int argc, char** argv) {
 
     if (argc < 7) {
-        cout << "Usage: " << argv[0] << " <ratFolder> <labelFolder> <Hdf5File> <featureName>  <filterSize><patchSize> \n" << endl;
+        cout << "Usage: " << argv[0] << " <ratFolder> <labelFolder> <Hdf5File> <featureName> <filterSize> <patchSize> \n" << endl;
         cout << "e.g. " << argv[0] << " E:\\Oberpfaffenhofen\\sar-data E:\\Oberpfaffenhofen\\label E:\\mp.h5  mp 0 10\n" << endl;
-        cout << "featureName choose from: \n" << mp << "," << decomp << "," << color << "," << texture << "," << polstatistic << "," << ctelements << endl;
-        cout << "filterSize choose from: \n" <<  "0,5,7,9,11 \n"  << endl;
-        cout << "mp stands for: \n" << "morphological profile features" << endl;
-        cout << "decomp stands for: \n" << "target decomposition features" << endl;
-        cout << "color stands for: \n" << "MPEG-7 CSD,DCD and HSV features" << endl;
-        cout << "texture stands for: \n" << "GLCM and LBP features" << endl;
-        cout << "polstatistic stands for: \n" <<  "the statistic of polsar parameters"  << endl;
-        cout << "ctelements stands for: \n" <<  "the 6 upcorner elements of covariance and coherence matrix"  << endl;
+        cout << "featureName choose from: " << mp << "," << decomp << "," << color << "," << texture << "," << polstatistic << "," << ctelements <<"\n"<< endl;
+        cout << "filterSize choose from: " <<  "0,5,7,9,11 \n"  << endl;
+        cout << "mp stands for: " << "morphological profile features\n" << endl;
+        cout << "decomp stands for: " << "target decomposition features\n" << endl;
+        cout << "color stands for: " << "MPEG-7 CSD,DCD and HSV features\n" << endl;
+        cout << "texture stands for: " << "GLCM and LBP features\n" << endl;
+        cout << "polstatistic stands for: " <<  "the statistic of polsar parameters\n"  << endl;
+        cout << "ctelements stands for: " <<  "the 6 upcorner elements of covariance and coherence matrix\n"  << endl;
         return 0;
     }
 
@@ -53,10 +53,10 @@ int main(int argc, char** argv) {
     cout << "filterSize = " << filterSize << endl;
     cout << "patchSize = " << patchSize << "\n"<< endl;
 
-     ober* ob = new ober(ratfolder, labelfolder);
+    ober* ob = new ober(ratfolder, labelfolder);
      
-     ob->caculFeatures(hdf5file,feature_name,filterSize, patchSize,batchSize);
-     delete ob;
+    ob->caculFeatures(hdf5file,feature_name,filterSize, patchSize,batchSize);
+    delete ob;
     
     Utils::classifyFeaturesML(hdf5file, feature_name, "opencvFLANN", 80, filterSize, patchSize, batchSize);
     
@@ -68,5 +68,4 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-
 

@@ -487,17 +487,7 @@ void polsar::cloudePottierDecomp(Mat_<Complexf>& coherence, vector<float>& resul
 
 	result.push_back(entropy);
 	result.push_back(anisotropy);
-	//result.push_back(meanAlpha);
-	//result.push_back(meanBeta);
-	//result.push_back(meanDelta);
-	//result.push_back(meanGamma);
-	//result.push_back(meanLambda);
-	result.push_back(alpha[0]);
-	result.push_back(alpha[1]); 
-	result.push_back(alpha[2]);
-	//result.push_back(lambda[0]);
-	//result.push_back(lambda[1]);
-	//result.push_back(lambda[2]);
+	result.push_back(meanAlpha);
 }
 
  
@@ -610,7 +600,7 @@ void polsar::GetCloudePottierDecomp(const vector<Mat>& upcorner_coherence, vecto
 	int rows = upcorner_coherence[0].rows;
 	int cols = upcorner_coherence[0].cols;
 
-	decomposition = vector<Mat>(5);
+	decomposition = vector<Mat>(3);
 	for (auto& d : decomposition) {
 		d = Mat(rows, cols, CV_32FC1);
 	}

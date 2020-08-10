@@ -163,9 +163,9 @@ void Utils::generateFeatureMap(const std::string& hdf5_fileName, const std::stri
 	std::vector<int> cols; 
 	std::vector<std::string> png_name;
 	if (feature_name == "polstatistic") { 
-		std::cout << "generate the feature map for the mean value of each polarimetric parameter" << std::endl;
+		std::cout << "generate the feature map for each polarimetric parameter" << std::endl;
 		// the median value for each polarimetric parameter
-		cols = {0,5,10,15,20,25,30,35,40,45 }; 
+		cols = { 0,5,10,15,20,25,30,35,40,45 }; 
 		png_name = {"Intensity_of_HH_channel","Intensity_of_HV_channel","Intensity_of_VV_channel","Phase_difference_HH-VV",
 			"Co-polarize_ratio","Cross-polarized_ratio","HV_VV_ratio","Copolarization_ratio","Depolarization_ratio","Amplitude_of_HH-VV_correlation"};
 	}
@@ -176,19 +176,18 @@ void Utils::generateFeatureMap(const std::string& hdf5_fileName, const std::stri
 	}
 	else if (feature_name == "decomp") {
 		std::cout << "generate the feature map for target decomposition component" << std::endl;
-		//cols = { 4,13,22,31,40,49,58,67,76,85,94,103,112,121 };
-		cols = { 4,13,22,31,40,76,85,94,103,112,121,130,139,148};
-		png_name = { "cloude_entropy", "cloude_anisotropy", "cloude_alpha1" ,"cloude_alpha2","cloude_alpha3","freeman_surface","freeman_double-bounce" ,"freeman_volume","krogager_sphere", "krogager_diplane","krogager_helix","pauli_alpha" ,"pauli_beta", "pauli_gamma" };
+		 cols = { 4,13,22,31,40,49,58,67,76,85,94,103 };
+		png_name = { "cloude_entropy", "cloude_anisotropy", "cloude_alpha", "freeman_surface", "freeman_double-bounce" , "freeman_volume", "krogager_sphere", "krogager_diplane", "krogager_helix", "pauli_alpha" ,"pauli_beta", "pauli_gamma" };
 	}
 	else if (feature_name == "color") {
 		std::cout << "generate the feature map for MPEG-7 DCD and CSD" << std::endl;
-		cols = {0,1, 3, 32,33,34,35 };
-		png_name = { "csd value 1","csd value 2","csd value 3","dominant_color_value1","dominant_color_value2","dominant_color_value3" ,"dominant_color_weight"};
+		cols = { 0,1,2,32,33,34,35 };
+		png_name = { "csd bin 1","csd bin 2","csd bin 3","dominant_color_value1","dominant_color_value2","dominant_color_value3" ,"dominant_color_weight"};
 	}
 	else if (feature_name == "texture") {
 		std::cout << "generate the feature map for texture on HH channel" << std::endl;
 		cols = {0,1,8,9,16,17,24,25,32,33};
-		png_name = { "GLCM engergy value 1", "GLCM engergy value 2","GLCM Contrast value 1","GLCM Contrast value 2","GLCM Homogenity value 1","GLCM Homogenity value 2","GLCM Entropy value 1","GLCM Entropy value 2","LBP value 1","LBP value 2" };
+		png_name = { "GLCM engergy bin 1", "GLCM engergy bin 2","GLCM Contrast bin 1","GLCM Contrast bin 2","GLCM Homogenity bin 1","GLCM Homogenity bin 2","GLCM Entropy bin 1","GLCM Entropy bin 2","LBP bin 1","LBP bin 2" };
 	}
 	else if (feature_name == "mp") {
 		std::cout << "generate the feature map for mp features on HH channel" << std::endl;
@@ -243,11 +242,6 @@ void Utils::generateFeatureMap(const std::string& hdf5_fileName, const std::stri
 
 			for (auto& f : featureMap) {
 				//get min and max, stretch it to 0-255
-				//double mean = cv::mean(f)[0];
-				// f = f - mean;
-				//double min = 0, max = 0;
-				//cv::minMaxLoc(f, &min, &max);
-				//f = (f - min) * 255.0 / (max - min);
 				f.convertTo(f, CV_8UC1);
 				cv::equalizeHist(f, f);
 				cv::applyColorMap(f, f, cv::COLORMAP_JET);
@@ -586,55 +580,6 @@ void Utils::splitVec(const std::vector<unsigned char>& labels, std::vector<std::
 }
 
 
-///*===================================================================
-// * Function: featureDimReduction
-// *
-// * Summary:
-// *   reduced the feature dimension by T-SNE
-// *	 dump the first batch to txt file for plotting
-// *	 check the KNN accuracy on reduced feature data
-// *
-// * Arguments:
-// *   std::string& hdf5_fileName - hdf5 filename
-// *   std::string& feature_name - choose from { "texture", "color", "ctelements","polstatistic","decomp", "mp"}
-// *   int filterSize
-// *	 int patchSize
-// *	 int batchSize
-// * Returns:
-// *   void
-//=====================================================================
-//*/
-//void Utils::featureDimReduction(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize,int batchSize) {
-//	
-//	std::vector<std::string> dataset_name = { "/feature" ,"/groundtruth" };
-//	std::string parent = "/" + feature_name + "_filterSize_" + std::to_string(filterSize) + "_patchSize_" + std::to_string(patchSize);
-//	int fullSize = hdf5::getRowSize(hdf5_fileName, parent, dataset_name[0]);
-//	std::cout << "get " << fullSize << " rows for " << feature_name << " feature from hdf5 file with filterSize " << filterSize << " , patchSize " << patchSize << std::endl;
-//
-//	int offset_row = 0;
-//	int partSize;
-//	if (batchSize > fullSize) { batchSize = fullSize; }
-//	int partsCount = fullSize / batchSize;
-//	cv::Mat  feature, groundtruths, reduced_feature;
-//
-//	if (fullSize != 0) {
-//		for (int i = 0; i < partsCount; ++i) {
-//			partSize = fullSize / (partsCount - i);
-//			fullSize -= partSize;
-//			if (fullSize < 0) { break; }
-//			hdf5::readData(hdf5_fileName, parent, dataset_name[0], feature, offset_row, partSize);
-//			std::cout << "get " << feature.rows << " rows for " << feature_name << " feature" << std::endl;
-//			reduced_feature = DataProcess::featureDimReduction(feature, 3);
-//			hdf5::insertData(hdf5_fileName, parent, "/feature_dimReduced", reduced_feature);
-//
-//			offset_row = offset_row + partSize;
-//			std::cout << "classifiy " << feature_name << " progress: " << float(i + 1) / float(partsCount) * 100.0 << "% \n" << std::endl;
-//		}
-//	}
-//	else {
-//		std::cout << feature_name << " with filterSize " << filterSize << " , patchSize " << patchSize << " is not existed in hdf5 file " << std::endl;
-//	}
-//}
 
 
  std::map<unsigned char, std::string> Utils::getClassName(const std::string& filename) {

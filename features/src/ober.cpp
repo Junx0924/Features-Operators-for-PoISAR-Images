@@ -49,12 +49,12 @@ void ober::caculFeatures(const std::string& hdf5_fileName, const std::string& fe
 	std::vector<std::vector<int>> subInd;
 	Utils::splitVec(this->sampleLabel, subInd, batchSize);
 
+	 
 	for (auto i = 0; i < subInd.size();i++) {
 		std::vector<int> ind = subInd[i];
 		size_t N = ind.size();
+		cv::Mat feature, pts;
 
-		vector<Mat> feature;
-		vector<Mat> pts;
 		for (size_t j = 0; j < N; ++j) {
 			Point p = this->samplePoints[ind[j]];
 			int patchLabel = this->sampleLabel[ind[j]];
@@ -64,44 +64,40 @@ void ober::caculFeatures(const std::string& hdf5_fileName, const std::string& fe
 			temp.at<int>(0, 1) = p.y; //row
 			temp.at<int>(0, 2) = p.x; //col
 			pts.push_back(temp);
-
-			Mat hh, vv, hv;
+			cv::Mat hh, vv, hv;
 			getSample(p, patchSize, filterSize, hh, vv, hv);
-
+			cv::Mat temp_feature;
 			switch (feature_type[feature_name]) {
 			case 1:
-				feature.push_back(caculTexture(hh, vv, hv));
+				temp_feature = caculTexture(hh, vv, hv);
 				break;
 			case 2:
-				feature.push_back(caculColor(hh, vv, hv));
+				temp_feature = caculColor(hh, vv, hv);
 				break;
 			case 3:
-				feature.push_back(caculCTelements(hh, vv, hv));
+				temp_feature = caculCTelements(hh, vv, hv);
 				break;
 			case 4:
-				feature.push_back(caculPolStatistic(hh, vv, hv));
+				temp_feature = caculPolStatistic(hh, vv, hv);
 				break;
 			case 5:
-				feature.push_back(caculDecomp(hh, vv, hv));
+				temp_feature = caculDecomp(hh, vv, hv);
 				break;
 			case 6:
-				feature.push_back(caculMP(hh, vv, hv));
+				temp_feature = caculMP(hh, vv, hv);
 				break;
 			default:
 				std::cout << "feature name not existed:" << feature_name << std::endl;
 				exit(-1);
 				break;
 			}
+			feature.push_back(temp_feature);
 		}
-		cv::Mat temp_feature, temp_pts;
-		cv::vconcat(feature, temp_feature);
-		cv::vconcat(pts, temp_pts);
-
-		hdf5::insertData(hdf5_fileName, parent, dataset_name[0], temp_feature);
-		hdf5::insertData(hdf5_fileName, parent, dataset_name[1], temp_pts);
-		feature.clear();
-		pts.clear();
+		hdf5::insertData(hdf5_fileName, parent, dataset_name[0], feature);
+		hdf5::insertData(hdf5_fileName, parent, dataset_name[1], pts);
 		std::cout << "calculate "<<feature_name<<" progress: " << float(i+1) / float(subInd.size()) * 100.0 << "% \n" << std::endl;
+		feature.release();
+		pts.release();
 	}
 }
 
@@ -235,7 +231,7 @@ Mat ober::caculTexture(const Mat& hh, const Mat& vv, const Mat& hv) {
 
 	Mat result;
 	vconcat(output, result);
-	return result.reshape(1,1);
+	return result.reshape(1, 1);
 }
 
 // calculate color features on Pauli Color Coding
@@ -256,7 +252,7 @@ Mat ober::caculMP(const Mat& hh, const Mat& vv, const Mat& hv) {
 	 result.push_back(cvFeatures::GetMP(vv_log, { 1,3,5 }));
 	 result.push_back(cvFeatures::GetMP(hv_log, { 1,3,5 }));
 
-	 return result.reshape(1,1);
+	 return result.reshape(1, 1);
 }
 
 // calculate target decomposition
@@ -275,8 +271,8 @@ Mat ober::caculDecomp(const Mat& hh, const Mat& vv, const Mat& hv) {
 	polsar::GetCovarianceC(lexi, covariance);
 
 	vector<Mat> decomposition;
-	polsar::GetCloudePottierDecomp(coherency, decomposition); //5  
-	polsar::GetFreemanDurdenDecomp(coherency, decomposition); //3  
+	polsar::GetCloudePottierDecomp(coherency, decomposition); //3  
+	polsar::GetFreemanDurdenDecomp(covariance, decomposition); //3  
 	polsar::GetKrogagerDecomp(circ, decomposition); // 3  
 	polsar::GetPauliDecomp(pauli, decomposition); // 3  
 	vconcat(decomposition, result);
