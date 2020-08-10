@@ -6,14 +6,6 @@ Generate feature maps for each dimension of feature groups
 
 Dependencies: MPEG-7, T-SNE, HDF5 (installed by Anaconda)
 
-Main functions:
-1) ober::caculFeatures (hdf5file, feature_name, filterSize, patchSize, batchSize)
-2) Utils::classifyFeaturesML(hdf5file, feature_name, "opencvKNN", 80, filterSize, patchSize, batchSize)
-3) Utils::featureDimReduction(hdf5file, feature_name, filterSize, patchSize, batchSize):\
-Reduced the feature dimension by T-SNE, dump the first batch to txt file for plotting
-4) Utils::generateFeatureMap(hdf5file, feature_name, filterSize, patchSize, batchSize):\
-Generate feature maps for each feature group
-
 How-to-use:
 main.exe \<ratFolder\> \<labelFolder\> \<Hdf5File\> \<featureName\> \<filterSize\> \<patchSize\>
 
