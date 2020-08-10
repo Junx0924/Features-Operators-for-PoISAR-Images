@@ -1,6 +1,6 @@
 #include <opencv2/opencv.hpp>
-#include "ober.hpp"
-#include "Utils.h"
+#include "Data.hpp"
+#include "FeatureProcess.h"
 #include <string> 
  
 
@@ -23,12 +23,12 @@ int main(int argc, char** argv) {
         cout << "Usage: " << argv[0] << " <ratFolder> <labelFolder> <Hdf5File> <featureName> <filterSize> <patchSize> \n" << endl;
         cout << "e.g. " << argv[0] << " E:\\Oberpfaffenhofen\\sar-data E:\\Oberpfaffenhofen\\label E:\\mp.h5  mp 0 10\n" << endl;
         cout << "featureName choose from: " << mp << "," << decomp << "," << color << "," << texture << "," << polstatistic << "," << ctelements <<"\n"<< endl;
-        cout << "filterSize choose from: " <<  "0,5,7,9,11 \n"  << endl;
+        cout << "filterSize choose from: " <<  "0,3,5,7,9,11 \n"  << endl;
         cout << "mp stands for: " << "morphological profile features\n" << endl;
         cout << "decomp stands for: " << "target decomposition features\n" << endl;
-        cout << "color stands for: " << "MPEG-7 CSD,DCD and HSV features\n" << endl;
-        cout << "texture stands for: " << "GLCM and LBP features\n" << endl;
-        cout << "polstatistic stands for: " <<  "the statistic of polsar parameters\n"  << endl;
+        cout << "color stands for: " << "color features (MPEG-7 CSD,DCD)\n" << endl;
+        cout << "texture stands for: " << "texture features (GLCM,LBP)\n" << endl;
+        cout << "polstatistic stands for: " <<  "statistic of polsar parameters (median, min, max, mean, std)\n"  << endl;
         cout << "ctelements stands for: " <<  "the 6 upcorner elements of covariance and coherence matrix\n"  << endl;
         return 0;
     }
@@ -53,19 +53,25 @@ int main(int argc, char** argv) {
     cout << "filterSize = " << filterSize << endl;
     cout << "patchSize = " << patchSize << "\n"<< endl;
 
-    ober* ob = new ober(ratfolder, labelfolder);
-     
-    ob->caculFeatures(hdf5file,feature_name,filterSize, patchSize,batchSize);
+    Data* ob = new Data(ratfolder, labelfolder);
+
+    FeatureProcess* f = new FeatureProcess(hdf5file);
+    f->setParam(feature_name, filterSize, patchSize, batchSize);
+    f->caculFeatures(ob->data,ob->LabelMap, ob->classNames);
     delete ob;
     
-    Utils::classifyFeaturesML(hdf5file, feature_name, "opencvFLANN", 80, filterSize, patchSize, batchSize);
+    int trainPercent = 80, K = 20;
+    f->classifyFeaturesML( "opencvKNN", trainPercent, K);
     
-    Utils::generateColorMap(hdf5file, feature_name, "opencvFLANN", filterSize, patchSize, batchSize);
+    f->generateColorMap("opencvKNN");
 
-    Utils::featureDimReduction(hdf5file, feature_name, filterSize, patchSize, batchSize);
+    int batchID = 0;
+    f->featureDimReduction(batchID);
 
-    Utils::generateFeatureMap(hdf5file, feature_name, filterSize, patchSize, batchSize);
+    f->generateFeatureMap();
+    delete f;
 
     return 0;
 }
+
 

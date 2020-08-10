@@ -15,6 +15,15 @@
 
 namespace DataProcess{
 
+	//generate all the possible sample points
+	std::vector<cv::Point>  generateSamplePoints(const cv::Mat& labelMap, const int& sampleSize, const int& stride);
+
+	//get random samples of homogeneous area for one type of class
+	void getRandomSamplePoint(const cv::Mat& labelMap, std::vector<cv::Point>& samplePoints, const unsigned char& sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass);
+
+	//split index to batches, make sure the distribution of each class in each batch is the same as it in the whole data
+	void splitVec(const std::vector<unsigned char>& labels, std::vector<std::vector<int>>& subInd, int batchSize = 5000);
+
 	// split the data into train/test set balancely in different classes
 	// return the index of the test data in original data
 	std::vector<int> DivideTrainTestData(const std::vector<cv::Mat>& data, const std::vector<unsigned char>& data_label, int percentOfTrain,

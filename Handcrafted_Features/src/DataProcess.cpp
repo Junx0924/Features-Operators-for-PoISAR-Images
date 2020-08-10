@@ -145,13 +145,16 @@ float DataProcess::calculatePredictionAccuracy(const std::string& feature_name, 
 		int dim = classResult.size();
 
 		for (int i = 0; i < dim; ++i) {
-			if ((classResult[i] == groundtruth[i])&& (groundtruth[i] != unsigned char(0))) {
-				hit[classResult[i]]++;
+			if (groundtruth[i] != unsigned char(0)) {
+				total[groundtruth[i]]++;
+
+				if (classResult[i] == groundtruth[i]){
+					hit[classResult[i]]++;
+				}
 			}
-			total[groundtruth[i]]++;
 		}
 
-		float a = 0.0;
+		float a = 0.0, b = 0.0;
 		for (auto& h : hit) {
 			unsigned char label = h.first;
 			std::string classname = className.at(label);
@@ -159,13 +162,14 @@ float DataProcess::calculatePredictionAccuracy(const std::string& feature_name, 
 			float totalNum = total[label];
 			float class_accuracy = correct / totalNum;
 			a = correct + a;
+			b = totalNum + b;
 			std::cout << "accuracy for class " << classname << ": " << class_accuracy << std::endl;
 
 			if (!feature_name.empty()) {
 				fout << "accuracy for class " << classname << ": " << class_accuracy << std::endl;
 			}
 		}
-		accuracy = a / groundtruth.size();
+		accuracy = a / b;
 		std::cout << "overall accuracy: " << accuracy << std::endl;
 
 		if (!feature_name.empty()) {
@@ -376,4 +380,149 @@ cv::Mat DataProcess::featureDimReduction(const cv::Mat& features, int new_dims) 
 	free(X); X = NULL;
 	free(Y); Y = NULL;
 	return reduced_feature;
+}
+
+/*===================================================================
+ * Function: generateSamplePoints
+ *
+ * Summary:
+ *   generate all the possible sample points
+ *
+ * Arguments:
+ *   cv::Mat& labelMap
+ *   int filterSize
+ *	 int patchSize
+ *	 int& stride
+ * output:
+ *	 std::vector<cv::Point> samplePoints
+=====================================================================
+*/
+std::vector<cv::Point> DataProcess::generateSamplePoints(const cv::Mat& labelMap, const int& patchSize, const int& stride) {
+
+	std::vector<cv::Point> samplePoints;
+	for (int row = 0; row < labelMap.rows - patchSize; row += stride) {
+		for (int col = 0; col < labelMap.cols - patchSize; col += stride) {
+			cv::Rect cell = cv::Rect(col, row, patchSize, patchSize);
+
+			int halfsize = patchSize / 2;
+
+			//record the central points of each patch
+			samplePoints.push_back(cv::Point(col + halfsize, row + halfsize));
+		}
+	}
+	return samplePoints;
+}
+
+
+/*===================================================================
+ * Function: getRandomSamplePoint
+ *
+ * Summary:
+ *   get random samples of homogeneous area for one type of class
+ *
+ * Arguments:
+ *   cv::Mat& labelMap
+ *	 unsigned char& sampleLabel
+ *   int filterSize
+ *	 int sampleSize
+ *	 int& stride
+ *   int& numOfSamplePointPerClass - 0 means to return all the possible sample points
+ * output:
+ *	 std::vector<cv::Point>& samplePoints
+=====================================================================
+*/
+void DataProcess::getRandomSamplePoint(const cv::Mat& labelMap, std::vector<cv::Point>& samplePoints, const unsigned char& sampleLabel, const int& sampleSize, const int& stride, const int& numOfSamplePointPerClass) {
+
+	std::vector<cv::Point> temp = generateSamplePoints(labelMap, sampleSize, stride);
+	std::map<unsigned char, std::vector<cv::Point> > count;
+	for (auto& p : temp) {
+		unsigned char label = labelMap.at<unsigned char>(p.y, p.x);
+		if (label == sampleLabel) {
+			count[sampleLabel].push_back(p);
+		}
+	}
+	std::vector<cv::Point> pts = count[sampleLabel];
+
+	if (numOfSamplePointPerClass > 0) {
+		std::random_device random_device;
+		std::mt19937 engine{ random_device() };
+		std::uniform_int_distribution<int> pt(0, pts.size() - 1);
+		size_t num = 0;
+		size_t iter = 0;
+
+		while (num < numOfSamplePointPerClass) {
+			cv::Point p = pts[pt(engine)];
+
+			// get samples in homogeneous areas 
+			// this is only for checking the accuracy of features
+			unsigned char label = labelMap.at<unsigned char>(p.y, p.x);
+			unsigned char sample_upcorner = labelMap.at<unsigned char>(p.y - sampleSize / 2, p.x - sampleSize / 2);
+			unsigned char sample_downcorner = labelMap.at<unsigned char>(p.y + sampleSize / 2, p.x + sampleSize / 2);
+			unsigned char sample_leftcorner = labelMap.at<unsigned char>(p.y + sampleSize / 2, p.x - sampleSize / 2);
+			unsigned char sample_rightcorner = labelMap.at<unsigned char>(p.y - sampleSize / 2, p.x + sampleSize / 2);
+			if ((label == sample_upcorner) && (label == sample_downcorner) &&
+				(label == sample_leftcorner) && (label == sample_rightcorner)) {
+				samplePoints.push_back(p);
+				++num;
+			}
+			++iter;
+			if (iter > pts.size()) { break; }
+		}
+	}
+	else {
+		std::cout << "load all the sample points" << std::endl;
+		copy(pts.begin(), pts.end(), back_inserter(samplePoints));
+	}
+}
+
+
+/*===================================================================
+ * Function: splitVec
+ *
+ * Summary:
+ *   split index to batches, make sure the distribution of each class in each batch is the same as it in the whole data
+ *	 shuffle the index
+ *
+ * Arguments:
+ *   std::vector<unsigned char>& labels
+ *   int batchSize
+ * output:
+ *	 std::vector<std::vector<int>>& subInd
+=====================================================================
+*/
+void DataProcess::splitVec(const std::vector<unsigned char>& labels, std::vector<std::vector<int>>& subInd, int batchSize) {
+
+	// To regulate count of parts
+	if (batchSize > labels.size()) { batchSize = labels.size(); }
+	int partsCount = labels.size() / batchSize;
+
+	if (subInd.size() == 0) { subInd = std::vector<std::vector<int>>(partsCount); }
+
+	std::map<unsigned char, std::vector<int>> count;
+	for (int ind = 0; ind < labels.size(); ind++) {
+		count[labels[ind]].push_back(ind);
+	}
+
+	for (const auto& c : count) {
+		std::vector<int> inds = c.second;
+		// Variable to control size of non divided elements
+		int fullSize = inds.size();
+		int start = 0;
+		for (int i = 0; i < partsCount; ++i) {
+			int partSize = fullSize / (partsCount - i);
+			fullSize -= partSize;
+			for (int j = 0; j < partSize; j++) {
+				subInd[i].push_back(inds[start + j]);
+			}
+			start = start + partSize;
+		}
+	}
+
+	// shuffle the index
+	// obtain a time-based seed
+	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	std::default_random_engine e(seed);
+	for (auto i = 0; i < subInd.size(); i++) {
+		std::shuffle(subInd[i].begin(), subInd[i].end(), e);
+	}
 }

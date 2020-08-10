@@ -5,7 +5,7 @@
 #ifdef GCC
 #include <dirent.h>
 #endif
-#include "ober.hpp" 
+#include "Data.hpp" 
 
 
 using namespace std;
@@ -13,398 +13,40 @@ using namespace cv;
 namespace fs = std::filesystem;
  
 
-/*===================================================================
- * Function: caculFeatures
- *
- * Summary:
- *   shuffle the samples and split them into batches with porper class distribution
- *	 calulate features and save to hdf5 file
- *
- * Arguments:
- *   const std::string& hdf5_fileName
- *   std::string feature_name - choose from { "texture", "color", "ctelements","polstatistic","decomp", "mp"}
- *   int filterSize - apply refined Lee despeckling filter, choose from (0, 5, 7, 9, 11)
- *	 int patchSize
- *   unsigned char classlabel  -  choose which class to load, default 255 means to load all the classes
- *	 int numOfSamplePoint - the number of samples for one type of class, default 0 means to load all the possible sample points
- *	 int batchSize - default 5000
- * output:
- *   
-=====================================================================
+
+
+/*************************************************************************
+Generating a label map
+Author : Anupama Rajkumar
+Date : 27.05.2020
+Description : Idea is to create a single label map from a list of various
+label classes.This map serves as points of reference when trying to classify
+patches
+**************************************************************************
 */
-void ober::caculFeatures(const std::string& hdf5_fileName, const std::string& feature_name, int filterSize, int patchSize, int batchSize,int numOfSamplePoint, unsigned char classlabel) {
-	
-	std::map<string, int> feature_type = { {"texture",1},{"color",2},{"ctelements",3},{"polstatistic",4},{"decomp",5},{"mp",6} };
-	vector<string> dataset_name = { "/feature" ,"/groundtruth" };
-	std::string parent = "/" + feature_name + "_filterSize_" + std::to_string(filterSize) + "_patchSize_" + std::to_string(patchSize);
-
-	writeLabelMapToHDF(hdf5_fileName, this->LabelMap, this->classNames);
-
-	LoadSamplePoints(patchSize, numOfSamplePoint, classlabel, 1);
-
-	cout << "start to calculate " << feature_name << " with filterSize " << filterSize << " , patchSize " << patchSize << endl;
-
-	//shuffle all the samplePoints based on its label
-	//make sure each class has right portion in each batch
-	std::vector<std::vector<int>> subInd;
-	Utils::splitVec(this->sampleLabel, subInd, batchSize);
-
-	 
-	for (auto i = 0; i < subInd.size();i++) {
-		std::vector<int> ind = subInd[i];
-		size_t N = ind.size();
-		cv::Mat feature, pts;
-
-		for (size_t j = 0; j < N; ++j) {
-			Point p = this->samplePoints[ind[j]];
-			int patchLabel = this->sampleLabel[ind[j]];
-
-			cv::Mat temp = Mat(1, 3, CV_32SC1);
-			temp.at<int>(0, 0) = patchLabel;
-			temp.at<int>(0, 1) = p.y; //row
-			temp.at<int>(0, 2) = p.x; //col
-			pts.push_back(temp);
-			cv::Mat hh, vv, hv;
-			getSample(p, patchSize, filterSize, hh, vv, hv);
-			cv::Mat temp_feature;
-			switch (feature_type[feature_name]) {
-			case 1:
-				temp_feature = caculTexture(hh, vv, hv);
-				break;
-			case 2:
-				temp_feature = caculColor(hh, vv, hv);
-				break;
-			case 3:
-				temp_feature = caculCTelements(hh, vv, hv);
-				break;
-			case 4:
-				temp_feature = caculPolStatistic(hh, vv, hv);
-				break;
-			case 5:
-				temp_feature = caculDecomp(hh, vv, hv);
-				break;
-			case 6:
-				temp_feature = caculMP(hh, vv, hv);
-				break;
-			default:
-				std::cout << "feature name not existed:" << feature_name << std::endl;
-				exit(-1);
-				break;
-			}
-			feature.push_back(temp_feature);
-		}
-		hdf5::insertData(hdf5_fileName, parent, dataset_name[0], feature);
-		hdf5::insertData(hdf5_fileName, parent, dataset_name[1], pts);
-		std::cout << "calculate "<<feature_name<<" progress: " << float(i+1) / float(subInd.size()) * 100.0 << "% \n" << std::endl;
-		feature.release();
-		pts.release();
-	}
-}
-
-
-/*===================================================================
- * Function: LoadSamplePoints
- *
- * Summary:
- *   load sample points
- *
- * Arguments:
- *   const int& patchSize - choose from { "/texture", "/color", "/ctElements","/polStatistic","/decomp", "/MP"}
- *	 const int& numOfSamplePoint - the number of samples for one type of class, 0 means load all the possible sample points
- *   const unsigned char& classlabel - choose which class to load, 255 means to load all the classes
- *	 int stride
- * output:
- *
-=====================================================================
-*/
-void ober::LoadSamplePoints(const int& patchSize, const int& numOfSamplePoint, const unsigned char& classlabel, int stride) {
-
-	if (!this->samplePoints.empty()) {
-		this->samplePoints.clear();
-	}
-
-	if (!this->sampleLabel.empty()) {
-		this->sampleLabel.clear();
-	}
-
-	cout << "start to generate sample points with patchSize " << patchSize << ", stride " << stride << "..." << endl;
-
-	for (const auto& classname : this->classNames) {
-		unsigned char label = unsigned char(0);
-		string name = classname.second;
-		vector<Point> pts;
-		if (classlabel == unsigned char(255)) {
-			label = classname.first;
-		}
-		else if( classlabel == classname.first){
-			label = classlabel;
-		}
-		else {
-			continue;
-		}
-		 
-		Utils::getRandomSamplePoint(this->LabelMap, pts, label, patchSize, stride, numOfSamplePoint);
-		cout << "Get " << pts.size() << " sample points for class " << name << endl;
-		for (size_t i = 0; i < pts.size(); i++) {
-			this->sampleLabel.push_back(label);
-		}
-		copy(pts.begin(), pts.end(), back_inserter(this->samplePoints));
-		pts.clear();
-	}
-}
-
-/*===================================================================
- * Function: getSample
- *
- * Summary:
- *   get sample mat centered at sample point
- *   apply refined Lee filter to the sample mat if filtersize is not 0
- *
- * Arguments:
- *  const Point& p - sample point
- *	int patchSize
- *	int filtersize - choose from {0, 5, 7, 9, 11}
- * output:
- * Mat& hh, Mat& vv, Mat& hv
-=====================================================================
-*/
-void ober::getSample(const Point& p, int patchSize, int filtersize, Mat& hh, Mat& vv, Mat& hv) {
-	int size = patchSize;
-	int start_x = int(p.x) - patchSize / 2;
-	int start_y = int(p.y) - patchSize / 2;
-	Rect roi = Rect(start_x, start_y, size, size);
-
-	//boundary check
-	//check if the sample corners are on the border
-	int x_min = p.x - int(patchSize / 2); // (x,y) -> (col,row)
-	int x_max = p.x + int(patchSize / 2);
-	int y_min = p.y - int(patchSize / 2);
-	int y_max = p.y + int(patchSize / 2);
-	if (x_max < data[0].cols && y_max < data[0].rows && y_min >= 0 && x_min >= 0) {
-		if (this->data.size() == 3) {
-			if (filtersize == 5 || filtersize == 7 || filtersize == 9 || filtersize == 11) {
-				hh = this->data[0](roi).clone();
-				vv = this->data[1](roi).clone();
-				hv = this->data[2](roi).clone();
-
-				RefinedLee* filter = new RefinedLee(filtersize, 1);
-				filter->filterFullPol(hh, vv, hv);
-				delete filter;
-			}
-			else {
-				hh = data[0](roi);
-				vv = data[1](roi);
-				hv = data[2](roi);
+cv::Mat Data::generateLabelMap(const std::vector<cv::Mat>& masks) {
+	size_t NUMOFCLASSES = masks.size();
+	int rows = masks[0].rows;
+	int cols = masks[0].cols;
+	cv::Mat labelMap = cv::Mat::zeros(rows, cols, CV_8UC1);
+	for (size_t cnt = 0; cnt < NUMOFCLASSES; cnt++) {
+		cv::Mat mask = masks[cnt];
+		for (int row = 0; row < rows; ++row) {
+			for (int col = 0; col < cols; ++col) {
+				if (labelMap.at<unsigned char>(row, col) == (unsigned char)(0)) {
+					if (mask.at<unsigned char>(row, col) > (unsigned char)(0)) {
+						labelMap.at<unsigned char>(row, col) = static_cast<unsigned char>(cnt + 1);		    //class of label
+					}
+				}
 			}
 		}
-		else if (data.size() == 2) {
-			vv = this->data[0](roi);
-			hv = this->data[1](roi);
-		}
 	}
-	else {
-		cout << "out of boundary, get sample at point (" << p.x << "," << p.y << "with patchSize " << patchSize << " failed " << endl;
-		hh = Mat();
-		vv = Mat();
-		hv = Mat();
-	}
+	return labelMap;
 }
-
-// calculate texture features on each channel
-Mat ober::caculTexture(const Mat& hh, const Mat& vv, const Mat& hv) {
-	vector<Mat> temp(3);
-	// intensity of HH channel
-	temp[0] = polsar::logTransform(polsar::getComplexAmpl(hh));
-
-	// intensity of VV channel
-	temp[1] = polsar::logTransform(polsar::getComplexAmpl(vv));
-
-	// intensity of HV channel
-	temp[2] = polsar::logTransform(polsar::getComplexAmpl(hv));
-
-	vector<Mat> output;
-	for (const auto& t : temp) {
-		Mat result;
-		hconcat(cvFeatures::GetGLCM(t, 8, GrayLevel::GRAY_8, 32), cvFeatures::GetLBP(t, 1, 8, 32), result);
-		output.push_back(result);
-	}
-
-	Mat result;
-	vconcat(output, result);
-	return result.reshape(1, 1);
-}
-
-// calculate color features on Pauli Color Coding
-Mat ober::caculColor(const Mat& hh, const Mat& vv, const Mat& hv) {
-	Mat colorImg = polsar::GetPauliColorImg(hh, vv, hv);
-	Mat result;
-	cv::hconcat(cvFeatures::GetMPEG7CSD(colorImg, 32), cvFeatures::GetMPEG7DCD(colorImg, 1), result);
-	return result;
-}
-
-// calculate morphological profile on each channel with diameter (1,3,5)
-Mat ober::caculMP(const Mat& hh, const Mat& vv, const Mat& hv) {
-	 Mat hh_log = polsar::logTransform(polsar::getComplexAmpl(hh));
-	 Mat vv_log = polsar::logTransform(polsar::getComplexAmpl(vv));
-	 Mat hv_log = polsar::logTransform(polsar::getComplexAmpl(hv));
-	 Mat result;
-	 result.push_back(cvFeatures::GetMP(hh_log, { 1,3,5 }));
-	 result.push_back(cvFeatures::GetMP(vv_log, { 1,3,5 }));
-	 result.push_back(cvFeatures::GetMP(hv_log, { 1,3,5 }));
-
-	 return result.reshape(1, 1);
-}
-
-// calculate target decomposition
-Mat ober::caculDecomp(const Mat& hh, const Mat& vv, const Mat& hv) {
-	Mat result;
-
-	vector<Mat> pauli;
-	vector<Mat> circ;
-	vector<Mat> lexi;
-	polsar::getPauliBasis(hh, vv, hv, pauli);
-	polsar::getCircBasis(hh, vv, hv, circ);
-	polsar::getLexiBasis(hh, vv, hv, lexi);
-	vector<Mat> covariance;
-	vector<Mat> coherency;
-	polsar::GetCoherencyT(pauli, coherency);
-	polsar::GetCovarianceC(lexi, covariance);
-
-	vector<Mat> decomposition;
-	polsar::GetCloudePottierDecomp(coherency, decomposition); //3  
-	polsar::GetFreemanDurdenDecomp(covariance, decomposition); //3  
-	polsar::GetKrogagerDecomp(circ, decomposition); // 3  
-	polsar::GetPauliDecomp(pauli, decomposition); // 3  
-	vconcat(decomposition, result);
-	return result.reshape(1, 1);
-}
-
-
-// get polsar features on elements of covariance matrix C and coherency matrix T
-Mat ober::caculCTelements(const Mat& hh, const Mat& vv, const Mat& hv) {
-	Mat result;
-	vector<Mat> temp;
-	polsar::GetCTelements(hh, vv, hv, temp);
-
-	for (auto& d : temp) {
-		result.push_back(d);
-	}
-
-	return result.reshape(1, 1);
-
-}
-
-
-// get polsar features on statistic of polsar parameters
-Mat ober::caculPolStatistic(const Mat& hh, const Mat& vv, const Mat& hv) {
-
-	vector<Mat> temp;
-	// intensity of HH channel
-	Mat hh_log = polsar::logTransform(polsar::getComplexAmpl(hh));
-	
-	// intensity of VV channel
-	Mat vv_log = polsar::logTransform(polsar::getComplexAmpl(vv));
-
-	// intensity of HV channel
-	Mat hv_log = polsar::logTransform(polsar::getComplexAmpl(hv));
-
-	// phase difference HH-VV
-	Mat phaseDiff = polsar::getPhaseDiff(hh, vv);
-
-	//statistic of Co-polarize ratio VV-HH
-	Mat coPolarize = vv_log - hh_log;
-
-	// Cross-polarized ratio HV-HH
-	Mat crossPolarize = hv_log - hh_log;
-
-	// polarized ratio HV-VV
-	Mat otherPolarize = hv_log - vv_log;
-
-	//Copolarization ratio
-	Mat copolarizationRatio = polsar::getCoPolarizationRatio(hh, vv, 3);
-
-	//deCopolarization ratio
-	Mat deCopolarizationRatio = polsar::getDePolarizationRatio(hh, vv, hv, 3);
-
-	// amplitude of HH-VV correlation
-	Mat amplitudeCorrelation = polsar::logTransform(polsar::calcuCoherenceOfPol(hh, vv, 3)) - hh_log - vv_log;
-
-	temp.push_back(hh_log);
-	temp.push_back(vv_log);
-	temp.push_back(hv_log);
-	temp.push_back(phaseDiff);
-	temp.push_back(coPolarize);
-	temp.push_back(crossPolarize);
-	temp.push_back(otherPolarize);
-	temp.push_back(copolarizationRatio);
-	temp.push_back(deCopolarizationRatio);
-	temp.push_back(amplitudeCorrelation);
-
-	vector<Mat> statistic;
-	for (const auto& t : temp) {
-		statistic.push_back(cvFeatures::GetStatistic(t));
-	}
-
-	Mat output;
-	cv::hconcat(statistic, output);
-	return output.reshape(1, 1);
-}
-
-
-void ober::writeLabelMapToHDF(const string& hdf5_fileName,  Mat& labelmap, std::map<unsigned char, std::string>& classnames) {
-
-	string parent_name = "/masks";
-	
-	if(!hdf5::checkExist(hdf5_fileName,parent_name, "/labelMap")){
-		// save labelMap to hdf5
-		hdf5::writeData(hdf5_fileName, parent_name, "/labelMap", labelmap);
-		cout << "write labelMap to hdf5 success " << endl;
-
-		// save the class name to hdf5
-		cv::Mat classlabels;
-		for (auto& name : classnames) {
-			classlabels.push_back(name.first);
-			hdf5::writeAttr(hdf5_fileName,to_string(name.first), name.second);
-		}
-		hdf5::writeAttr(hdf5_fileName, "classlabels", classlabels.reshape(1,1));
-	}
-
-	// save the intensity of HH,VV,HV to hdf5
-	if (!hdf5::checkExist(hdf5_fileName, parent_name, "/hh_intensity")) {
-		cout << "write the intensity of HH, VV, HV to hdf5 success " << endl;
-		Mat hh = polsar::logTransform(this->data[0]);
-		Mat vv = polsar::logTransform(this->data[1]);
-		Mat hv = polsar::logTransform(this->data[2]);
-		hdf5::writeData(hdf5_fileName, parent_name, "/hh_intensity", hh);
-		hdf5::writeData(hdf5_fileName, parent_name, "/vv_intensity", vv);
-		hdf5::writeData(hdf5_fileName, parent_name, "/hv_intensity", hv);
-	}
-}
-
-
-
-void ober::getSampleInfo(const string& hdf5_fileName,const Mat& pts, int patchSize) {
-	cout << "it has " << pts.rows << " samples with patchSize " << patchSize << endl;
-	map<int, int> count;
-	for (int row = 0; row < pts.rows; row++) {
-		int label = pts.at<int>(row, 0);
-		count[label]++;
-	}
-	cout << "class name (unknown, 0) means this patch cross class boarder or unclassified" << endl;
-	for (auto const& c : count)
-	{
-		int label = c.first;
-		int sampleNum = c.second;
-		string class_name;
-		hdf5::readAttr(hdf5_fileName, "label_" + to_string(label), class_name);
-		cout << class_name <<" : "<< to_string(label) <<" : number of samples: " << sampleNum << endl;
-	}
-}
-
 
 
 #ifdef VC
-void ober::loadData(string RATfolderPath) {
+void Data::loadData(string RATfolderPath) {
 	vector<string> fnames;
 	fnames.reserve(5);
 
@@ -466,7 +108,7 @@ void ober::loadData(string RATfolderPath) {
 /**************************************************************
 Function to load Oberpfaffenhofen PolSAR data file (RAT format)
 ***************************************************************/
-Size ober::loadRAT2(string fname, vector<Mat>& data, bool metaOnly) {
+Size Data::loadRAT2(string fname, vector<Mat>& data, bool metaOnly) {
 
 	bool verbose = false;
 
@@ -812,7 +454,7 @@ Size ober::loadRAT2(string fname, vector<Mat>& data, bool metaOnly) {
 Function to load Oberpfaffenhofen PolSAR data file (RAT format
 ***************************************************************/
 
-Size ober::loadRAT(string fname, vector<Mat>& data, bool metaOnly) {
+Size Data::loadRAT(string fname, vector<Mat>& data, bool metaOnly) {
 
 	bool verbose = true;
 
@@ -1157,7 +799,7 @@ Date: 23.05.2020
 ***************************************************************/
 #ifdef VC
 
-void ober::ReadClassLabels(string labelPath, vector<string>& labelNames, vector<Mat>& labelImages) {
+void Data::ReadClassLabels(string labelPath, vector<string>& labelNames, vector<Mat>& labelImages) {
 	fs::recursive_directory_iterator iter(labelPath);
 	fs::recursive_directory_iterator end;
 	while (iter != end) {
@@ -1198,7 +840,7 @@ void ober::ReadClassLabels(string labelPath, vector<string>& labelNames, vector<
 
 #ifdef GCC
 
-void ober::ReadClassLabels(string labelPath, vector<string>& labelNames, vector<Mat>& labelImages) {
+void Data::ReadClassLabels(string labelPath, vector<string>& labelNames, vector<Mat>& labelImages) {
 	struct dirent* entry;
 	DIR* dir = opendir(labelPath.c_str());
 
@@ -1233,7 +875,7 @@ void ober::ReadClassLabels(string labelPath, vector<string>& labelNames, vector<
 
 #endif //GCC
 
-void ober::getTileInfo(cv::Size size, unsigned border, unsigned& tile, vector<unsigned>& tileSize, vector<unsigned>& tileStart) {
+void Data::getTileInfo(cv::Size size, unsigned border, unsigned& tile, vector<unsigned>& tileSize, vector<unsigned>& tileStart) {
 
 	cout << "Size:" << size.width << "x" << size.height << endl;				//1390 x 6640; number of channels:3
 	tileSize[0] = size.width;
