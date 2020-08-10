@@ -60,10 +60,10 @@ int main(int argc, char** argv) {
     f->caculFeatures(ob->data,ob->LabelMap, ob->classNames);
     delete ob;
     
-    int trainPercent = 80, K = 20;
-    f->classifyFeaturesML( "opencvKNN", trainPercent, K);
+    int trainPercent = 80, K = 10;
+    f->classifyFeaturesML( "opencvFLANN", trainPercent, K);
     
-    f->generateColorMap("opencvKNN");
+    f->generateColorMap("opencvFLANN");
 
     int batchID = 0;
     f->featureDimReduction(batchID);
@@ -73,5 +73,6 @@ int main(int argc, char** argv) {
 
     return 0;
 }
+
 
 

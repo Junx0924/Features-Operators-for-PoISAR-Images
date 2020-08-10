@@ -1,5 +1,4 @@
 #include "KNN.hpp"
-#include "Utils.h"
 
 #include <iostream>
 #include <math.h>
