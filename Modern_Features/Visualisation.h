@@ -11,8 +11,8 @@ using namespace std;
 
 class Visual {
 public:
-	void CalculateMeanFeatureVector(vector<vector<float>>& featureVector, Mat& outPut);
-	void GenerateFeatureMap(vector<vector<float>>& m_featureVector);
+	void ContrastCorrection(vector<vector<float>>& featureVector, int cnt, Mat& outPut);
+	void GenerateFeatureMap(vector<vector<float>>& m_featureVector, string& imagePrefix);
 };
 
 #endif // !__VISUALISATION__

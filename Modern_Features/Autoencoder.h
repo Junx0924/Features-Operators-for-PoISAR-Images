@@ -7,13 +7,13 @@
 
 
 #include "Data.h"
+#include "Utils.h"
+#include "KNN.h"
+#include "Performance.h"
 
 using namespace std;
 using namespace cv;
 
-//referred from : https://github.com/turkdogan/autoencoder
-
-//cuda example in : https://github.com/lostleaf/cuda-autoencoder
 
 class Autoencoder {
 
@@ -23,13 +23,12 @@ public:
 	~Autoencoder();
 
 	void train(vector<float>& data, int& cnt, int& epoch);
-	void test(vector<float>& data);
 	void PrintVector(vector<float>& data);
 	void InitializeWts();
 	void InitializeBias();
-	void AutoencoderUserMenu(vector<vector<float>>& coherenceVec, Data& data);
 	void SaveParameters(vector<vector<float>>& encoderWt, vector<float>& outputBias);
-	void ReconstructOutput(vector<vector<float>>& encoderWt, vector<float>& outputBias, vector<float>& input, vector<float>& output);
+	void ReconstructOutput(vector<vector<float>>& encoderWt, vector<float>& outputBias, vector<float>& input,
+						   vector<float>& output);
 
 	vector<float> random(size_t elementSize);
 	float sigmoid(float value);
@@ -39,6 +38,13 @@ public:
 	vector<vector<float>> m_featureVector;
 	vector<vector<float>> m_outputVector;
 
+	/*Autoencoder operation menu*/
+	void AutoencoderUserMenu(vector<vector<float>>& coherenceVec, Data& data);
+	void CalculateClassification(bool isAE, Data& data, Utils& utils, int k,
+		Autoencoder& aeEncoder, KNN& knn, Performance& perform);
+	float CalculateDifferenceMatrix(Mat& logInMatrix, Mat& logReconsMatrix);
+	void CalculateCoherencyMatrix(Mat& d, int row, Mat& coherencyMat);
+	void CalculateLogMatrix(Mat& coherencyMat, Mat& logMatrix);
 private:
 	int m_dataDimension;				// #of output neurons = #of input neurons
 	int m_hiddenDimension;
