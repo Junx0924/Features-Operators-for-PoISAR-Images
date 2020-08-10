@@ -10,7 +10,7 @@ Dependencies: MPEG-7, T-SNE, HDF5 (installed by Anaconda)
 How-to-use:
 main.exe \<ratFolder\> \<labelFolder\> \<Hdf5File\> \<featureName\> \<filterSize\> \<patchSize\>
 
-\<filterSize\> choose from: 0,5,7,9,11
+\<filterSize\> choose from: 0,3,5,7,9,11
 
 \<featureName\> choose from: mp, decomp, color, texture, polstatistic, ctelements
 
