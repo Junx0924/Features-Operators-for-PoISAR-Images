@@ -1,8 +1,9 @@
-1 Handcrafted_Features:
-Calculate handcrafted features from polsar files, store them in HDF5 file, then apply KNN to classifiy these features.
-Generate the colormap of class results, and the classification overall accuracy.
-Reduce the dimension of random selected feature groups, then plot them by class in python
-Generate feature maps for each dimension of feature groups
+1 Handcrafted_Features:\
+1) Calculate handcrafted features from polsar files, store them in HDF5 file
+2) Apply KNN to classifiy these features.
+3) Generate the colormap of class results, and the classification overall accuracy.
+4) Reduce the dimension of random selected feature groups, then plot them by class in python
+5) Generate feature maps for each dimension of feature groups
 
 Dependencies: MPEG-7, T-SNE, HDF5 (installed by Anaconda)
 
