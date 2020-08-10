@@ -1,30 +1,39 @@
-Done:
-* Vanilla Autoencoder 
-* Feature-map Visualisation
-* use t-NSE to reduce feature dimensions
-* generate colormap of KNN class results
-* use HDF5 to store features and class results
-* Despeckling filter ( Refined Lee)
-* Target decomposition (Krogager, Pauli, Huynen, Freeman-Durden, Yamaguchi4, Cloude-Pottier)
-* MP ( opening-closing by reconstruction)
-* ELBP
-* GLCM ( contrast, entrophy, homogenity, energy)
-* MPEG_7 CSD, DCD ( used MPEG_7 libraries by Muhammet Bastan, www.cs.bilkent.edu.tr/~bilmdg/bilvideo-7/Software.html)
-* Local statistic ( min, max, mean, std, median) of polsar parameters
-* Data pipeline of Oberpfaffenhofen
-* KNN - right now tested with Obf datasets. To be extended to Sen12ms
+1) Handcrafted_Features:
 
+Dependencies:
+MPEG-7
+T-SNE
+HDF5 (installed by Anaconda)
 
+How-to-use:
+main.exe <ratFolder> <labelFolder> <Hdf5File> <featureName> <filterSize> <patchSize>
 
-Notes:
-KNNTest in KNN.h Function : classifies the test samples based on training data Arguments: Trained samples, labels and testing samples and labels
+ <filterSize> choose from: 0,5,7,9,11
 
-DivideTrainTestData in main.cpp Function: Splits the training and test data sets Arguments: Data samples
+<featureName> choose from: mp, decomp, color, texture, polstatistic, ctelements
 
-calculatePredictionAccuracy in Performance.cpp Function: Calculates accuracy percentage Arguments: Predicted and true labels
+mp stands for: morphological profile features
 
-Feature.cpp Contains feature extractors
+decomp stands for: target decomposition features
 
-Visualisation.cpp contains the functions for visualising the feature maps
+color stands for: MPEG-7 CSD,DCD and HSV features
 
-Autoencoder menu for various AE reading, calculation and classification
+texture stands for: GLCM and LBP features
+
+polstatistic stands for: the statistic of polsar parameters
+
+ctelements stands for: the 6 upcorner elements of covariance and coherence matrix
+
+Main function descriptions:
+ober::caculFeatures (hdf5file, feature_name, filterSize, patchSize, batchSize)
+	Generate handcrafted features and store to hdf5 file.
+
+Utils::classifyFeaturesML(hdf5file, feature_name, "opencvKNN", 80, filterSize, patchSize, batchSize);
+Classify the features and store the class results to hdf5 file.
+
+Utils::featureDimReduction(hdf5file, feature_name, filterSize, patchSize, batchSize);
+reduced the feature dimension by T-SNE
+ dump the first batch to txt file for plotting
+
+Utils::generateFeatureMap(hdf5file, feature_name, filterSize, patchSize, batchSize);
+Generate feature maps for each feature group
