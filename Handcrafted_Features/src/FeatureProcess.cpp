@@ -8,14 +8,14 @@
  *	 calulate features and save to hdf5 file
  *
  * Arguments:
- *	 std::vector<cv::Mat> data : complex mat with values [HH, VV, HV]
+ *	 std::vector<cv::Mat> data  -  complex mat with values [HH, VV, HV]
  *   cv::Mat LabelMap 
- *   std::map<unsigned char, std::string>classNames : record the class name of each label
+ *   std::map<unsigned char, std::string>classNames  - record the class name of each label
  *	 int numOfSamplePoint - the number of samples for one type of class, default 0 means to load all the possible sample points
  *   int stride : default 1
  *   unsigned char classlabel  -  choose which class to load, default 255 means to load all the classes
  *
- * Output:
+ * Output:    
  *   
 =====================================================================
 */
@@ -28,7 +28,7 @@ void FeatureProcess::caculFeatures(const std::vector<cv::Mat>& data, const cv::M
 
 	LoadSamplePoints(samplePoints,sampleLabel, LabelMap, classNames, this->patch_Size, numOfSamplePoint, stride, classlabel);
 
-	std::map<std::string, int> feature_type = { {"texture",1},{"color",2},{"ctelements",3},{"polstatistic",4},{"decomp",5},{"mp",6} };
+	std::map<std::string, int> feature_type = { {"Texture",1},{"Color",2},{"CT",3},{"PolStat",4},{"TD",5},{"MP",6} };
 	std::vector<std::string> dataset_name = { "/feature" ,"/groundtruth" };
 	std::string parent = "/" + this->featureName + "_filterSize_" + std::to_string(this->filter_Size) + "_patchSize_" + std::to_string(this->patch_Size);
 	std::cout << "start to calculate " << this->featureName << " with filterSize " << this->filter_Size << " , patchSize " << this->patch_Size << std::endl;
@@ -37,7 +37,6 @@ void FeatureProcess::caculFeatures(const std::vector<cv::Mat>& data, const cv::M
 	//make sure each class has right portion in each batch
 	std::vector<std::vector<int>> subInd;
 	DataProcess::splitVec(sampleLabel, subInd, this->batch_Size);
-
 
 	for (auto i = 0; i < subInd.size(); i++) {
 		std::vector<int> ind = subInd[i];
@@ -146,7 +145,7 @@ void FeatureProcess::generateColorMap(const std::string& classifier_type) {
 		std::cout << "classifier: " << classifier_type << std::endl;
 		std::cout << "generate " << this->featureName + "_classresult.png" << std::endl;
 
-		cv::imwrite(this->featureName + "_colormap.png", colorResultMap);
+		cv::imwrite(this->featureName + "_classresult.png", colorResultMap);
 		cv::imwrite("groundTruthMap.png", groundTruthMap);
 
 		std::map<unsigned char, std::string> className = this->getClassName(this->hdf5_file);
@@ -391,12 +390,15 @@ void FeatureProcess::classifyFeaturesML(const std::string classifier_type, int t
  *   load sample points
  *
  * Arguments:
- *   const int& patchSize 
+ *   const cv::Mat& LabelMap   
+ *   const std::map<unsigned char, std::string>& classNames   
+ *   const int& patchSize   
  *	 const int& numOfSamplePoint - the number of samples for one type of class, 0 means load all the possible sample points
  *	 int stride
  *   const unsigned char& classlabel - choose which class to load, 255 means to load all the classes
  * output:
- *
+ *   std::vector<cv::Point>& samplePoints - record the sample points
+ *   std::vector<unsigned char>& sampleLabel - record the labels
 =====================================================================
 */
 void FeatureProcess::LoadSamplePoints(std::vector<cv::Point>& samplePoints, std::vector<unsigned char>& sampleLabel, const cv::Mat& LabelMap, const std::map<unsigned char, std::string>& classNames, const int& patchSize, const int& numOfSamplePoint, int stride, const unsigned char& classlabel) {
@@ -439,12 +441,12 @@ void FeatureProcess::LoadSamplePoints(std::vector<cv::Point>& samplePoints, std:
  *   apply refined Lee filter to the sample mat if filtersize is not 0
  *
  * Arguments:
- *  const std::vector<cv::Mat>& data : complex mat with values [HH, VV, HV]
+ *  const std::vector<cv::Mat>& data - complex mat with values [HH, VV, HV]
  *  const Point& p - sample point
  *	int patchSize
- *	int filtersize - choose from {0, 5, 7, 9, 11}
+ *	int filtersize - choose from {0, 3, 5, 7, 9, 11}
  * output:
- * Mat& hh, Mat& vv, Mat& hv
+ *   Mat& hh, Mat& vv, Mat& hv
 =====================================================================
 */
 void FeatureProcess::getSample(const std::vector<cv::Mat>& data, const cv::Point& p, int patchSize, int filtersize, cv::Mat& hh, cv::Mat& vv, cv::Mat& hv) {

@@ -16,10 +16,10 @@
 class FeatureProcess {
 private:
 	std::string hdf5_file;
-	int filter_Size =0; //apply refined Lee despeckling filter, choose from (0, 5, 7, 9, 11)
+	int filter_Size =0; //apply refined Lee despeckling filter, choose from (0, 3, 5, 7, 9, 11)
 	int patch_Size =0;
 	int batch_Size = 5000;
-	std::string featureName; //choose from { "texture", "color", "ctelements","polstatistic","decomp", "mp"}
+	std::string featureName; //choose from {  "Texture" ,"Color", "CT", "PolStat", "TD", "MP" }
 	
 public:
 	// constructor

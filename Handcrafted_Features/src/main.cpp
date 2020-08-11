@@ -8,28 +8,21 @@ using namespace std;
 using namespace cv;
  
 
-string ctelements = "ctelements";
-string decomp = "decomp";
-string mp = "mp";
-string color = "color";
-string texture = "texture";
-string polstatistic = "polstatistic";
-std::vector<std::string> features = { color,texture,polstatistic,mp,decomp,ctelements };
-
+ 
  
 int main(int argc, char** argv) {
 
     if (argc < 7) {
         cout << "Usage: " << argv[0] << " <ratFolder> <labelFolder> <Hdf5File> <featureName> <filterSize> <patchSize> \n" << endl;
-        cout << "e.g. " << argv[0] << " E:\\Oberpfaffenhofen\\sar-data E:\\Oberpfaffenhofen\\label E:\\mp.h5  mp 0 10\n" << endl;
-        cout << "featureName choose from: " << mp << "," << decomp << "," << color << "," << texture << "," << polstatistic << "," << ctelements <<"\n"<< endl;
+        cout << "e.g. " << argv[0] << " E:\\Oberpfaffenhofen\\sar-data E:\\Oberpfaffenhofen\\label E:\\MP.h5  MP 0 10\n" << endl;
+        cout << "featureName choose from: " << "MP" << "," << "TD" << "," << "Color" << "," << "Texture" << "," << "PolStat" << "," << "CT" <<"\n"<< endl;
         cout << "filterSize choose from: " <<  "0,3,5,7,9,11 \n"  << endl;
-        cout << "mp stands for: " << "morphological profile features\n" << endl;
-        cout << "decomp stands for: " << "target decomposition features\n" << endl;
-        cout << "color stands for: " << "color features (MPEG-7 CSD,DCD)\n" << endl;
-        cout << "texture stands for: " << "texture features (GLCM,LBP)\n" << endl;
-        cout << "polstatistic stands for: " <<  "statistic of polsar parameters (median, min, max, mean, std)\n"  << endl;
-        cout << "ctelements stands for: " <<  "the 6 upcorner elements of covariance and coherence matrix\n"  << endl;
+        cout << "MP stands for: " << "morphological profile features\n" << endl;
+        cout << "TD stands for: " << "target decomposition features\n" << endl;
+        cout << "Color stands for: " << "color features (MPEG-7 CSD,DCD)\n" << endl;
+        cout << "Texture stands for: " << "texture features (GLCM,LBP)\n" << endl;
+        cout << "PolStat stands for: " <<  "statistic of polsar parameters (median, min, max, mean, std)\n"  << endl;
+        cout << "CT stands for: " <<  "the 6 upcorner elements of covariance and coherence matrix\n"  << endl;
         return 0;
     }
 
@@ -40,9 +33,9 @@ int main(int argc, char** argv) {
     int filterSize = stoi(argv[5]);  
     if ((filterSize != 5) && (filterSize != 7) && (filterSize != 9) && (filterSize != 11)) { filterSize = 0;}
     int patchSize = stoi(argv[6]);
-    if (feature_name == ctelements) { patchSize = 3; }
-    if (feature_name == decomp) { patchSize = 3; }
-    int batchSize = 3000;
+    if (feature_name == "CT") { patchSize = 3; }
+    if (feature_name == "TD") { patchSize = 3; }
+    int batchSize = 5000;
      
 
     cout << "Using following params:" << endl;
@@ -65,7 +58,7 @@ int main(int argc, char** argv) {
     
     f->generateColorMap("opencvFLANN");
 
-    int batchID = 0;
+    int batchID = 1;
     f->featureDimReduction(batchID);
 
     f->generateFeatureMap();
