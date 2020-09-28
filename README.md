@@ -1,5 +1,6 @@
 We implement and evaluate various feature operators for polarimetric synthetic aperture radar (PolSAR) image classification. First, we compute features on polarimetric, color, texture, morphological profiles, and modern feature operators based on deep learning. Next, we classify the extracted features using the k-nearest neighbor (KNN). Finally, we evaluate and compare the landuse classification performance of these features on the Oberpfaffenhofen E-SAR sensor (DLR, L-band) data.
-![alt text](https://github.com/Junx0924/Features-Operators-for-PoISAR-Images/blob/master/Flowchart.png?raw=true)
+<img src="https://github.com/Junx0924/Features-Operators-for-PoISAR-Images/blob/master/Flowchart.png" width="30%"></img> 
+
 1 Handcrafted_Features:
 1) Calculate handcrafted features from polsar files, store them in HDF5 file
 2) Apply KNN to classifiy these features.
